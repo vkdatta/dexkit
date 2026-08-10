@@ -356,7 +356,10 @@
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
   // Line-number gutter (optional; toggled by the "Show line numbers" setting).
-  // Renders 1..N alongside #noteTextarea and stays scroll-synced.
+  // The gutter mirrors the textarea's font-size, line-height, font-family and
+  // vertical padding so line-number rows land on the same y as text rows.
+  // A MutationObserver on #noteTextarea's `style` attribute reflows the gutter
+  // when fontsize.js writes a new fontSize (no `input` event fires for that).
   // ---------------------------------------------------------------------------
   let gutterRAF = null;
   function renderGutter() {
@@ -366,6 +369,13 @@
     if (gutterRAF) return; // coalesce back-to-back edits into one paint
     gutterRAF = requestAnimationFrame(() => {
       gutterRAF = null;
+      // Copy typography + vertical padding so gutter rows align with text rows.
+      const cs = getComputedStyle(nt);
+      g.style.fontFamily    = cs.fontFamily;
+      g.style.fontSize      = cs.fontSize;
+      g.style.lineHeight    = cs.lineHeight;
+      g.style.paddingTop    = cs.paddingTop;
+      g.style.paddingBottom = cs.paddingBottom;
       const lines = (nt.value || '').split('\n').length;
       let html = '';
       for (let i = 1; i <= lines; i++) html += i + '\n';
@@ -385,6 +395,13 @@
     window.addEventListener('dexNoteOpened', () => {
       if (document.body.classList.contains('show-line-numbers')) renderGutter();
     });
+    // React to inline style changes on the textarea (fontsize.js writes fontSize).
+    if (window.MutationObserver && !nt.__dexFontObs) {
+      nt.__dexFontObs = new MutationObserver(() => {
+        if (document.body.classList.contains('show-line-numbers')) renderGutter();
+      });
+      nt.__dexFontObs.observe(nt, { attributes: true, attributeFilter: ['style'] });
+    }
   }
 
   // ---------------------------------------------------------------------------
