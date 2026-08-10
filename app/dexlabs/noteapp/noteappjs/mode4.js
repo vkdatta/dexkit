@@ -525,6 +525,16 @@
   }
 
   function init() {
+    // Wipe stale diffusion state from any prior session so refreshes always
+    // start clean. Diffusion is opt-in per session via Settings → Enable
+    // Diffusion algorithm.
+    ['diffusionEnabled', 'diffusionActivePane', 'diffRawNoteId', 'diffMorphNoteId'].forEach(k => {
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    document.body.classList.remove('mode-diffusion', 'diff-fullscreen');
+    const bootBb = document.getElementById('diffBottombar');
+    if (bootBb) bootBb.style.display = 'none';
+
     wireEditor();
     ensureBottomBarWired();
     wireSyncScroll();
@@ -579,28 +589,11 @@
       }, true);
     }
 
-    // Diffusion persistence: if the last session left diffusion enabled and a
-    // valid raw binding, resume it. Otherwise start in note mode.
-    const wasEnabled = lsGet(LS.ENABLED) === '1';
-    const savedRaw   = lsGet(LS.RAW_ID);
-    if (wasEnabled && savedRaw && noteById(savedRaw)) {
-      // Silent restore — no notification.
-      state.rawNoteId   = savedRaw;
-      state.morphNoteId = (lsGet(LS.MORPH_ID) && noteById(lsGet(LS.MORPH_ID))) ? lsGet(LS.MORPH_ID) : null;
-      state.activePane  = (lsGet(LS.ACTIVE) === 'morph') ? 'morph' : 'raw';
-      state.enabled     = true;
-      document.body.classList.add('mode-diffusion');
-      const bb = $('diffBottombar');
-      if (bb) bb.style.display = 'flex';
-      seedShadow('raw');
-      seedShadow('morph');
-      const activeId = state.activePane === 'raw' ? state.rawNoteId : state.morphNoteId;
-      if (activeId && typeof openNote === 'function') openNote(activeId);
-      syncActiveShadowFromEditor();
-      showEditor();
-      paintBottomBar();
-      scheduleDiffusion(true);
-    }
+    // No auto-restore of diffusion mode across refreshes. Each fresh session
+    // starts in note mode; the user re-enables diffusion via Settings if
+    // wanted. Persisting the enabled flag caused the bottom bar to appear on
+    // the homepage during the reload race between showHomepage() and
+    // mode.js init.
   }
 
   function waitForNotesThenInit() {

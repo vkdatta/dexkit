@@ -1,7 +1,7 @@
 import { handlePattern, handlePatternSubmit } from "./pattern.js";
 import { handleAdd, handleAddSubmit } from "./add.js";
 import { handleCleanupText, handleCleanupSubmit } from "./cleanup.js";
-import { openfindbackdrop, createFindAndReplace } from "./find.js";
+import { openfindbackdrop, createFindAndReplace } from "./find1.js";
 
 window.handlePattern = handlePattern;
 window.handlePatternSubmit = handlePatternSubmit;
