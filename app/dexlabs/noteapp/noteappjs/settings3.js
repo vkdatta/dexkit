@@ -32,25 +32,23 @@ export function createSettingsManager() {
     DIFFUSION:'diffusionEnabled'
   };
 
-  // All CM5 themes shipped at cdnjs. Ordered alphabetically within light/dark
-  // groups so the picker feels navigable. Each theme value is the string CM
-  // expects in `cm.setOption('theme', ...)`; the CSS filename is <value>.min.css
-  // *except* for "solarized dark" / "solarized light" which both use solarized.
-  const CM_THEMES = [
-    { group: 'Dark', values: [
-      '3024-night','abbott','abcdef','ambiance','ayu-dark','ayu-mirage','base16-dark',
-      'bespin','blackboard','cobalt','colorforth','darcula','dracula','duotone-dark',
-      'erlang-dark','gruvbox-dark','hopscotch','icecoder','isotope','juejin','lesser-dark',
-      'liquibyte','lucario','material','material-darker','material-ocean','material-palenight',
-      'mbo','midnight','monokai','moxer','night','nord','oceanic-next','panda-syntax',
-      'paraiso-dark','pastel-on-dark','railscasts','rubyblue','seti','shadowfox',
-      'solarized dark','the-matrix','tomorrow-night-bright','tomorrow-night-eighties',
-      'twilight','vibrant-ink','xq-dark','yonce','zenburn'
-    ]},
-    { group: 'Light', values: [
-      '3024-day','base16-light','duotone-light','eclipse','elegant','idea','mdn-like',
-      'neat','neo','paraiso-light','solarized light','ssms','ttcn','xq-light','yeti'
-    ]}
+  // All CM5 themes shipped at cdnjs, split by tone. The tone drives (a) the
+  // grouped picker display and (b) the editor/gutter background overrides
+  // — dark themes force #000/#272727, light themes force #cacaca/#ffffff
+  // (see index.html [data-cm-tone] rules).
+  const DARK_THEMES = [
+    '3024-night','abbott','abcdef','ambiance','ayu-dark','ayu-mirage','base16-dark',
+    'bespin','blackboard','cobalt','colorforth','darcula','dracula','duotone-dark',
+    'erlang-dark','gruvbox-dark','hopscotch','icecoder','isotope','juejin','lesser-dark',
+    'liquibyte','lucario','material','material-darker','material-ocean','material-palenight',
+    'mbo','midnight','monokai','moxer','night','nord','oceanic-next','panda-syntax',
+    'paraiso-dark','pastel-on-dark','railscasts','rubyblue','seti','shadowfox',
+    'solarized dark','the-matrix','tomorrow-night-bright','tomorrow-night-eighties',
+    'twilight','vibrant-ink','xq-dark','yonce','zenburn'
+  ];
+  const LIGHT_THEMES = [
+    '3024-day','base16-light','duotone-light','eclipse','elegant','idea','mdn-like',
+    'neat','neo','paraiso-light','solarized light','ssms','ttcn','xq-light','yeti'
   ];
   const DEFAULT_CM_DARK  = 'dracula';
   const DEFAULT_CM_LIGHT = 'eclipse';
@@ -83,11 +81,8 @@ export function createSettingsManager() {
     .settings-toggle::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#8a8a94; transition:transform .18s ease, background .18s ease; }
     .settings-item.on .settings-toggle { background:#9ab0ff; border-color:#9ab0ff; }
     .settings-item.on .settings-toggle::after { transform:translateX(20px); background:#0c0c0e; }
-    .settings-picker { display:flex; flex-direction:column; padding:16px; background:#0e0e12; border:1px solid #1e1e26; border-radius:10px; margin-bottom:10px; }
-    .settings-picker-label { font-size:14px; color:#e8e8ec; margin-bottom:4px; }
-    .settings-picker-desc { font-size:12px; color:#7a7a82; line-height:1.5; margin-bottom:10px; }
-    .settings-picker select { background:#171720; color:#e8e8ec; border:1px solid #2a2a34; padding:9px 10px; font-family:inherit; font-size:13px; border-radius:8px; width:100%; -webkit-appearance:none; appearance:none; }
-    .settings-picker select:focus { outline:2px solid #9ab0ff; outline-offset:1px; }
+    .settings-row-value { font-size:12px; color:#9ab0ff; white-space:nowrap; margin-left:16px; font-family:'Source Code Pro', monospace; }
+    .settings-row-chevron { color:#55555c; font-size:20px; line-height:1; margin-left:8px; }
     .settings-footnote { font-size:11px; color:#55555c; text-align:center; margin-top:16px; }
   `;
   document.head.appendChild(style);
@@ -96,14 +91,9 @@ export function createSettingsManager() {
   overlay.id = 'settingsoverlay';
   overlay.style.display = 'none';
 
-  // Build CM theme <option>s.
-  let themeOptions = '';
-  CM_THEMES.forEach(g => {
-    themeOptions += `<optgroup label="${g.group}">`;
-    g.values.forEach(v => { themeOptions += `<option value="${v}">${v}</option>`; });
-    themeOptions += `</optgroup>`;
-  });
-
+  // Build the overlay markup. The CM theme picker is a clickable row that
+  // opens the app's own modal (showModal) — matches the site's styling
+  // instead of the browser's native <select>.
   overlay.innerHTML = `
     <div id="settingsheader">
       <div id="settingstitle">Settings</div>
@@ -146,10 +136,13 @@ export function createSettingsManager() {
           <div class="settings-toggle" aria-hidden="true"></div>
         </div>
 
-        <div class="settings-picker">
-          <div class="settings-picker-label">Editor theme</div>
-          <div class="settings-picker-desc">CodeMirror colour scheme for syntax highlighting. Editor background stays your app primary regardless of choice.</div>
-          <select id="cmThemePicker">${themeOptions}</select>
+        <div class="settings-item" data-key="CMTHEME" id="cmThemeRow">
+          <div class="settings-item-text">
+            <div class="settings-item-label">Editor theme</div>
+            <div class="settings-item-desc">CodeMirror colour scheme for syntax highlighting. Editor background stays uniform (#000 for dark themes, #cacaca for light).</div>
+          </div>
+          <div class="settings-row-value" id="cmThemeCurrent">dracula</div>
+          <div class="settings-row-chevron">›</div>
         </div>
       </div>
 
@@ -185,20 +178,24 @@ export function createSettingsManager() {
   function paint() {
     overlay.querySelectorAll('.settings-item').forEach(item => {
       const key = item.getAttribute('data-key');
+      // Skip the theme row — its toggle style doesn't apply.
+      if (key === 'CMTHEME') return;
       let on = false;
       if (key === 'THEME') on = currentAppTheme() === 'light';
       else on = lsBool(LS[key]);
       item.classList.toggle('on', on);
     });
-    const sel = overlay.querySelector('#cmThemePicker');
-    if (sel) sel.value = currentCmTheme();
+    const cur = overlay.querySelector('#cmThemeCurrent');
+    if (cur) cur.textContent = currentCmTheme();
   }
 
-  // Toggle handlers.
+  // Toggle / picker handlers.
   overlay.addEventListener('click', (e) => {
     const item = e.target.closest('.settings-item');
     if (!item) return;
     const key = item.getAttribute('data-key');
+
+    if (key === 'CMTHEME') { openThemeModal(); return; }
 
     if (key === 'DIFFUSION') {
       const cur = lsBool(LS.DIFFUSION);
@@ -225,14 +222,64 @@ export function createSettingsManager() {
     paint();
   });
 
-  // CM theme picker.
-  const themeSel = overlay.querySelector('#cmThemePicker');
-  if (themeSel) {
-    themeSel.addEventListener('change', () => {
-      const v = themeSel.value;
-      localStorage.setItem(LS.CMTHEME, v);
-      fire('dexSettingsChanged', { key: LS.CMTHEME, value: v });
-    });
+  // ── Editor-theme modal picker ─────────────────────────────────────────────
+  // Uses the app's own showModal utility (loaded via modal4.js). We hide the
+  // settings overlay while the modal is open to avoid stacking-context glitches,
+  // and restore it when the modal resolves.
+  window.__selectCmTheme = function (name) {
+    if (typeof window.closeModal === 'function') {
+      window.closeModal({ action: 'submit', theme: name });
+    }
+  };
+  async function openThemeModal() {
+    if (typeof window.showModal !== 'function') {
+      console.warn('[settings] showModal not available; cannot open theme picker');
+      return;
+    }
+    const cur = currentCmTheme();
+    const esc = s => String(s).replace(/'/g, "\\'");
+    const buildRows = (arr) => arr.map(t => {
+      const active = (t === cur);
+      return `<button class="theme-pick${active ? ' theme-pick-active' : ''}" onclick="__selectCmTheme('${esc(t)}')">${t}</button>`;
+    }).join('');
+    const bodyHtml = `
+      <style>
+        .theme-pick { display:block; width:100%; text-align:left; padding:10px 12px;
+          background:transparent; color:var(--color, #e8e8ec);
+          border:1px solid var(--border, #2a2a34); border-radius:8px;
+          font-family:'Source Code Pro', monospace; font-size:13px;
+          cursor:pointer; margin-bottom:6px; }
+        .theme-pick:hover { background:var(--matte, #14141a); }
+        .theme-pick-active { background:#1f2a3a; color:#fff; border-color:#3854a0; }
+        .theme-group-title { font-size:11px; text-transform:uppercase;
+          letter-spacing:1.5px; color:#888; margin:8px 0 6px; padding-left:2px; }
+      </style>
+      <div style="display:flex;flex-direction:column;max-height:60vh;overflow:auto;padding-right:4px;">
+        <div class="theme-group-title">Dark</div>
+        ${buildRows(DARK_THEMES)}
+        <div class="theme-group-title" style="margin-top:12px;">Light</div>
+        ${buildRows(LIGHT_THEMES)}
+      </div>
+    `;
+    // Hide settings overlay while the modal is open — prevents same-z-index
+    // stacking issues where the settings overlay could otherwise cover the modal.
+    const prevDisplay = overlay.style.display;
+    overlay.style.display = 'none';
+    let r = null;
+    try {
+      r = await window.showModal({
+        header: `<div class="modal-title">Editor theme</div>`,
+        body: bodyHtml,
+        footer: `<button onclick="closeModal()">Cancel</button>`,
+        html: true
+      });
+    } finally {
+      overlay.style.display = prevDisplay;
+    }
+    if (!r || r.action !== 'submit' || !r.theme) return;
+    localStorage.setItem(LS.CMTHEME, r.theme);
+    fire('dexSettingsChanged', { key: LS.CMTHEME, value: r.theme });
+    paint();
   }
 
   return function openSettingsManager() {

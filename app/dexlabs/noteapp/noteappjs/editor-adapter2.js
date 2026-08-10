@@ -49,6 +49,20 @@
     // "solarized dark" and "solarized light" both come from solarized.min.css.
     const THEME_BASE = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/";
     const loadedThemes = new Set(['dracula']); // dracula ships in the initial <link>
+
+    // Every CM5 theme classified as "light" — used to set data-cm-tone on
+    // <html> so the editor + gutter backgrounds pick the right fixed colour
+    // (dark tone → #000/#272727, light tone → #cacaca/#ffffff). Any theme
+    // not in this set is treated as dark.
+    const LIGHT_CM_THEMES = new Set([
+      '3024-day','base16-light','duotone-light','eclipse','elegant','idea','mdn-like',
+      'neat','neo','paraiso-light','solarized light','ssms','ttcn','xq-light','yeti'
+    ]);
+    function applyCmToneAttr(themeName) {
+      const tone = LIGHT_CM_THEMES.has(String(themeName || '').trim()) ? 'light' : 'dark';
+      document.documentElement.dataset.cmTone = tone;
+    }
+
     function cssFileForTheme(name) {
       const n = String(name || '').trim();
       if (n === 'solarized dark' || n === 'solarized light') return 'solarized.min.css';
@@ -71,6 +85,7 @@
     }
     const initialTheme = pickInitialCmTheme();
     if (initialTheme && initialTheme !== 'dracula') ensureThemeLoaded(initialTheme);
+    applyCmToneAttr(initialTheme);
 
     // Wrap and line-numbers persisted state.
     const initialWrap = localStorage.getItem('wrapText') === '1';
@@ -279,6 +294,7 @@
         if (!name) return;
         ensureThemeLoaded(name);
         cm.setOption('theme', name);
+        applyCmToneAttr(name);
       },
 
       // ── Per-note history ──
