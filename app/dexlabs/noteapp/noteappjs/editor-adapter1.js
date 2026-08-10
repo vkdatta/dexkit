@@ -43,13 +43,46 @@
       CodeMirror.modeURL = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/%N/%N.min.js";
     }
 
+    // ── CM theme handling ────────────────────────────────────────────────────
+    // Themes ship as separate CSS files at CDN; we lazy-load a theme's stylesheet
+    // the first time it's requested, then call cm.setOption('theme', ...).
+    // "solarized dark" and "solarized light" both come from solarized.min.css.
+    const THEME_BASE = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/";
+    const loadedThemes = new Set(['dracula']); // dracula ships in the initial <link>
+    function cssFileForTheme(name) {
+      const n = String(name || '').trim();
+      if (n === 'solarized dark' || n === 'solarized light') return 'solarized.min.css';
+      return n.replace(/\s+/g, '-') + '.min.css';
+    }
+    function ensureThemeLoaded(name) {
+      const key = String(name || '').trim();
+      if (!key || loadedThemes.has(key)) return;
+      const href = THEME_BASE + cssFileForTheme(key);
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+      loadedThemes.add(key);
+    }
+    function pickInitialCmTheme() {
+      const explicit = localStorage.getItem('cmTheme');
+      if (explicit) return explicit;
+      return localStorage.getItem('appTheme') === 'light' ? 'eclipse' : 'dracula';
+    }
+    const initialTheme = pickInitialCmTheme();
+    if (initialTheme && initialTheme !== 'dracula') ensureThemeLoaded(initialTheme);
+
+    // Wrap and line-numbers persisted state.
+    const initialWrap = localStorage.getItem('wrapText') === '1';
+    const initialLineNumbers = localStorage.getItem('showLineNumbers') === '1';
+
     // Mount CodeMirror using fromTextArea — this hides #noteTextarea via
     // display:none and inserts a .CodeMirror wrapper right after it.
     const cm = CodeMirror.fromTextArea(nt, {
-      theme: 'dracula',
+      theme: initialTheme,
       mode: 'text/plain',
-      lineNumbers: localStorage.getItem('showLineNumbers') === '1',
-      lineWrapping: false,       // wrap OFF per your spec
+      lineNumbers: initialLineNumbers,
+      lineWrapping: initialWrap,
       matchBrackets: true,
       styleActiveLine: true,
       indentUnit: 4,
@@ -241,6 +274,12 @@
       setLineNumbers: (on) => cm.setOption('lineNumbers', !!on),
 
       setWrap: (on) => cm.setOption('lineWrapping', !!on),
+
+      setTheme: function (name) {
+        if (!name) return;
+        ensureThemeLoaded(name);
+        cm.setOption('theme', name);
+      },
 
       // ── Per-note history ──
       saveHistoryFor: (noteId) => {

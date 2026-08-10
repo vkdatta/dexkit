@@ -73,11 +73,76 @@
   function scheduleDiffusion(immediate) {
     if (!state.enabled) return;
     if (typeof diffusion !== 'function') return;
-    if (immediate) { clearTimeout(diffusionTimer); diffusionTimer = null; diffusion(); return; }
+    if (immediate) {
+      clearTimeout(diffusionTimer); diffusionTimer = null;
+      try { diffusion(); } catch (e) {}
+      highlightVisibleDiffView();
+      return;
+    }
     clearTimeout(diffusionTimer);
-    diffusionTimer = setTimeout(() => { diffusionTimer = null; try { diffusion(); } catch (e) {} }, 120);
+    diffusionTimer = setTimeout(() => {
+      diffusionTimer = null;
+      try { diffusion(); } catch (e) {}
+      highlightVisibleDiffView();
+    }, 120);
   }
   window.scheduleDiffusion = scheduleDiffusion;
+
+  // ---------------------------------------------------------------------------
+  // Diff-cell syntax highlighting (v2). CM's runMode addon tokenises text
+  // outside of a full editor instance; we post-process each .diff-content-cell
+  // that doesn't already contain inline diff spans (.tok-add / .tok-del)
+  // and rewrite it with token <span>s. Cells with inline diff markers are
+  // left alone — they retain diff colour but skip syntax colour.
+  //
+  // Which mode? Whichever CM mode is currently active (i.e. the raw-bound
+  // note's extension governs). If syntax highlighting is disabled in
+  // Settings, this is a no-op.
+  // ---------------------------------------------------------------------------
+  function highlightVisibleDiffView() {
+    if (typeof CodeMirror === 'undefined' || typeof CodeMirror.runMode !== 'function') return;
+    if (localStorage.getItem('prismEnabled') !== '1') return;
+    if (!state.activeDiffView) return;
+    if (state.activeDiffView !== 'diffDiff1View' && state.activeDiffView !== 'diffDiff2View') return;
+    const view = $(state.activeDiffView);
+    if (!view) return;
+
+    // Tag the container with the current CM theme's class so runMode's
+    // cm-keyword / cm-string / cm-number ... spans pick up the theme's colours.
+    if (window.dexEditor && window.dexEditor.cm) {
+      const theme = window.dexEditor.cm.getOption('theme') || 'dracula';
+      // Strip any prior cm-s-* classes, then add the current one.
+      view.classList.forEach(c => { if (c.startsWith('cm-s-')) view.classList.remove(c); });
+      view.classList.add('cm-s-' + theme.replace(/\s+/g, '-'));
+    }
+
+    // Prefer raw-bound note's extension; fall back to morph.
+    const rawNote   = state.rawNoteId   ? noteById(state.rawNoteId)   : null;
+    const morphNote = state.morphNoteId ? noteById(state.morphNoteId) : null;
+    const ext = (rawNote && rawNote.extension) || (morphNote && morphNote.extension) || 'txt';
+    let mode = 'text/plain';
+    if (typeof CodeMirror.findModeByExtension === 'function') {
+      const info = CodeMirror.findModeByExtension(String(ext).replace(/^\./, '').toLowerCase());
+      if (info) {
+        mode = info.mime || info.mode;
+        if (info.mode && info.mode !== 'null' && typeof CodeMirror.autoLoadMode === 'function' && window.dexEditor && window.dexEditor.cm) {
+          try { CodeMirror.autoLoadMode(window.dexEditor.cm, info.mode); } catch (e) {}
+        }
+      }
+    }
+    if (mode === 'null' || mode === 'text/plain') return;
+    const cells = view.querySelectorAll('.diff-content-cell');
+    cells.forEach(cell => {
+      if (cell.querySelector('.tok-add, .tok-del')) return; // inline diff spans present — skip
+      const text = cell.textContent;
+      if (!text) return;
+      if (cell.dataset.dexHl === text + '::' + mode) return;
+      cell.textContent = '';
+      try { CodeMirror.runMode(text, mode, cell); } catch (e) { cell.textContent = text; }
+      cell.dataset.dexHl = text + '::' + mode;
+    });
+  }
+  window.highlightVisibleDiffView = highlightVisibleDiffView;
 
   // Wire the editor's input event ONCE. On every keystroke in diffusion mode
   // we push the value into the active pane's shadow and re-run diffusion.
@@ -344,7 +409,7 @@
       // Re-clicking the already-active pane triggers the picker (rebind).
       const alreadyActive = !state.activeDiffView && state.activePane === target;
       if (alreadyActive) { openPicker(target); return; }
-      // Leaving a diff view for the editor → drop browser fullscreen.
+      // Only Raw / Morph exit browser fullscreen — Options keeps it (v2).
       exitBrowserFullscreen();
       switchPane(target);
       applyScrollTo(target);
@@ -354,9 +419,10 @@
     showDiffView(target);
     paintBottomBar();
     applyScrollTo(target);
-    // Browser fullscreen is reserved for the two diff panes (per spec).
-    if (target === 'diffDiff1View' || target === 'diffDiff2View') requestBrowserFullscreen();
-    else exitBrowserFullscreen();
+    // Browser fullscreen is entered when navigating to ANY of the three diff
+    // views and persists across the diff1↔diff2↔options triad (v2). Only a
+    // click on Raw or Morph (above) exits it.
+    requestBrowserFullscreen();
   }
 
   // ---------------------------------------------------------------------------
@@ -550,23 +616,56 @@
       }
     });
 
-    // Apply persisted checkbox settings (line numbers + prism).
+    // Apply persisted settings (line numbers, syntax highlighting, wrap, app theme).
     const wantLineNumbers = localStorage.getItem(LS.LINENUM) === '1';
     applyLineNumberState(wantLineNumbers);
 
     const prismEnabled = localStorage.getItem('prismEnabled') === '1';
     document.body.classList.toggle('prism-off', !prismEnabled);
 
+    // App theme (dark/light) — dark is the default; light is opt-in.
+    const appThemeInit = localStorage.getItem('appTheme') === 'light' ? 'light' : 'dark';
+    document.body.dataset.theme = appThemeInit;
+
     // React to Settings-modal changes without a page reload.
     window.addEventListener('dexSettingsChanged', (e) => {
       if (!e || !e.detail) return;
-      if (e.detail.key === LS.LINENUM) {
+      const k = e.detail.key;
+      if (k === LS.LINENUM) {
         applyLineNumberState(!!e.detail.value);
       }
-      if (e.detail.key === 'prismEnabled') {
+      if (k === 'prismEnabled') {
         document.body.classList.toggle('prism-off', !e.detail.value);
         if (window.dexEditor && typeof window.dexEditor.applyLanguageForCurrentNote === 'function') {
           try { window.dexEditor.applyLanguageForCurrentNote(); } catch (err) {}
+        }
+        // Re-highlight (or clear highlight from) any currently-visible diff cells.
+        if (!e.detail.value && state.activeDiffView) {
+          const view = $(state.activeDiffView);
+          if (view) view.querySelectorAll('.diff-content-cell').forEach(c => { delete c.dataset.dexHl; });
+          // A re-render will happen on next scheduleDiffusion; force one now.
+          try { if (typeof diffusion === 'function') diffusion(); } catch (err) {}
+        } else {
+          highlightVisibleDiffView();
+        }
+      }
+      if (k === 'wrapText') {
+        if (window.dexEditor && typeof window.dexEditor.setWrap === 'function') {
+          window.dexEditor.setWrap(!!e.detail.value);
+        }
+      }
+      if (k === 'cmTheme') {
+        if (window.dexEditor && typeof window.dexEditor.setTheme === 'function') {
+          window.dexEditor.setTheme(e.detail.value);
+        }
+      }
+      if (k === 'appTheme') {
+        const next = e.detail.value === 'light' ? 'light' : 'dark';
+        document.body.dataset.theme = next;
+        // If the user hasn't picked a CM theme, follow the app theme's default.
+        const cmExplicit = localStorage.getItem('cmTheme');
+        if (!cmExplicit && window.dexEditor && typeof window.dexEditor.setTheme === 'function') {
+          window.dexEditor.setTheme(next === 'light' ? 'eclipse' : 'dracula');
         }
       }
     });
