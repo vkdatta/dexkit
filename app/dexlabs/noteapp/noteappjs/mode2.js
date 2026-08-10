@@ -297,6 +297,7 @@
     lsSet(LS.MORPH_ID, '');
 
     document.body.classList.remove('mode-diffusion', 'diff-fullscreen');
+    exitBrowserFullscreen();
     const bb = $('diffBottombar');
     if (bb) bb.style.display = 'none';
     hidePickBanner();
@@ -343,12 +344,19 @@
       // Re-clicking the already-active pane triggers the picker (rebind).
       const alreadyActive = !state.activeDiffView && state.activePane === target;
       if (alreadyActive) { openPicker(target); return; }
+      // Leaving a diff view for the editor → drop browser fullscreen.
+      exitBrowserFullscreen();
       switchPane(target);
+      applyScrollTo(target);
       return;
     }
     // diff1 / diff2 / options — fullscreen the diff view; hide topbar + editor.
     showDiffView(target);
     paintBottomBar();
+    applyScrollTo(target);
+    // Browser fullscreen is reserved for the two diff panes (per spec).
+    if (target === 'diffDiff1View' || target === 'diffDiff2View') requestBrowserFullscreen();
+    else exitBrowserFullscreen();
   }
 
   // ---------------------------------------------------------------------------
@@ -356,17 +364,28 @@
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
   // Line-number gutter (optional; toggled by the "Show line numbers" setting).
-  // The gutter mirrors the textarea's font-size, line-height, font-family and
-  // vertical padding so line-number rows land on the same y as text rows.
-  // A MutationObserver on #noteTextarea's `style` attribute reflows the gutter
-  // when fontsize.js writes a new fontSize (no `input` event fires for that).
+  //
+  // Render approach mirrors the original diff-app gutter (`i + '<br>'` via
+  // innerHTML) — it produces the browser's own inline line-box positioning
+  // which lines up exactly with a textarea's own line boxes when font-size,
+  // line-height and padding match. `<div><br>` and textareas both wrap at
+  // font-size × line-height per row, so alignment stays stable during scroll.
+  //
+  // The gutter's WIDTH scales with the current font-size and the digit count
+  // of the largest visible line number, exposed as --gutter-width so the CSS
+  // can shift the textarea + backdrops accordingly.
+  //
+  // When line numbers are on we also force the textarea to `wrap="off"` so
+  // long lines don't produce more visual rows than logical lines — otherwise
+  // the gutter shows one number per logical line but the textarea occupies
+  // several visual rows for it and the alignment drifts.
   // ---------------------------------------------------------------------------
   let gutterRAF = null;
   function renderGutter() {
     const nt = $('noteTextarea');
     const g  = $('noteLineGutter');
     if (!nt || !g) return;
-    if (gutterRAF) return; // coalesce back-to-back edits into one paint
+    if (gutterRAF) return;
     gutterRAF = requestAnimationFrame(() => {
       gutterRAF = null;
       // Copy typography + vertical padding so gutter rows align with text rows.
@@ -377,11 +396,28 @@
       g.style.paddingTop    = cs.paddingTop;
       g.style.paddingBottom = cs.paddingBottom;
       const lines = (nt.value || '').split('\n').length;
+      // Dynamic width: (digits × approximate monospace char-width) + horiz padding.
+      const digits = Math.max(2, String(lines).length);
+      const fontPx = parseFloat(cs.fontSize) || 14;
+      const width  = Math.ceil(digits * fontPx * 0.62 + 22);
+      g.style.width = width + 'px';
+      document.documentElement.style.setProperty('--gutter-width', width + 'px');
+      // Render numbers using <br> for browser-native inline line boxes.
       let html = '';
-      for (let i = 1; i <= lines; i++) html += i + '\n';
-      g.textContent = html;
+      for (let i = 1; i <= lines; i++) html += i + '<br>';
+      g.innerHTML = html;
       g.scrollTop = nt.scrollTop;
     });
+  }
+  function applyLineNumberState(on) {
+    document.body.classList.toggle('show-line-numbers', !!on);
+    const nt = $('noteTextarea');
+    if (nt) {
+      // wrap="off" (hard-off) so long lines don't wrap into extra visual rows.
+      // "soft" restores the default note-app behaviour.
+      nt.setAttribute('wrap', on ? 'off' : 'soft');
+    }
+    if (on) renderGutter();
   }
   function wireLineNumberGutter() {
     const nt = $('noteTextarea');
@@ -402,6 +438,69 @@
       });
       nt.__dexFontObs.observe(nt, { attributes: true, attributeFilter: ['style'] });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Predictive sync-scroll — tracks the current scroll position across the
+  // editor (raw/morph) and the two diff views, so switching Views via the
+  // bottom bar lands you at the same scroll position on the other side.
+  // Respects the Options-view checkbox #diffOptSyncScroll.
+  // ---------------------------------------------------------------------------
+  const scroll = { top: 0, left: 0, syncing: false };
+  function scrollElFor(target) {
+    if (target === 'raw' || target === 'morph') return $('noteTextarea');
+    if (target === 'diffDiff1View') return $('diffDiff1Scroll');
+    if (target === 'diffDiff2View') return $('diffDiff2Scroll');
+    return null;
+  }
+  function syncEnabled() {
+    const cb = $('diffOptSyncScroll');
+    return !!(cb && cb.checked);
+  }
+  function wireSyncScroll() {
+    ['noteTextarea', 'diffDiff1Scroll', 'diffDiff2Scroll'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.__dexScrollWired) return;
+      el.__dexScrollWired = true;
+      el.addEventListener('scroll', () => {
+        if (scroll.syncing) return;
+        if (!syncEnabled()) return;
+        scroll.top  = el.scrollTop;
+        scroll.left = el.scrollLeft;
+      });
+    });
+  }
+  function applyScrollTo(target) {
+    if (!syncEnabled()) return;
+    const el = scrollElFor(target);
+    if (!el) return;
+    scroll.syncing = true;
+    requestAnimationFrame(() => {
+      el.scrollTop  = scroll.top;
+      el.scrollLeft = scroll.left;
+      requestAnimationFrame(() => { scroll.syncing = false; });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Browser fullscreen (requestFullscreen) — engaged for Diff 1 and Diff 2 only.
+  // Raw / Morph / Options fall back to the app-level fullscreen (topbar hidden,
+  // #diffViewport pinned). Fullscreen requests must be inside a user-gesture
+  // handler; handleBottomClick() below satisfies that.
+  // ---------------------------------------------------------------------------
+  function isBrowserFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+  function requestBrowserFullscreen() {
+    if (isBrowserFullscreen()) return;
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (req) try { req.call(el); } catch (e) {}
+  }
+  function exitBrowserFullscreen() {
+    if (!isBrowserFullscreen()) return;
+    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if (ex) try { ex.call(document); } catch (e) {}
   }
 
   // ---------------------------------------------------------------------------
@@ -475,12 +574,12 @@
     wireEditor();
     ensureBottomBarWired();
     wireLineNumberGutter();
+    wireSyncScroll();
     wireSetupWrappers();
 
     // Apply persisted checkbox settings (line numbers + prism).
     const wantLineNumbers = localStorage.getItem(LS.LINENUM) === '1';
-    document.body.classList.toggle('show-line-numbers', wantLineNumbers);
-    if (wantLineNumbers) renderGutter();
+    applyLineNumberState(wantLineNumbers);
 
     const prismDisabled = localStorage.getItem('prismEnabled') !== '1';
     document.body.classList.toggle('prism-off', prismDisabled);
@@ -489,12 +588,10 @@
     window.addEventListener('dexSettingsChanged', (e) => {
       if (!e || !e.detail) return;
       if (e.detail.key === LS.LINENUM) {
-        document.body.classList.toggle('show-line-numbers', !!e.detail.value);
-        if (e.detail.value) renderGutter();
+        applyLineNumberState(!!e.detail.value);
       }
       if (e.detail.key === 'prismEnabled') {
         document.body.classList.toggle('prism-off', !e.detail.value);
-        // Nudge the prism module to re-evaluate the current note if it exposes a re-render hook.
         if (typeof window.immediatePlainRender === 'function' && !e.detail.value) window.immediatePlainRender();
         try { window.dispatchEvent(new CustomEvent('dexNoteOpened', { detail: { note: (typeof currentNote !== 'undefined' ? currentNote : null) } })); } catch (err) {}
       }
