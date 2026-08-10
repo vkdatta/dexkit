@@ -1,0 +1,53 @@
+.action-link,
+a {
+/* color: #00ffd5; */
+  cursor: pointer;
+  text-decoration: none;
+}
+.action-link:hover,
+.action-link:visited,
+a:hover,
+a:visited {
+/* color: #00ffd5; */
+}
+@media screen and (max-width: 968px) {
+  .post-title a {
+    font-size: 16px;
+  }
+}
+body.feed-view .post-outer a {
+  font-family: dexy !important;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  font-weight: normal !important;
+  color: #fff;
+  font-size: 70% !important;
+}
+.post-body a {
+  font-family: dexy;
+  text-decoration: underline;
+  font-size: 90%;
+  color: #909090;
+  padding: 0;
+  margin: 0;
+  letter-spacing: 2px;
+  display: inline-block !important;
+  text-decoration-style: dashed;
+}
+button a {
+  text-decoration: none !important;
+}
+.post-link {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  text-decoration: none;
+  color: inherit;
+}
+.post-link:hover {
+  cursor: pointer;
+}

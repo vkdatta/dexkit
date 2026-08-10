@@ -1,0 +1,162 @@
+body.label-view .blog-posts{display:none!important}
+body.label-view #blog-pager{display:none!important}
+body.label-view.cpg-ready .blog-posts{display:block!important}
+#cpg-loader{
+  display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  align-items:center;gap:5px;height:30px;z-index:99999;
+}
+body.label-view:not(.cpg-ready) #cpg-loader{display:inline-flex}
+#cpg-loader .cpg-bar{
+  width:4px;background:#e0e0e0;border-radius:2px;animation:cpg-bar-pulse 1.2s infinite;
+}
+#cpg-loader .cpg-bar:nth-child(1){height:5px;animation-delay:-.2s}
+#cpg-loader .cpg-bar:nth-child(2){height:9px;animation-delay:-.1s}
+#cpg-loader .cpg-bar:nth-child(3){height:5px;animation-delay:0s}
+@keyframes cpg-bar-pulse{0%,40%,100%{opacity:.3}20%{opacity:1}}
+#custom-pager{
+  display:grid;grid-template-columns:repeat(auto-fit,44px);gap:8px;
+  justify-content:center;width:100%;margin:26px 0;padding:0 12px;box-sizing:border-box;
+}
+#custom-pager .cpg{
+  height:40px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:9px;text-decoration:none;color:#fff;background:var(--matte3);
+}
+#custom-pager .cpg.active{background:var(--black);border-color:var(--black);font-weight:700}
+#custom-pager .cpg .material-symbols-rounded{font-size:20px}
+#sort-bar{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  width:100%;max-width:640px;margin:22px auto 6px;padding:0 16px;box-sizing:border-box;
+}
+#sort-bar .sort-btn{
+  display:inline-flex;
+align-items:center;gap:6px;
+  background:var(--matte3);
+color:#cacaca;
+  padding:7px 16px;cursor:pointer;
+  font-size:13px;font-family:classy;
+  transition:.15s;white-space:nowrap;
+  outline:none;border-radius:8px;
+  user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;
+}
+#sort-bar .sort-btn:hover,
+#sort-bar .sort-btn:focus-visible{
+  transform:translateY(1px);
+  box-shadow:0 1px 0 rgba(0,0,0,0.7) inset;
+  background:#272727;
+}
+#sort-bar .sort-btn.active{background:var(--black)}
+#sort-bar .sort-btn .material-symbols-rounded{
+  font-size:16px!important;width:16px!important;height:16px!important;padding:0!important;margin:0!important;
+  position:relative!important;top:auto!important;left:auto!important;
+  display:inline-flex!important;align-items:center;justify-content:center;color:inherit!important;line-height:1!important;
+}
+
+body.feed-view .post-outer-container {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto 12px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+body.feed-view .post-outer-container:first-child { margin-top: 24px; }
+
+body.feed-view .post-outer {
+  display: block;
+  position: relative;
+  background: #181c1f;
+  border: 1px solid rgba(255,255,255,0.02);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  overflow: hidden;
+  font-family: classy;
+  box-sizing: border-box;
+  clip-path: none;
+  text-align: left;
+  margin: 0;
+  padding: 0;
+  transition: background .15s ease, border-color .15s ease;
+}
+body.feed-view .post-outer:hover {
+  background: #1d2226;
+  border-color: rgba(255,255,255,0.08);
+  clip-path: none;
+}
+
+body.feed-view .post-outer .post-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  width: 100%;
+  max-width: none !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+body.feed-view .post-outer .post-title-container { flex: 1; min-width: 0; }
+
+body.feed-view .post-outer .post-title,
+body.feed-view .post-outer .post-title a {
+  font-family: dexy !important;
+  font-weight: 400 !important;
+  font-size: 15px !important;
+  line-height: 1.4 !important;
+  letter-spacing: 2px !important;
+  text-transform: lowercase !important;
+  color: #cacaca !important;
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block;
+}
+body.feed-view .post-outer .post-title a { text-decoration: none !important; }
+
+body.feed-view .post-outer .pc-ico {
+  font-size: 20px !important;
+  line-height: 1 !important;
+  color: #cacaca !important;
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+body.feed-view .post-outer .pc-chev {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  margin-left: auto !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  color: #6b6f75 !important;
+  flex: 0 0 auto;
+}
+body.item-view .post-outer-container {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+body.item-view .Blog .post-outer {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  clip-path: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: 0 !important;
+  text-align: justify;
+}
+.post-outer:has(.post-body) {
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: 100dvw !important;
+}

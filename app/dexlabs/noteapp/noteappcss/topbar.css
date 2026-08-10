@@ -1,0 +1,53 @@
+.topbar {
+position: fixed;
+top: 2vh;
+left: 50%;
+transform: translateX(-50%);
+width: fit-content;
+background: var(--matte);
+padding: 10px 20px;
+display: flex;
+align-items: center;
+border-radius: 30px;
+z-index: 100;
+height: var(--topbar-height);
+}
+.topbar-section {
+display: flex;
+align-items: center;
+flex: 1;
+color: var(--color);
+justify-content: space-between;
+}
+.topbar-button {
+background: var(--matte);
+border: none;
+color: var(--color);
+cursor: pointer;
+width: 40px;
+height: 40px;
+border-radius: 50%;
+display: flex;
+align-items: center;
+justify-content: center;
+margin: 4px;
+}
+.topbar .material-symbols-rounded {
+font-size: 20px;
+color: #999999;
+}
+@media (max-width: 1200px) {
+.topbar {
+width: fit-content;
+}
+}
+@media (max-width: 600px) {
+.topbar {
+width: fit-content;
+padding: 12px 24px;
+}
+.topbar-button {
+width: 40px;
+height: 40px;
+}
+}
