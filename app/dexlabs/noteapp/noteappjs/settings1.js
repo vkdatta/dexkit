@@ -80,8 +80,8 @@ export function createSettingsManager() {
         </div>
         <div class="settings-item" data-key="PRISM">
           <div class="settings-item-text">
-            <div class="settings-item-label">Enable Prism highlighting</div>
-            <div class="settings-item-desc">Syntax highlighting driven by each note's file extension.</div>
+            <div class="settings-item-label">Enable syntax highlighting</div>
+            <div class="settings-item-desc">CodeMirror syntax highlighting driven by each note's file extension. When off, notes render as plain text.</div>
           </div>
           <div class="settings-toggle" aria-hidden="true"></div>
         </div>

@@ -363,92 +363,29 @@
   // Bootstrap.
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
-  // Line-number gutter (optional; toggled by the "Show line numbers" setting).
-  //
-  // Render approach mirrors the original diff-app gutter (`i + '<br>'` via
-  // innerHTML) — it produces the browser's own inline line-box positioning
-  // which lines up exactly with a textarea's own line boxes when font-size,
-  // line-height and padding match. `<div><br>` and textareas both wrap at
-  // font-size × line-height per row, so alignment stays stable during scroll.
-  //
-  // The gutter's WIDTH scales with the current font-size and the digit count
-  // of the largest visible line number, exposed as --gutter-width so the CSS
-  // can shift the textarea + backdrops accordingly.
-  //
-  // When line numbers are on we also force the textarea to `wrap="off"` so
-  // long lines don't produce more visual rows than logical lines — otherwise
-  // the gutter shows one number per logical line but the textarea occupies
-  // several visual rows for it and the alignment drifts.
+  // Line-numbers: routed to CodeMirror's native gutter (option `lineNumbers`).
+  // No more custom-gutter code — CM owns rendering, sync, and font-size math.
   // ---------------------------------------------------------------------------
-  let gutterRAF = null;
-  function renderGutter() {
-    const nt = $('noteTextarea');
-    const g  = $('noteLineGutter');
-    if (!nt || !g) return;
-    if (gutterRAF) return;
-    gutterRAF = requestAnimationFrame(() => {
-      gutterRAF = null;
-      // Copy typography + vertical padding so gutter rows align with text rows.
-      const cs = getComputedStyle(nt);
-      g.style.fontFamily    = cs.fontFamily;
-      g.style.fontSize      = cs.fontSize;
-      g.style.lineHeight    = cs.lineHeight;
-      g.style.paddingTop    = cs.paddingTop;
-      g.style.paddingBottom = cs.paddingBottom;
-      const lines = (nt.value || '').split('\n').length;
-      // Dynamic width: (digits × approximate monospace char-width) + horiz padding.
-      const digits = Math.max(2, String(lines).length);
-      const fontPx = parseFloat(cs.fontSize) || 14;
-      const width  = Math.ceil(digits * fontPx * 0.62 + 22);
-      g.style.width = width + 'px';
-      document.documentElement.style.setProperty('--gutter-width', width + 'px');
-      // Render numbers using <br> for browser-native inline line boxes.
-      let html = '';
-      for (let i = 1; i <= lines; i++) html += i + '<br>';
-      g.innerHTML = html;
-      g.scrollTop = nt.scrollTop;
-    });
-  }
   function applyLineNumberState(on) {
     document.body.classList.toggle('show-line-numbers', !!on);
-    const nt = $('noteTextarea');
-    if (nt) {
-      // wrap="off" (hard-off) so long lines don't wrap into extra visual rows.
-      // "soft" restores the default note-app behaviour.
-      nt.setAttribute('wrap', on ? 'off' : 'soft');
-    }
-    if (on) renderGutter();
-  }
-  function wireLineNumberGutter() {
-    const nt = $('noteTextarea');
-    if (!nt || nt.__dexGutterWired) return;
-    nt.__dexGutterWired = true;
-    nt.addEventListener('input',  () => { if (document.body.classList.contains('show-line-numbers')) renderGutter(); });
-    nt.addEventListener('scroll', () => {
-      const g = $('noteLineGutter');
-      if (g && document.body.classList.contains('show-line-numbers')) g.scrollTop = nt.scrollTop;
-    });
-    window.addEventListener('dexNoteOpened', () => {
-      if (document.body.classList.contains('show-line-numbers')) renderGutter();
-    });
-    // React to inline style changes on the textarea (fontsize.js writes fontSize).
-    if (window.MutationObserver && !nt.__dexFontObs) {
-      nt.__dexFontObs = new MutationObserver(() => {
-        if (document.body.classList.contains('show-line-numbers')) renderGutter();
-      });
-      nt.__dexFontObs.observe(nt, { attributes: true, attributeFilter: ['style'] });
+    if (window.dexEditor && typeof window.dexEditor.setLineNumbers === 'function') {
+      window.dexEditor.setLineNumbers(!!on);
     }
   }
 
   // ---------------------------------------------------------------------------
   // Predictive sync-scroll — tracks the current scroll position across the
-  // editor (raw/morph) and the two diff views, so switching Views via the
+  // editor (CM instance) and the two diff views, so switching Views via the
   // bottom bar lands you at the same scroll position on the other side.
   // Respects the Options-view checkbox #diffOptSyncScroll.
   // ---------------------------------------------------------------------------
   const scroll = { top: 0, left: 0, syncing: false };
+
   function scrollElFor(target) {
-    if (target === 'raw' || target === 'morph') return $('noteTextarea');
+    if (target === 'raw' || target === 'morph') {
+      // CM scroller is what actually scrolls in the editor.
+      return (window.dexEditor && window.dexEditor.cm) ? window.dexEditor.cm.getScrollerElement() : null;
+    }
     if (target === 'diffDiff1View') return $('diffDiff1Scroll');
     if (target === 'diffDiff2View') return $('diffDiff2Scroll');
     return null;
@@ -458,7 +395,22 @@
     return !!(cb && cb.checked);
   }
   function wireSyncScroll() {
-    ['noteTextarea', 'diffDiff1Scroll', 'diffDiff2Scroll'].forEach(id => {
+    // CM scroll (raw/morph share this scroller).
+    if (window.dexEditor && window.dexEditor.cm) {
+      const scroller = window.dexEditor.cm.getScrollerElement();
+      if (scroller && !scroller.__dexScrollWired) {
+        scroller.__dexScrollWired = true;
+        window.dexEditor.cm.on('scroll', () => {
+          if (scroll.syncing) return;
+          if (!syncEnabled()) return;
+          const info = window.dexEditor.cm.getScrollInfo();
+          scroll.top  = info.top;
+          scroll.left = info.left;
+        });
+      }
+    }
+    // Diff1 / Diff2 scroll containers.
+    ['diffDiff1Scroll', 'diffDiff2Scroll'].forEach(id => {
       const el = document.getElementById(id);
       if (!el || el.__dexScrollWired) return;
       el.__dexScrollWired = true;
@@ -472,12 +424,14 @@
   }
   function applyScrollTo(target) {
     if (!syncEnabled()) return;
-    const el = scrollElFor(target);
-    if (!el) return;
     scroll.syncing = true;
     requestAnimationFrame(() => {
-      el.scrollTop  = scroll.top;
-      el.scrollLeft = scroll.left;
+      if (target === 'raw' || target === 'morph') {
+        if (window.dexEditor && window.dexEditor.cm) window.dexEditor.cm.scrollTo(scroll.left, scroll.top);
+      } else {
+        const el = scrollElFor(target);
+        if (el) { el.scrollTop = scroll.top; el.scrollLeft = scroll.left; }
+      }
       requestAnimationFrame(() => { scroll.syncing = false; });
     });
   }
@@ -573,16 +527,25 @@
   function init() {
     wireEditor();
     ensureBottomBarWired();
-    wireLineNumberGutter();
     wireSyncScroll();
     wireSetupWrappers();
+
+    // If the editor hadn't finished mounting when we first wired sync-scroll,
+    // wire it again once dexEditor is ready (CM scroller comes into being then).
+    window.addEventListener('dexEditorReady', () => {
+      wireSyncScroll();
+      // Also apply the persisted syntax language for whatever note is open.
+      if (window.dexEditor && typeof window.dexEditor.applyLanguageForCurrentNote === 'function') {
+        try { window.dexEditor.applyLanguageForCurrentNote(); } catch (e) {}
+      }
+    });
 
     // Apply persisted checkbox settings (line numbers + prism).
     const wantLineNumbers = localStorage.getItem(LS.LINENUM) === '1';
     applyLineNumberState(wantLineNumbers);
 
-    const prismDisabled = localStorage.getItem('prismEnabled') !== '1';
-    document.body.classList.toggle('prism-off', prismDisabled);
+    const prismEnabled = localStorage.getItem('prismEnabled') === '1';
+    document.body.classList.toggle('prism-off', !prismEnabled);
 
     // React to Settings-modal changes without a page reload.
     window.addEventListener('dexSettingsChanged', (e) => {
@@ -592,8 +555,9 @@
       }
       if (e.detail.key === 'prismEnabled') {
         document.body.classList.toggle('prism-off', !e.detail.value);
-        if (typeof window.immediatePlainRender === 'function' && !e.detail.value) window.immediatePlainRender();
-        try { window.dispatchEvent(new CustomEvent('dexNoteOpened', { detail: { note: (typeof currentNote !== 'undefined' ? currentNote : null) } })); } catch (err) {}
+        if (window.dexEditor && typeof window.dexEditor.applyLanguageForCurrentNote === 'function') {
+          try { window.dexEditor.applyLanguageForCurrentNote(); } catch (err) {}
+        }
       }
     });
 
