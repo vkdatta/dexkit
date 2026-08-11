@@ -291,15 +291,8 @@ function closeSidebar() {
   if (!container) return;  
   
   const userDisplayWrapper = document.createElement('div');  
-  userDisplayWrapper.id = 'user-display-wrapper';  
-  userDisplayWrapper.style.cssText = `  
-    width: 100% !important;  
-    display: flex !important;  
-    justify-content: center !important;  
-    align-items: center !important;  
-    text-align: center !important;  
-    margin-bottom: 8px !important;  
-  `;  
+  userDisplayWrapper.id = 'user-display-wrapper';
+  // Styles are defined in sidebar2.css — #user-display-wrapper rule.  
   
   function capitalizeName(name) {  
     return name  
