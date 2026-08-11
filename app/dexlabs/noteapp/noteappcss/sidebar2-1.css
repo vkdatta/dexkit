@@ -355,3 +355,17 @@ color: #cacaca;
 font-size: 80%;
 letter-spacing:1.3px
 }
+
+/* ============================================================================
+   DexLabs — Secondary sidebar supplemental styles
+   Extracted from sidebar2.js (userDisplayWrapper inline cssText)
+   ============================================================================ */
+
+#user-display-wrapper {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  margin-bottom: 8px !important;
+}

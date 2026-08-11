@@ -1,0 +1,50 @@
+/* ============================================================================
+   DexLabs — Settings overlay styles
+   Extracted from settings4.js (style#settings-overlay-styles)
+   ============================================================================ */
+
+#settingsoverlay { position:fixed; inset:0; background:rgba(0,0,0,0.96); color:#e0e0e0; z-index:99999; display:flex; flex-direction:column; font-family:'classy', sans-serif; -webkit-font-smoothing:antialiased; box-sizing:border-box; }
+#settingsheader { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #222; background:#050505; }
+#settingstitle { font-weight:600; font-size:14px; color:#fff; letter-spacing:0.3px; }
+#settingsclose { background:none; border:1px solid #444; color:#fff; padding:6px 12px; cursor:pointer; font-size:13px; border-radius:4px; font-family:inherit; }
+#settingsbody { flex:1; overflow:auto; padding:20px 18px 32px; max-width:640px; width:100%; margin:0 auto; }
+
+/* Top-level Common/Exclusive tabs */
+.settings-tabs { display:flex; gap:0; margin-bottom:22px; border-bottom:1px solid #1e1e26; user-select:none; }
+.settings-tab { flex:1; background:transparent; border:none; padding:12px 16px; color:#7a7a82; cursor:pointer; font-family:inherit; font-size:13.5px; border-bottom:2px solid transparent; margin-bottom:-1px; letter-spacing:0.3px; transition:color .15s ease, border-color .15s ease; }
+.settings-tab:hover { color:#c8c8d0; }
+.settings-tab.active { color:#fff; border-bottom-color:#9ab0ff; }
+.settings-tab-panel { display:none; }
+.settings-tab-panel.active { display:block; }
+
+.settings-section { margin-bottom:28px; }
+.settings-section-title { font-size:11px; text-transform:uppercase; letter-spacing:1.8px; color:#666; margin-bottom:12px; padding-left:2px; }
+.settings-section-hint { font-size:11.5px; color:#666; margin:-6px 0 12px; padding-left:2px; }
+
+.settings-item { display:flex; align-items:center; justify-content:space-between; padding:16px 16px; background:#0e0e12; border:1px solid #1e1e26; border-radius:10px; margin-bottom:10px; cursor:pointer; user-select:none; transition:background .15s ease, border-color .15s ease; }
+.settings-item:hover { background:#14141a; border-color:#2a2a34; }
+.settings-item-text { flex:1; }
+.settings-item-label { font-size:14px; color:#e8e8ec; margin-bottom:3px; }
+.settings-item-desc { font-size:12px; color:#7a7a82; line-height:1.5; }
+.settings-toggle { width:44px; height:24px; border-radius:12px; background:#26262e; border:1px solid #33333c; position:relative; flex-shrink:0; transition:background .18s ease, border-color .18s ease; margin-left:16px; }
+.settings-toggle::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#8a8a94; transition:transform .18s ease, background .18s ease; }
+.settings-item.on .settings-toggle { background:#9ab0ff; border-color:#9ab0ff; }
+.settings-item.on .settings-toggle::after { transform:translateX(20px); background:#0c0c0e; }
+.settings-row-value { font-size:12px; color:#9ab0ff; white-space:nowrap; margin-left:16px; font-family:'Source Code Pro', monospace; }
+.settings-row-chevron { color:#55555c; font-size:20px; line-height:1; margin-left:8px; }
+.settings-footnote { font-size:11px; color:#55555c; text-align:center; margin-top:16px; }
+
+/* ============================================================================
+   Theme picker modal styles (injected inline into the modal body HTML)
+   Extracted from settings4.js openThemeModal() bodyHtml <style> block
+   ============================================================================ */
+
+.theme-pick { display:block; width:100%; text-align:left; padding:10px 12px;
+  background:transparent; color:var(--color, #e8e8ec);
+  border:1px solid var(--border, #2a2a34); border-radius:8px;
+  font-family:'Source Code Pro', monospace; font-size:13px;
+  cursor:pointer; margin-bottom:6px; }
+.theme-pick:hover { background:var(--matte, #14141a); }
+.theme-pick-active { background:#1f2a3a; color:#fff; border-color:#3854a0; }
+.theme-group-title { font-size:11px; text-transform:uppercase;
+  letter-spacing:1.5px; color:#888; margin:8px 0 6px; padding-left:2px; }
