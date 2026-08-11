@@ -85,7 +85,7 @@ export function createFindAndReplace() {
 
   function escapeRegExp(text) { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
-  function performSearch() {
+  function performSearch(opts) {
     if (state.suspendSearch) { queuedPerform = true; return; }
     const runId = ++lastSearchRunId;
     const els = getElements();
@@ -127,7 +127,12 @@ export function createFindAndReplace() {
     if (newIndex === -1) newIndex = matches.length ? 0 : -1;
     state.currentIndex = newIndex;
     renderMatches();
-    if (state.currentIndex >= 0) focusCurrentMatch();
+    // Only jump the cursor to the current match when the search was triggered
+    // by user intent (opening the panel, typing in the find input, prev/next).
+    // NEVER on content-edit-triggered searches — otherwise the cursor jumps
+    // back to a match after every keystroke and subsequent letters land in
+    // the wrong place. (Fix for the "letters scattered across lines" bug.)
+    if (state.currentIndex >= 0 && !(opts && opts.dontFocus)) focusCurrentMatch();
   }
 
   // ---------------------------------------------------------------------------
@@ -138,26 +143,27 @@ export function createFindAndReplace() {
   function renderMatches() {
     const els = getElements();
     if (!els.textarea) return;
-    // Update match counter UI (unchanged).
     const total = state.matches.length;
     const currentDisplay = state.currentIndex >= 0 ? state.currentIndex + 1 : 0;
     if (els.matchCount)   els.matchCount.textContent   = currentDisplay + "/" + total;
     if (els.replaceCount) els.replaceCount.textContent = currentDisplay + "/" + total;
 
+    const c = cm();
     const d = doc();
-    if (!d) {
-      // CM not mounted yet — fall back to no-op (rare, only during first paint).
-      return;
-    }
-    clearMarks();
-    state.matches.forEach((m, idx) => {
-      const from = d.posFromIndex(m.start);
-      const to   = d.posFromIndex(m.end);
-      const cls  = idx === state.currentIndex ? "hl-match hl-current" : "hl-match";
-      try {
-        const marker = d.markText(from, to, { className: cls });
-        cmMarks.push(marker);
-      } catch (e) {}
+    if (!c || !d) return;
+    // Wrap mark clear + re-add in cm.operation() so it's atomic — no
+    // partial-DOM state that could interfere with mid-flight input.
+    c.operation(() => {
+      clearMarks();
+      state.matches.forEach((m, idx) => {
+        const from = d.posFromIndex(m.start);
+        const to   = d.posFromIndex(m.end);
+        const cls  = idx === state.currentIndex ? "hl-match hl-current" : "hl-match";
+        try {
+          const marker = d.markText(from, to, { className: cls });
+          cmMarks.push(marker);
+        } catch (e) {}
+      });
     });
   }
 
@@ -333,13 +339,14 @@ export function createFindAndReplace() {
     if (els.executeReplaceBtn) els.executeReplaceBtn.addEventListener("click", executeReplace);
 
     // Re-run search when the editor content changes (typing during search).
-    // We listen on the underlying textarea's 'input' event which editor-adapter
-    // dispatches on every CM change — so this fires for both direct typing
-    // and programmatic edits.
+    // Two guardrails against the "letters scattered across lines" bug:
+    //   1. Longer debounce (250ms) so marks aren't torn down mid-keystroke.
+    //   2. dontFocus flag so the current match's selection isn't reasserted
+    //      (which would snap the cursor away from the user's typing point).
     els.textarea.addEventListener("input", () => {
       if (!isOpen) return;
       clearPendingDebounces();
-      contentDebounceTimer = setTimeout(performSearch, 10);
+      contentDebounceTimer = setTimeout(() => performSearch({ dontFocus: true }), 250);
     });
 
     // Ctrl/Cmd+F opens or refocuses the panel.

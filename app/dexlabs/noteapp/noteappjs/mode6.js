@@ -591,17 +591,11 @@
   }
 
   function init() {
-    // Wipe stale diffusion state from any prior session so refreshes always
-    // start clean. Diffusion is opt-in per session via Settings → Enable
-    // Diffusion algorithm.
-    ['diffusionEnabled', 'diffusionActivePane', 'diffRawNoteId', 'diffMorphNoteId'].forEach(k => {
-      try { localStorage.removeItem(k); } catch (e) {}
-    });
-    document.body.classList.remove('mode-diffusion', 'diff-fullscreen');
-    const bootBb = document.getElementById('diffBottombar');
-    if (bootBb) bootBb.style.display = 'none';
-
     wireEditor();
+    ensureBottomBarWired();
+    wireLineNumberGutter();
+    wireSyncScroll();
+    wireSetupWrappers();
     ensureBottomBarWired();
     wireSyncScroll();
     wireSetupWrappers();
@@ -688,12 +682,40 @@
       }, true);
     }
 
-    // No auto-restore of diffusion mode across refreshes. Each fresh session
-    // starts in note mode; the user re-enables diffusion via Settings if
-    // wanted. Persisting the enabled flag caused the bottom bar to appear on
-    // the homepage during the reload race between showHomepage() and
-    // mode.js init.
+    // Restore diffusion state from a prior session — but only if we're
+    // currently in the note app. On the homepage, don't restore; showNoteApp
+    // calls this again after routing so late-navigators still get it.
+    if (typeof currentApp === 'undefined' || currentApp === 'notes') {
+      window.dexRestoreDiffusionIfSaved();
+    }
   }
+
+  // Public — index.html's showNoteApp() should call this after routing so a
+  // user coming from the homepage into a note picks up their prior diffusion
+  // session. Idempotent: no-op if diffusion already enabled or nothing saved.
+  window.dexRestoreDiffusionIfSaved = function () {
+    if (state.enabled) return;
+    const wasEnabled = localStorage.getItem(LS.ENABLED) === '1';
+    const savedRaw   = localStorage.getItem(LS.RAW_ID);
+    if (!wasEnabled || !savedRaw || !noteById(savedRaw)) return;
+
+    state.rawNoteId   = savedRaw;
+    state.morphNoteId = (localStorage.getItem(LS.MORPH_ID) && noteById(localStorage.getItem(LS.MORPH_ID)))
+                       ? localStorage.getItem(LS.MORPH_ID) : null;
+    state.activePane  = (localStorage.getItem(LS.ACTIVE) === 'morph') ? 'morph' : 'raw';
+    state.enabled     = true;
+    document.body.classList.add('mode-diffusion');
+    const bb = $('diffBottombar');
+    if (bb) bb.style.display = 'flex';
+    seedShadow('raw');
+    seedShadow('morph');
+    const activeId = state.activePane === 'raw' ? state.rawNoteId : state.morphNoteId;
+    if (activeId && typeof openNote === 'function') openNote(activeId);
+    syncActiveShadowFromEditor();
+    showEditor();
+    paintBottomBar();
+    scheduleDiffusion(true);
+  };
 
   function waitForNotesThenInit() {
     let tries = 0;

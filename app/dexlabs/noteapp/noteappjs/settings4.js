@@ -68,10 +68,20 @@ export function createSettingsManager() {
     #settingsheader { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #222; background:#050505; }
     #settingstitle { font-weight:600; font-size:14px; color:#fff; letter-spacing:0.3px; }
     #settingsclose { background:none; border:1px solid #444; color:#fff; padding:6px 12px; cursor:pointer; font-size:13px; border-radius:4px; font-family:inherit; }
-    #settingsbody { flex:1; overflow:auto; padding:24px 18px 32px; max-width:640px; width:100%; margin:0 auto; }
-    .settings-section { margin-bottom:32px; }
-    .settings-section-title { font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:#888; margin-bottom:14px; padding-left:2px; }
-    .settings-section-hint { font-size:11.5px; color:#666; margin:-8px 0 14px; padding-left:2px; }
+    #settingsbody { flex:1; overflow:auto; padding:20px 18px 32px; max-width:640px; width:100%; margin:0 auto; }
+
+    /* Top-level Common/Exclusive tabs */
+    .settings-tabs { display:flex; gap:0; margin-bottom:22px; border-bottom:1px solid #1e1e26; user-select:none; }
+    .settings-tab { flex:1; background:transparent; border:none; padding:12px 16px; color:#7a7a82; cursor:pointer; font-family:inherit; font-size:13.5px; border-bottom:2px solid transparent; margin-bottom:-1px; letter-spacing:0.3px; transition:color .15s ease, border-color .15s ease; }
+    .settings-tab:hover { color:#c8c8d0; }
+    .settings-tab.active { color:#fff; border-bottom-color:#9ab0ff; }
+    .settings-tab-panel { display:none; }
+    .settings-tab-panel.active { display:block; }
+
+    .settings-section { margin-bottom:28px; }
+    .settings-section-title { font-size:11px; text-transform:uppercase; letter-spacing:1.8px; color:#666; margin-bottom:12px; padding-left:2px; }
+    .settings-section-hint { font-size:11.5px; color:#666; margin:-6px 0 12px; padding-left:2px; }
+
     .settings-item { display:flex; align-items:center; justify-content:space-between; padding:16px 16px; background:#0e0e12; border:1px solid #1e1e26; border-radius:10px; margin-bottom:10px; cursor:pointer; user-select:none; transition:background .15s ease, border-color .15s ease; }
     .settings-item:hover { background:#14141a; border-color:#2a2a34; }
     .settings-item-text { flex:1; }
@@ -100,62 +110,76 @@ export function createSettingsManager() {
       <button id="settingsclose">Close</button>
     </div>
     <div id="settingsbody">
-      <div class="settings-section">
-        <div class="settings-section-title">Common</div>
-        <div class="settings-section-hint">Any combination can be enabled.</div>
 
-        <div class="settings-item" data-key="LINENUM">
-          <div class="settings-item-text">
-            <div class="settings-item-label">Show line numbers</div>
-            <div class="settings-item-desc">Renders a native CodeMirror gutter beside the editor.</div>
-          </div>
-          <div class="settings-toggle" aria-hidden="true"></div>
-        </div>
-
-        <div class="settings-item" data-key="PRISM">
-          <div class="settings-item-text">
-            <div class="settings-item-label">Enable syntax highlighting</div>
-            <div class="settings-item-desc">Colors code based on the note's file extension. When off, notes render as plain text.</div>
-          </div>
-          <div class="settings-toggle" aria-hidden="true"></div>
-        </div>
-
-        <div class="settings-item" data-key="WRAP">
-          <div class="settings-item-text">
-            <div class="settings-item-label">Wrap text</div>
-            <div class="settings-item-desc">When off, long lines scroll horizontally (best for code). When on, lines wrap to the viewport (best for prose).</div>
-          </div>
-          <div class="settings-toggle" aria-hidden="true"></div>
-        </div>
-
-        <div class="settings-item" data-key="THEME">
-          <div class="settings-item-text">
-            <div class="settings-item-label">Light theme</div>
-            <div class="settings-item-desc">Switches the app between dark (default) and light appearance. Editor theme adjusts automatically if you haven't picked one.</div>
-          </div>
-          <div class="settings-toggle" aria-hidden="true"></div>
-        </div>
-
-        <div class="settings-item" data-key="CMTHEME" id="cmThemeRow">
-          <div class="settings-item-text">
-            <div class="settings-item-label">Editor theme</div>
-            <div class="settings-item-desc">CodeMirror colour scheme for syntax highlighting. Editor background stays uniform (#000 for dark themes, #cacaca for light).</div>
-          </div>
-          <div class="settings-row-value" id="cmThemeCurrent">dracula</div>
-          <div class="settings-row-chevron">›</div>
-        </div>
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="common" type="button">Common</button>
+        <button class="settings-tab" data-tab="exclusive" type="button">Exclusive</button>
       </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">Exclusive</div>
-        <div class="settings-section-hint">Only one exclusive mode can be active.</div>
+      <!-- ═══ COMMON TAB ═══ -->
+      <div class="settings-tab-panel active" data-panel="common">
 
-        <div class="settings-item" data-key="DIFFUSION">
-          <div class="settings-item-text">
-            <div class="settings-item-label">Enable Diffusion algorithm</div>
-            <div class="settings-item-desc">Adds Raw / Morph / Diff 1 / Diff 2 / Options to a bottom bar. Raw is seeded from the current note; Morph is chosen via the file picker.</div>
+        <div class="settings-section">
+          <div class="settings-section-title">Syntax</div>
+          <div class="settings-item" data-key="CMTHEME" id="cmThemeRow">
+            <div class="settings-item-text">
+              <div class="settings-item-label">Editor theme</div>
+              <div class="settings-item-desc">CodeMirror colour scheme. Editor background stays uniform (#000 for dark themes, #cacaca for light).</div>
+            </div>
+            <div class="settings-row-value" id="cmThemeCurrent">dracula</div>
+            <div class="settings-row-chevron">›</div>
           </div>
-          <div class="settings-toggle" aria-hidden="true"></div>
+          <div class="settings-item" data-key="PRISM">
+            <div class="settings-item-text">
+              <div class="settings-item-label">Enable syntax highlighting</div>
+              <div class="settings-item-desc">Colors code based on the note's file extension. When off, notes render as plain text.</div>
+            </div>
+            <div class="settings-toggle" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Text</div>
+          <div class="settings-item" data-key="LINENUM">
+            <div class="settings-item-text">
+              <div class="settings-item-label">Show line numbers</div>
+              <div class="settings-item-desc">Renders a native CodeMirror gutter beside the editor.</div>
+            </div>
+            <div class="settings-toggle" aria-hidden="true"></div>
+          </div>
+          <div class="settings-item" data-key="WRAP">
+            <div class="settings-item-text">
+              <div class="settings-item-label">Wrap text</div>
+              <div class="settings-item-desc">When off, long lines scroll horizontally (best for code). When on, lines wrap to the viewport (best for prose).</div>
+            </div>
+            <div class="settings-toggle" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Theme</div>
+          <div class="settings-item" data-key="THEME">
+            <div class="settings-item-text">
+              <div class="settings-item-label">Light theme</div>
+              <div class="settings-item-desc">Switches the app between dark (default) and light appearance. Editor theme adjusts automatically if you haven't picked one.</div>
+            </div>
+            <div class="settings-toggle" aria-hidden="true"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ EXCLUSIVE TAB ═══ -->
+      <div class="settings-tab-panel" data-panel="exclusive">
+        <div class="settings-section">
+          <div class="settings-section-hint">Only one exclusive mode can be active.</div>
+          <div class="settings-item" data-key="DIFFUSION">
+            <div class="settings-item-text">
+              <div class="settings-item-label">Enable Diffusion algorithm</div>
+              <div class="settings-item-desc">Adds Raw / Morph / Diff 1 / Diff 2 / Options to a bottom bar. Raw is seeded from the current note; Morph is chosen via the file picker.</div>
+            </div>
+            <div class="settings-toggle" aria-hidden="true"></div>
+          </div>
         </div>
       </div>
 
@@ -163,6 +187,17 @@ export function createSettingsManager() {
     </div>
   `;
   document.body.appendChild(overlay);
+
+  // Tab switching.
+  overlay.querySelectorAll('.settings-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-tab');
+      overlay.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t === tab));
+      overlay.querySelectorAll('.settings-tab-panel').forEach(p => {
+        p.classList.toggle('active', p.getAttribute('data-panel') === target);
+      });
+    });
+  });
 
   const closeBtn = overlay.querySelector('#settingsclose');
   closeBtn.addEventListener('click', () => { overlay.style.display = 'none'; });
