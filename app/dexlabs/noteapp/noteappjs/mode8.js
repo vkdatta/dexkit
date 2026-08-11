@@ -394,6 +394,9 @@
     const bb = $('diffBottombar');
     if (!bb || bb.__dexWired) return;
     bb.__dexWired = true;
+    // Delegated fallback — the primary path is inline onclick on each button
+    // (via window.dexBottomClick below), but this catches anything that
+    // somehow slips through (dynamic re-injection, etc.).
     bb.addEventListener('click', (e) => {
       const btn = e.target.closest('.diff-topbar-button');
       if (!btn) return;
@@ -402,6 +405,14 @@
       handleBottomClick(target, btn);
     });
   }
+
+  // Public — inline onclick handlers on the bottom-bar buttons call this
+  // directly. Using an inline attribute pattern (matching the topbar) fires
+  // synchronously on the button and pre-empts Chrome mobile's Touch to Search
+  // gesture, which was intercepting the delegated-click path.
+  window.dexBottomClick = function (target, btn) {
+    handleBottomClick(target, btn);
+  };
 
   function handleBottomClick(target, btn) {
     if (!state.enabled) return;
@@ -692,12 +703,46 @@
 
   // Public — index.html's showNoteApp() should call this after routing so a
   // user coming from the homepage into a note picks up their prior diffusion
-  // session. Idempotent: no-op if diffusion already enabled or nothing saved.
+  // session. Also called from init() when the page loads directly on the
+  // note-app URL.
+  //
+  // Three cases handled:
+  //   (a) state.enabled is already true (came back from homepage after
+  //       showHomepage hid the UI without wiping state) — just re-show the
+  //       bottom bar and mode-diffusion class.
+  //   (b) state.enabled is false but LS says enabled AND notes are loaded —
+  //       do the full restore.
+  //   (c) LS says enabled but notes aren't loaded yet — retry shortly.
+  //       This handles the refresh race where mode.js runs before loadNotes()
+  //       populates the notes array.
+  let _restoreRetries = 0;
   window.dexRestoreDiffusionIfSaved = function () {
-    if (state.enabled) return;
+    // Case (a) — state is already enabled in memory
+    if (state.enabled) {
+      document.body.classList.add('mode-diffusion');
+      const bb = $('diffBottombar');
+      if (bb) bb.style.display = 'flex';
+      paintBottomBar();
+      return;
+    }
+
+    // Fresh restore path
     const wasEnabled = localStorage.getItem(LS.ENABLED) === '1';
     const savedRaw   = localStorage.getItem(LS.RAW_ID);
-    if (!wasEnabled || !savedRaw || !noteById(savedRaw)) return;
+    if (!wasEnabled || !savedRaw) { _restoreRetries = 0; return; }
+
+    // Case (c) — notes not yet loaded from LS/Drive
+    const notesReady = typeof notes !== 'undefined' && Array.isArray(notes) && notes.length > 0;
+    if (!notesReady) {
+      if (_restoreRetries++ < 40) {
+        setTimeout(window.dexRestoreDiffusionIfSaved, 150);
+      }
+      return;
+    }
+    _restoreRetries = 0;
+
+    // Case (b) — full restore
+    if (!noteById(savedRaw)) return; // note was deleted between sessions
 
     state.rawNoteId   = savedRaw;
     state.morphNoteId = (localStorage.getItem(LS.MORPH_ID) && noteById(localStorage.getItem(LS.MORPH_ID)))
