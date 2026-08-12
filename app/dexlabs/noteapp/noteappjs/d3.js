@@ -1,0 +1,659 @@
+(function () {
+  'use strict';
+  if (window.__dexToolbar2Loaded) return;
+  window.__dexToolbar2Loaded = true;
+
+  const LS_KEY = 'dexToolbarPos';
+  const TRIGGER_SIZE = 40;
+  const DRAG_THRESHOLD = 8;
+  const EDGE_MARGIN = 8;
+  const MENU_GAP = 12;
+
+  const ICONS = {
+    down: 'expand_more', up: 'expand_less',
+    left: 'chevron_left', right: 'chevron_right',
+    copy: 'content_copy', paste: 'content_paste',
+    close: 'close'
+  };
+
+  const style = document.createElement('style');
+  style.id = 'dex-toolbar2-styles';
+  style.textContent = `
+    #dexToolbarBtn {
+      position: fixed;
+      width: ${TRIGGER_SIZE}px;
+      height: ${TRIGGER_SIZE}px;
+      border-radius: 50%;
+      background: var(--matte, #181C1F);
+      color: var(--color, #cacaca);
+      border: 1px solid var(--border, rgba(255,255,255,0.10));
+      display: flex; align-items: center; justify-content: center;
+      cursor: grab;
+      z-index: 9997;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      touch-action: none;                 
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      font-family: 'classy', sans-serif;
+      padding: 0;
+      transition: box-shadow 0.15s ease, transform 0.08s ease;
+    }
+    #dexToolbarBtn:active { cursor: grabbing; transform: scale(0.96); }
+    #dexToolbarBtn > * { pointer-events: none; }
+    #dexToolbarBtn .material-symbols-rounded { font-size: 24px; }
+    #dexToolbarBtn.dragging {
+      box-shadow: 0 10px 28px rgba(0,0,0,0.65);
+      opacity: 0.9;
+    }
+
+    #dexToolbarMenu {
+      position: fixed;
+      background: var(--matte, #181C1F);
+      border: 1px solid var(--border, rgba(255,255,255,0.10));
+      border-radius: 12px;
+      padding: 4px;
+      z-index: 9998;
+      display: none;
+      flex-direction: column;
+      min-width: 168px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+      font-family: 'classy', sans-serif;
+      -webkit-touch-callout: none;
+    }
+    #dexToolbarMenu.open { display: flex; }
+
+    .dex-tb-item {
+      background: transparent;
+      border: none;
+      color: var(--color, #cacaca);
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13.5px;
+      text-align: left;
+      width: 100%;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+    }
+    .dex-tb-item:hover, .dex-tb-item:active { background: rgba(255,255,255,0.06); }
+    .dex-tb-item > * { pointer-events: none; }
+    .dex-tb-item .material-symbols-rounded { font-size: 20px; }
+    .dex-tb-sep {
+      height: 1px;
+      background: var(--border, rgba(255,255,255,0.08));
+      margin: 4px 6px;
+    }
+
+    
+    .CodeMirror { -webkit-touch-callout: none; }
+    .CodeMirror-line,
+    .CodeMirror-line *,
+    .CodeMirror pre.CodeMirror-line,
+    .CodeMirror pre.CodeMirror-line-like,
+    .CodeMirror textarea {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      -webkit-touch-callout: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'dexToolbarBtn';
+  btn.setAttribute('aria-label', 'Open editor toolbar');
+  btn.innerHTML = '<span class="material-symbols-rounded" id="dexToolbarBtnIcon">' + ICONS.down + '</span>';
+  document.body.appendChild(btn);
+
+  const menu = document.createElement('div');
+  menu.id = 'dexToolbarMenu';
+  menu.innerHTML =
+    '<button type="button" class="dex-tb-item" id="dexTbCopy">'  +
+      '<span class="material-symbols-rounded">' + ICONS.copy  + '</span>' +
+      '<span>Copy</span>' +
+    '</button>' +
+    '<button type="button" class="dex-tb-item" id="dexTbPaste">' +
+      '<span class="material-symbols-rounded">' + ICONS.paste + '</span>' +
+      '<span>Paste</span>' +
+    '</button>' +
+    '<div class="dex-tb-sep"></div>' +
+    '<button type="button" class="dex-tb-item" id="dexTbClose">' +
+      '<span class="material-symbols-rounded">' + ICONS.close + '</span>' +
+      '<span>Close menu</span>' +
+    '</button>';
+  document.body.appendChild(menu);
+
+  const btnIcon = document.getElementById('dexToolbarBtnIcon');
+  const copyEl  = document.getElementById('dexTbCopy');
+  const pasteEl = document.getElementById('dexTbPaste');
+  const closeEl = document.getElementById('dexTbClose');
+
+  function loadPos() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.left === 'number' && typeof p.top === 'number') return p;
+    } catch (e) {}
+    return null;
+  }
+  function savePos(left, top) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ left, top })); } catch (e) {}
+  }
+  function clamp(left, top) {
+    const maxLeft = window.innerWidth  - TRIGGER_SIZE - EDGE_MARGIN;
+    const maxTop  = window.innerHeight - TRIGGER_SIZE - EDGE_MARGIN;
+    return {
+      left: Math.max(EDGE_MARGIN, Math.min(maxLeft, left)),
+      top:  Math.max(EDGE_MARGIN, Math.min(maxTop,  top))
+    };
+  }
+  function defaultPos() {
+    return clamp(
+      window.innerWidth  - TRIGGER_SIZE - 16,
+      Math.round(window.innerHeight * 0.35)
+    );
+  }
+  function applyPos(pos) {
+    btn.style.left = pos.left + 'px';
+    btn.style.top  = pos.top  + 'px';
+    updateChevron(pos);
+  }
+
+  function chevronForPos(pos) {
+    const w = window.innerWidth, h = window.innerHeight;
+    const distLeft   = pos.left;
+    const distRight  = w - pos.left - TRIGGER_SIZE;
+    const distTop    = pos.top;
+    const distBottom = h - pos.top - TRIGGER_SIZE;
+    const min = Math.min(distLeft, distRight, distTop, distBottom);
+    if (min === distTop && distTop <= distLeft && distTop <= distRight && distTop <= distBottom) return 'down';
+    if (min === distBottom) return 'up';
+    if (min === distLeft)   return 'right';
+    if (min === distRight)  return 'left';
+    return 'down';
+  }
+  function updateChevron(pos) {
+    const dir = chevronForPos(pos);
+    btnIcon.textContent = ICONS[dir];
+    btn.dataset.dir = dir;
+  }
+
+  const initial = loadPos() || defaultPos();
+  applyPos(clamp(initial.left, initial.top));
+
+  /* ---------------------------------------------------------------------
+   * Global visibility: hide the toolbar entirely on the homepage.
+   *
+   * This is a note-editor toolbar, so it has no business showing up on
+   * any screen that isn't actively editing a note. Detection is done
+   * defensively with a few fallbacks, in priority order:
+   *   1. window.dexIsHomepage — if the app defines this as a function or
+   *      boolean, it wins. This is the recommended integration point:
+   *      have the app's router set/update this on every navigation.
+   *   2. document.body.dataset.page / body classes, if the app tags the
+   *      body element with the current view.
+   *   3. Fallback: if there's no live editor instance (window.dexEditor
+   *      / .cm), assume we're not on a note screen and hide.
+   * The app can also force a re-check at any time by calling
+   * window.dexToolbarRefreshVisibility().
+   * --------------------------------------------------------------------- */
+  function isHomepage() {
+    if (typeof window.dexIsHomepage === 'function') {
+      try { return !!window.dexIsHomepage(); } catch (_e) {}
+    }
+    if (typeof window.dexIsHomepage === 'boolean') return window.dexIsHomepage;
+
+    const page = document.body && document.body.dataset ? document.body.dataset.page : null;
+    if (page) return page === 'home' || page === 'homepage';
+
+    if (document.body && (document.body.classList.contains('page-home') ||
+                           document.body.classList.contains('homepage'))) {
+      return true;
+    }
+
+    const ed = window.dexEditor;
+    if (!ed || !ed.cm) return true;
+
+    return false;
+  }
+
+  function updateToolbarVisibility() {
+    const hide = isHomepage();
+    if (hide) {
+      btn.style.display = 'none';
+      if (menuOpen()) closeMenu();
+    } else {
+      btn.style.display = '';
+    }
+    return !hide;
+  }
+
+  window.dexToolbarRefreshVisibility = updateToolbarVisibility;
+
+  updateToolbarVisibility();
+
+  window.addEventListener('popstate', updateToolbarVisibility);
+  window.addEventListener('hashchange', updateToolbarVisibility);
+
+  try {
+    const bodyObserver = new MutationObserver(updateToolbarVisibility);
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-page'] });
+  } catch (_e) {}
+
+  let drag = null;
+
+  btn.addEventListener('pointerdown', (e) => {
+    drag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: btn.offsetLeft,
+      startTop:  btn.offsetTop,
+      moved: false
+    };
+    try { btn.setPointerCapture(e.pointerId); } catch (_e) {}
+  });
+
+  btn.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      btn.classList.add('dragging');
+      if (menuOpen()) closeMenu();
+    }
+    const next = clamp(drag.startLeft + dx, drag.startTop + dy);
+    applyPos(next);
+  });
+
+  function endDrag(e) {
+    if (!drag) return;
+    const wasDrag = drag.moved;
+    const startedAt = { x: drag.startLeft, y: drag.startTop };
+    try { btn.releasePointerCapture(drag.pointerId); } catch (_e) {}
+    drag = null;
+    btn.classList.remove('dragging');
+    if (wasDrag) {
+      const pos = { left: btn.offsetLeft, top: btn.offsetTop };
+      savePos(pos.left, pos.top);
+      updateChevron(pos);
+    } else {
+      toggleMenu();
+    }
+  }
+  btn.addEventListener('pointerup',     endDrag);
+  btn.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', () => {
+    const clamped = clamp(btn.offsetLeft, btn.offsetTop);
+    applyPos(clamped);
+    savePos(clamped.left, clamped.top);
+  });
+
+  function menuOpen() { return menu.classList.contains('open'); }
+
+  function positionMenu() {
+    let anchor = null;
+    try {
+      const ed = window.dexEditor;
+      const cm = ed && ed.cm ? ed.cm : null;
+      if (cm) {
+        const sel = cm.getSelection();
+        if (sel && sel.length > 0) {
+          const to = cm.getCursor('to');
+          const c = cm.charCoords(to, 'window');
+          anchor = { x: c.right, y: c.bottom, fromSelection: true };
+        } else {
+          const c = cm.charCoords(cm.getCursor(), 'window');
+          anchor = { x: c.right, y: c.bottom, fromSelection: false };
+        }
+      }
+    } catch (_e) {}
+
+    menu.style.visibility = 'hidden';
+    menu.classList.add('open');
+    const menuW = menu.offsetWidth;
+    const menuH = menu.offsetHeight;
+    menu.classList.remove('open');
+    menu.style.visibility = '';
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left, top;
+
+    if (anchor && anchor.fromSelection) {
+      left = anchor.x + MENU_GAP;
+      top  = anchor.y + MENU_GAP;
+    } else if (anchor) {
+      const bx = btn.offsetLeft, by = btn.offsetTop;
+      left = (anchor.x < vw / 2) ? (vw - menuW - MENU_GAP - EDGE_MARGIN) : (MENU_GAP + EDGE_MARGIN);
+      top  = (anchor.y < vh / 2) ? (vh - menuH - MENU_GAP - EDGE_MARGIN) : (MENU_GAP + EDGE_MARGIN);
+      const dir = btn.dataset.dir;
+      if (dir === 'left')  left = bx - menuW - MENU_GAP;
+      if (dir === 'right') left = bx + TRIGGER_SIZE + MENU_GAP;
+      if (dir === 'up')    top  = by - menuH - MENU_GAP;
+      if (dir === 'down')  top  = by + TRIGGER_SIZE + MENU_GAP;
+    } else {
+      const bx = btn.offsetLeft, by = btn.offsetTop;
+      const dir = btn.dataset.dir || 'down';
+      if (dir === 'left')  { left = bx - menuW - MENU_GAP; top = by; }
+      else if (dir === 'right') { left = bx + TRIGGER_SIZE + MENU_GAP; top = by; }
+      else if (dir === 'up')    { left = bx; top = by - menuH - MENU_GAP; }
+      else                       { left = bx; top = by + TRIGGER_SIZE + MENU_GAP; }
+    }
+
+    left = Math.max(EDGE_MARGIN, Math.min(vw - menuW - EDGE_MARGIN, left));
+    top  = Math.max(EDGE_MARGIN, Math.min(vh - menuH - EDGE_MARGIN, top));
+
+    menu.style.left = left + 'px';
+    menu.style.top  = top  + 'px';
+  }
+
+  let savedSelection = null;
+
+  /* ---------------------------------------------------------------------
+   * Close the toolbar whenever the editor's cursor moves while the menu
+   * is open — e.g. the user taps elsewhere in the note, or starts typing.
+   * Programmatic selection changes made BY the toolbar itself (paste,
+   * drag-select finalize, restoreSelection) are wrapped in cursorGuard so
+   * they don't immediately self-close the menu they just opened.
+   * --------------------------------------------------------------------- */
+  let cursorGuard = false;
+  function guardedCmChange(fn) {
+    cursorGuard = true;
+    try { fn(); } finally { cursorGuard = false; }
+  }
+  function onEditorCursorActivity() {
+    if (cursorGuard) return;
+    if (!menuOpen()) return;
+    closeMenu();
+  }
+  function bindCursorWatcher() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { setTimeout(bindCursorWatcher, 200); return; }
+    if (cm.__dexCursorWatcherBound) return;
+    cm.__dexCursorWatcherBound = true;
+    cm.on('cursorActivity', onEditorCursorActivity);
+  }
+  bindCursorWatcher();
+
+  function captureSelection() {
+    try {
+      const ed = window.dexEditor;
+      if (ed && ed.cm) {
+        const cm = ed.cm;
+        const from = cm.getCursor('from');
+        const to   = cm.getCursor('to');
+        const text = cm.getSelection();
+        savedSelection = { from, to, text };
+      }
+    } catch (_e) {}
+  }
+  function restoreSelection() {
+    try {
+      const ed = window.dexEditor;
+      if (ed && ed.cm && savedSelection) {
+        guardedCmChange(() => {
+          ed.cm.setSelection(savedSelection.from, savedSelection.to);
+          ed.cm.focus();
+        });
+      }
+    } catch (_e) {}
+  }
+
+  function openMenu()  {
+    captureSelection();
+    positionMenu();
+    menu.classList.add('open');
+  }
+  function closeMenu() {
+    menu.classList.remove('open');
+    setTimeout(() => { savedSelection = null; }, 300);
+  }
+  function toggleMenu() {
+    if (!menuOpen() && isHomepage()) return;
+    menuOpen() ? closeMenu() : openMenu();
+  }
+
+  window.dexOpenToolbar   = openMenu;
+  window.dexCloseToolbar  = closeMenu;
+  window.dexToggleToolbar = toggleMenu;
+
+  [copyEl, pasteEl, closeEl].forEach(el => {
+    el.addEventListener('mousedown', e => e.preventDefault());
+  });
+
+  function notify(m) {
+    if (typeof showNotification === 'function') showNotification(m);
+  }
+
+  copyEl.addEventListener('click', async () => {
+    const ed = window.dexEditor;
+    let text = '';
+    if (savedSelection && savedSelection.text) text = savedSelection.text;
+    else if (ed && ed.getSelection) {
+      const s = ed.getSelection();
+      if (s && s.text) text = s.text;
+    }
+    if (!text && ed && ed.getValue) text = ed.getValue();
+    if (!text) { notify('Nothing to copy'); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      notify('Copied');
+    } catch (_e) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        notify('Copied');
+      } catch (_e2) {
+        notify('Copy failed — grant clipboard permission');
+      }
+    }
+  });
+
+  pasteEl.addEventListener('click', async () => {
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch (_e) {
+      notify('Paste blocked — allow clipboard permission');
+      return;
+    }
+    if (!text) { notify('Clipboard is empty'); return; }
+
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { notify('Editor not ready'); return; }
+
+    let from, to;
+    if (savedSelection && isPosValid(cm, savedSelection.from) && isPosValid(cm, savedSelection.to)) {
+      from = savedSelection.from;
+      to   = savedSelection.to;
+    } else {
+      const c = cm.getCursor();
+      from = c; to = c;
+    }
+
+    guardedCmChange(() => {
+      cm.operation(() => {
+        cm.replaceRange(text, from, to);
+        const startIdx = cm.indexFromPos(from);
+        const endPos   = cm.posFromIndex(startIdx + text.length);
+        cm.setSelection(endPos, endPos);
+      });
+    });
+
+    const startIdx = cm.indexFromPos(from);
+    const endPos   = cm.posFromIndex(startIdx + text.length);
+    savedSelection = { from: endPos, to: endPos, text: '' };
+
+    notify('Pasted ' + text.length + ' character' + (text.length === 1 ? '' : 's'));
+  });
+
+  function isPosValid(cm, pos) {
+    if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
+    const lc = cm.lineCount();
+    if (pos.line < 0 || pos.line >= lc) return false;
+    const lineLen = cm.getLine(pos.line).length;
+    return pos.ch >= 0 && pos.ch <= lineLen;
+  }
+
+  closeEl.addEventListener('click', closeMenu);
+
+  const LONG_PRESS_MS  = 500;
+  const MOVE_TOLERANCE = 10;
+
+  function wordBoundsAt(cm, pos) {
+    const line = cm.getLine(pos.line) || '';
+    const isWord = (c) => c && /[\w$@#-]/.test(c);
+    let s = pos.ch, e = pos.ch;
+    while (s > 0 && isWord(line[s - 1])) s--;
+    while (e < line.length && isWord(line[e])) e++;
+    if (s === e) {
+      if (e < line.length) e = s + 1;
+    }
+    return { from: { line: pos.line, ch: s }, to: { line: pos.line, ch: e } };
+  }
+
+  function cmpPos(a, b) {
+    if (a.line !== b.line) return a.line - b.line;
+    return a.ch - b.ch;
+  }
+
+  /* ---------------------------------------------------------------------
+   * Drag-style text selection for touch/pen, mirroring how selection
+   * works with a mouse: press-and-hold anchors on the word under the
+   * finger, then dragging (without lifting) extends the selection from
+   * that anchor in either direction, just like a mouse-drag selection.
+   * The toolbar opens once the finger lifts, with whatever range ended
+   * up selected (a single word if the finger never moved).
+   * --------------------------------------------------------------------- */
+  let selectState = null;
+
+  function beginDragSelect(cmEl, clientX, clientY, pointerId) {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+    let pos;
+    try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
+    catch (_e) { return; }
+    if (!pos) return;
+
+    const bounds = wordBoundsAt(cm, pos);
+    try { guardedCmChange(() => cm.setSelection(bounds.from, bounds.to)); }
+    catch (_e) { return; }
+
+    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_e) {} }
+
+    const prevTouchAction = cmEl.style.touchAction;
+    cmEl.style.touchAction = 'none';
+
+    selectState = { pointerId, cm, anchorFrom: bounds.from, anchorTo: bounds.to };
+
+    function onMove(ev) {
+      if (!selectState || ev.pointerId !== selectState.pointerId) return;
+      let p;
+      try { p = cm.coordsChar({ left: ev.clientX, top: ev.clientY }, 'window'); }
+      catch (_e) { return; }
+      if (!p) return;
+
+      let from, to;
+      if (cmpPos(p, selectState.anchorFrom) < 0) {
+        from = p; to = selectState.anchorTo;
+      } else if (cmpPos(p, selectState.anchorTo) > 0) {
+        from = selectState.anchorFrom; to = p;
+      } else {
+        from = selectState.anchorFrom; to = selectState.anchorTo;
+      }
+      guardedCmChange(() => cm.setSelection(from, to));
+    }
+    function onEnd(ev) {
+      if (!selectState || ev.pointerId !== selectState.pointerId) return;
+      cleanup();
+      finalizeDragSelect();
+    }
+    function cleanup() {
+      document.removeEventListener('pointermove',   onMove);
+      document.removeEventListener('pointerup',     onEnd);
+      document.removeEventListener('pointercancel', onEnd);
+      cmEl.style.touchAction = prevTouchAction;
+    }
+    function finalizeDragSelect() {
+      const from = cm.getCursor('from');
+      const to   = cm.getCursor('to');
+      savedSelection = { from, to, text: cm.getRange(from, to) };
+      selectState = null;
+      openMenu();
+    }
+
+    document.addEventListener('pointermove',   onMove);
+    document.addEventListener('pointerup',     onEnd);
+    document.addEventListener('pointercancel', onEnd);
+  }
+
+  function attachLongPress() {
+    const cmEl = document.querySelector('.CodeMirror');
+    if (!cmEl) { setTimeout(attachLongPress, 200); return; }
+    if (cmEl.__dexLongPressBound) return;
+    cmEl.__dexLongPressBound = true;
+
+    cmEl.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+    cmEl.addEventListener('selectstart', (e) => { e.preventDefault(); });
+
+    cmEl.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      const startX = e.clientX, startY = e.clientY;
+      let cancelled = false;
+
+      const timer = setTimeout(() => {
+        if (cancelled) return;
+        cleanup();
+        beginDragSelect(cmEl, startX, startY, e.pointerId);
+      }, LONG_PRESS_MS);
+
+      function onMove(ev) {
+        if (cancelled) return;
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
+          cancelled = true;
+          clearTimeout(timer);
+          cleanup();
+        }
+      }
+      function onEnd() {
+        if (cancelled) return;
+        cancelled = true;
+        clearTimeout(timer);
+        cleanup();
+      }
+      function cleanup() {
+        document.removeEventListener('pointermove',   onMove);
+        document.removeEventListener('pointerup',     onEnd);
+        document.removeEventListener('pointercancel', onEnd);
+      }
+      document.addEventListener('pointermove',   onMove);
+      document.addEventListener('pointerup',     onEnd);
+      document.addEventListener('pointercancel', onEnd);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachLongPress, { once: true });
+  } else {
+    attachLongPress();
+  }
+})();
