@@ -5,6 +5,7 @@
 
   const LS_KEY = 'dexToolbarPos';
   const CURSOR_KEY = 'dexCursorPos';
+  const CENTER_KEY = 'dexCenterPos';
   const TRIGGER_SIZE = 40;
   const DRAG_THRESHOLD = 8;
   const EDGE_MARGIN = 8;
@@ -18,63 +19,99 @@
     dbl_up: 'keyboard_double_arrow_up',
     dbl_down: 'keyboard_double_arrow_down',
     dbl_left: 'keyboard_double_arrow_left',
-    dbl_right: 'keyboard_double_arrow_right'
+    dbl_right: 'keyboard_double_arrow_right',
+    drag: 'drag_indicator',
+    select_all: 'select_all'
+  };
+
+  /* ================================================================
+     THEME & VISUAL TOKENS — Gaming Aesthetic
+     ================================================================ */
+  const THEME = {
+    matte: '#181C1F',
+    surface: '#1E2327',
+    surfaceHover: '#252B30',
+    accent: '#00D4AA',      /* Gaming teal */
+    accentGlow: 'rgba(0, 212, 170, 0.35)',
+    accentDim: 'rgba(0, 212, 170, 0.12)',
+    danger: '#FF4757',
+    dangerGlow: 'rgba(255, 71, 87, 0.35)',
+    text: '#E8ECF0',
+    textMuted: '#8A9199',
+    border: 'rgba(255,255,255,0.08)',
+    borderActive: 'rgba(0, 212, 170, 0.4)',
+    shadow: '0 8px 32px rgba(0,0,0,0.55)',
+    shadowGlow: '0 0 20px rgba(0, 212, 170, 0.15), 0 8px 32px rgba(0,0,0,0.55)',
+    shadowDanger: '0 0 20px rgba(255, 71, 87, 0.15), 0 8px 32px rgba(0,0,0,0.55)'
   };
 
   const style = document.createElement('style');
   style.id = 'dex-toolbar2-styles';
   style.textContent = `
+    /* ====== BASE ====== */
     #dexToolbarBtn {
       position: fixed;
       width: ${TRIGGER_SIZE}px;
       height: ${TRIGGER_SIZE}px;
       border-radius: 50%;
-      background: var(--matte, #181C1F);
-      color: var(--color, #cacaca);
-      border: 1px solid var(--border, rgba(255,255,255,0.10));
+      background: ${THEME.matte};
+      color: ${THEME.text};
+      border: 1px solid ${THEME.border};
       display: flex; align-items: center; justify-content: center;
       cursor: grab;
       z-index: 9997;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      box-shadow: ${THEME.shadow};
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none;
       font-family: 'classy', sans-serif;
       padding: 0;
-      transition: box-shadow 0.15s ease, transform 0.08s ease;
+      transition: box-shadow 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
     }
-    #dexToolbarBtn:active { cursor: grabbing; transform: scale(0.96); }
+    #dexToolbarBtn:hover {
+      border-color: ${THEME.borderActive};
+      box-shadow: ${THEME.shadowGlow};
+    }
+    #dexToolbarBtn:active { cursor: grabbing; transform: scale(0.94); }
     #dexToolbarBtn > * { pointer-events: none; }
     #dexToolbarBtn .material-symbols-rounded { font-size: 24px; }
     #dexToolbarBtn.dragging {
-      box-shadow: 0 10px 28px rgba(0,0,0,0.65);
-      opacity: 0.9;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.7);
+      opacity: 0.85;
+      border-color: ${THEME.accent};
     }
 
+    /* ====== MENU ====== */
     #dexToolbarMenu {
       position: fixed;
-      background: var(--matte, #181C1F);
-      border: 1px solid var(--border, rgba(255,255,255,0.10));
-      border-radius: 12px;
-      padding: 4px;
+      background: ${THEME.matte};
+      border: 1px solid ${THEME.border};
+      border-radius: 14px;
+      padding: 6px;
       z-index: 9998;
       display: none;
       flex-direction: column;
-      min-width: 168px;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+      min-width: 180px;
+      box-shadow: ${THEME.shadow};
       font-family: 'classy', sans-serif;
       -webkit-touch-callout: none;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
-    #dexToolbarMenu.open { display: flex; }
+    #dexToolbarMenu.open { display: flex; animation: dexMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes dexMenuIn {
+      from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
 
     .dex-tb-item {
       background: transparent;
       border: none;
-      color: var(--color, #cacaca);
+      color: ${THEME.text};
       display: flex; align-items: center; gap: 12px;
-      padding: 10px 14px;
-      border-radius: 8px;
+      padding: 11px 16px;
+      border-radius: 10px;
       cursor: pointer;
       font-family: inherit;
       font-size: 13.5px;
@@ -83,17 +120,32 @@
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
+      transition: background 0.12s ease, color 0.12s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .dex-tb-item:hover, .dex-tb-item:active { background: rgba(255,255,255,0.06); }
+    .dex-tb-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.4s ease;
+    }
+    .dex-tb-item:hover::before { transform: translateX(100%); }
+    .dex-tb-item:hover, .dex-tb-item:active {
+      background: ${THEME.surfaceHover};
+      color: ${THEME.accent};
+    }
     .dex-tb-item > * { pointer-events: none; }
     .dex-tb-item .material-symbols-rounded { font-size: 20px; }
     .dex-tb-sep {
       height: 1px;
-      background: var(--border, rgba(255,255,255,0.08));
-      margin: 4px 6px;
+      background: ${THEME.border};
+      margin: 4px 8px;
     }
 
-    /* ====== CURSOR CONTROLS – PERFECT CIRCLE ====== */
+    /* ====== CURSOR CONTROLS — Gaming D-Pad ====== */
     #dexCursorControls {
       position: fixed;
       z-index: 9996;
@@ -101,54 +153,264 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 2px;
-      width: 150px;
-      height: 150px;
+      gap: 3px;
+      width: 152px;
+      height: 152px;
       border-radius: 50%;
-      background: var(--matte, #181C1F);
-      border: 1px solid var(--border, rgba(255,255,255,0.10));
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      background: ${THEME.matte};
+      border: 1px solid ${THEME.border};
+      box-shadow: ${THEME.shadow};
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none;
       cursor: grab;
-      padding: 6px;
+      padding: 8px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    #dexCursorControls:hover {
+      border-color: ${THEME.borderActive};
+      box-shadow: ${THEME.shadowGlow};
     }
     #dexCursorControls.dragging {
       cursor: grabbing;
       opacity: 0.9;
+      border-color: ${THEME.accent};
     }
     #dexCursorControls .dex-cursor-row {
       display: flex;
-      gap: 2px;
+      gap: 3px;
       align-items: center;
       justify-content: center;
     }
     #dexCursorControls .dex-cursor-btn {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      background: transparent;
-      border: 1px solid var(--border, rgba(255,255,255,0.08));
-      color: var(--color, #cacaca);
+      background: ${THEME.surface};
+      border: 1px solid ${THEME.border};
+      color: ${THEME.textMuted};
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       font-family: 'classy', sans-serif;
       padding: 0;
-      transition: background 0.1s ease, transform 0.06s ease;
+      transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      position: relative;
+    }
+    #dexCursorControls .dex-cursor-btn:hover {
+      background: ${THEME.surfaceHover};
+      color: ${THEME.text};
+      border-color: ${THEME.borderActive};
+      transform: scale(1.08);
     }
     #dexCursorControls .dex-cursor-btn:active {
-      background: rgba(255,255,255,0.10);
+      background: ${THEME.accentDim};
+      color: ${THEME.accent};
+      border-color: ${THEME.accent};
       transform: scale(0.92);
+      box-shadow: 0 0 12px ${THEME.accentGlow};
     }
     #dexCursorControls .dex-cursor-btn .material-symbols-rounded {
       font-size: 16px;
     }
+
+    /* ====== CENTER DRAG HANDLE — Gaming Grade ====== */
+    #dexCenterHandle {
+      position: fixed;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: ${THEME.matte};
+      border: 2px solid ${THEME.border};
+      color: ${THEME.textMuted};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9995;
+      cursor: grab;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      box-shadow: ${THEME.shadow};
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+      font-family: 'classy', sans-serif;
+    }
+    #dexCenterHandle.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #dexCenterHandle:hover {
+      border-color: ${THEME.borderActive};
+      color: ${THEME.text};
+      box-shadow: ${THEME.shadowGlow};
+      transform: scale(1.05);
+    }
+    #dexCenterHandle.dragging {
+      cursor: grabbing;
+      border-color: ${THEME.accent};
+      color: ${THEME.accent};
+      box-shadow: 0 0 24px ${THEME.accentGlow}, 0 8px 32px rgba(0,0,0,0.6);
+      transform: scale(1.1);
+      opacity: 1;
+    }
+    #dexCenterHandle .material-symbols-rounded {
+      font-size: 20px;
+      transition: transform 0.2s ease;
+    }
+    #dexCenterHandle.dragging .material-symbols-rounded {
+      transform: scale(1.2);
+    }
+
+    /* Direction indicator ring */
+    #dexCenterHandle::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      pointer-events: none;
+    }
+    #dexCenterHandle.dragging-right::after {
+      border-color: ${THEME.accent};
+      border-left-color: transparent;
+      border-top-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+    #dexCenterHandle.dragging-left::after {
+      border-color: ${THEME.accent};
+      border-right-color: transparent;
+      border-top-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+    #dexCenterHandle.dragging-up::after {
+      border-color: ${THEME.accent};
+      border-left-color: transparent;
+      border-right-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+    #dexCenterHandle.dragging-down::after {
+      border-color: ${THEME.accent};
+      border-left-color: transparent;
+      border-right-color: transparent;
+      border-top-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+
+    /* ====== SELECTION MAGNIFIER / PREVIEW ====== */
+    #dexSelectionPreview {
+      position: fixed;
+      z-index: 9994;
+      background: ${THEME.matte};
+      border: 1px solid ${THEME.borderActive};
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-family: 'classy', monospace;
+      font-size: 12px;
+      color: ${THEME.accent};
+      box-shadow: ${THEME.shadowGlow};
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px) scale(0.95);
+      transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #dexSelectionPreview.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    #dexSelectionPreview .dex-preview-count {
+      color: ${THEME.textMuted};
+      font-size: 10px;
+      margin-left: 6px;
+    }
+
+    /* ====== PARTICLE TRAIL CANVAS ====== */
+    #dexParticleCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 9993;
+      pointer-events: none;
+    }
+
+    /* ====== SNAP INDICATOR ====== */
+    #dexSnapIndicator {
+      position: fixed;
+      z-index: 9992;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: ${THEME.accent};
+      box-shadow: 0 0 8px ${THEME.accentGlow}, 0 0 16px ${THEME.accentGlow};
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+    #dexSnapIndicator.visible { opacity: 1; }
   `;
   document.head.appendChild(style);
+
+  /* ====== PARTICLE SYSTEM ====== */
+  const particleCanvas = document.createElement('canvas');
+  particleCanvas.id = 'dexParticleCanvas';
+  document.body.appendChild(particleCanvas);
+  const pCtx = particleCanvas.getContext('2d');
+  let particles = [];
+
+  function resizeParticleCanvas() {
+    particleCanvas.width = window.innerWidth;
+    particleCanvas.height = window.innerHeight;
+  }
+  resizeParticleCanvas();
+  window.addEventListener('resize', resizeParticleCanvas);
+
+  function spawnParticle(x, y, color = THEME.accent) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2 - 1,
+      life: 1,
+      decay: 0.03 + Math.random() * 0.03,
+      size: 2 + Math.random() * 3,
+      color
+    });
+  }
+
+  function updateParticles() {
+    pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= p.decay;
+      p.vy += 0.05; // gravity
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+        continue;
+      }
+      pCtx.globalAlpha = p.life * 0.6;
+      pCtx.fillStyle = p.color;
+      pCtx.beginPath();
+      pCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      pCtx.fill();
+    }
+    pCtx.globalAlpha = 1;
+    requestAnimationFrame(updateParticles);
+  }
+  requestAnimationFrame(updateParticles);
 
   /* ====== TOOLBAR BUTTON ====== */
   const btn = document.createElement('button');
@@ -171,13 +433,18 @@
       '<span>Paste</span>' +
     '</button>' +
     '<div class="dex-tb-sep"></div>' +
+    '<button type="button" class="dex-tb-item" id="dexTbSelectAll">' +
+      '<span class="material-symbols-rounded">' + ICONS.select_all + '</span>' +
+      '<span>Select All</span>' +
+    '</button>' +
+    '<div class="dex-tb-sep"></div>' +
     '<button type="button" class="dex-tb-item" id="dexTbClose">' +
       '<span class="material-symbols-rounded">' + ICONS.close + '</span>' +
       '<span>Close menu</span>' +
     '</button>';
   document.body.appendChild(menu);
 
-  /* ====== CURSOR CONTROLS (circular) ====== */
+  /* ====== CURSOR CONTROLS (circular D-Pad) ====== */
   const cursorControls = document.createElement('div');
   cursorControls.id = 'dexCursorControls';
   cursorControls.innerHTML =
@@ -217,9 +484,28 @@
     '</div>';
   document.body.appendChild(cursorControls);
 
+  /* ====== CENTER DRAG HANDLE ====== */
+  const centerHandle = document.createElement('div');
+  centerHandle.id = 'dexCenterHandle';
+  centerHandle.innerHTML = '<span class="material-symbols-rounded">' + ICONS.drag + '</span>';
+  centerHandle.setAttribute('aria-label', 'Drag to expand selection');
+  document.body.appendChild(centerHandle);
+
+  /* ====== SELECTION PREVIEW ====== */
+  const selectionPreview = document.createElement('div');
+  selectionPreview.id = 'dexSelectionPreview';
+  document.body.appendChild(selectionPreview);
+
+  /* ====== SNAP INDICATOR ====== */
+  const snapIndicator = document.createElement('div');
+  snapIndicator.id = 'dexSnapIndicator';
+  document.body.appendChild(snapIndicator);
+
+  /* ====== ELEMENT REFERENCES ====== */
   const btnIcon = document.getElementById('dexToolbarBtnIcon');
   const copyEl  = document.getElementById('dexTbCopy');
   const pasteEl = document.getElementById('dexTbPaste');
+  const selectAllEl = document.getElementById('dexTbSelectAll');
   const closeEl = document.getElementById('dexTbClose');
 
   const curUp      = document.getElementById('dexCurUp');
@@ -242,9 +528,11 @@
       btn.style.display = 'none';
       closeMenu();
       cursorControls.style.display = 'none';
+      centerHandle.classList.remove('visible');
     } else {
       btn.style.display = '';
       cursorControls.style.display = 'flex';
+      updateCenterHandle();
     }
   }
 
@@ -455,7 +743,7 @@
   window.dexCloseToolbar  = closeMenu;
   window.dexToggleToolbar = toggleMenu;
 
-  [copyEl, pasteEl, closeEl].forEach(el => {
+  [copyEl, pasteEl, selectAllEl, closeEl].forEach(el => {
     el.addEventListener('mousedown', e => e.preventDefault());
   });
 
@@ -531,6 +819,20 @@
     notify('Pasted ' + text.length + ' character' + (text.length === 1 ? '' : 's'));
   });
 
+  /* ====== SELECT ALL ====== */
+  selectAllEl.addEventListener('click', () => {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { notify('Editor not ready'); return; }
+    const lastLine = cm.lineCount() - 1;
+    const from = { line: 0, ch: 0 };
+    const to = { line: lastLine, ch: cm.getLine(lastLine).length };
+    cm.setSelection(from, to);
+    savedSelection = { from, to, text: cm.getValue() };
+    notify('Selected all');
+    closeMenu();
+  });
+
   function isPosValid(cm, pos) {
     if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
     const lc = cm.lineCount();
@@ -555,8 +857,8 @@
     try { localStorage.setItem(CURSOR_KEY, JSON.stringify({ left, top })); } catch (e) {}
   }
   function clampCursor(left, top) {
-    const cw = cursorControls.offsetWidth || 150;
-    const ch = cursorControls.offsetHeight || 150;
+    const cw = cursorControls.offsetWidth || 152;
+    const ch = cursorControls.offsetHeight || 152;
     const maxLeft = window.innerWidth  - cw - EDGE_MARGIN;
     const maxTop  = window.innerHeight - ch - EDGE_MARGIN;
     return {
@@ -566,7 +868,7 @@
   }
   function defaultCursorPos() {
     return clampCursor(
-      window.innerWidth  - 160,
+      window.innerWidth  - 170,
       Math.round(window.innerHeight * 0.55)
     );
   }
@@ -638,7 +940,6 @@
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
 
-    // If there is no selection, set anchor to current cursor (start new selection)
     if (!cm.getSelection()) {
       cursorAnchor = cm.getCursor('anchor');
     } else if (!cursorAnchor) {
@@ -653,6 +954,8 @@
       ? cm.findPosV(head, amount, 'line')
       : cm.findPosH(head, amount, 'char');
     cm.setSelection(cursorAnchor, head);
+    updateCenterHandle();
+    updateSelectionPreview();
   }
 
   curUp.addEventListener('click',    () => moveCursor('up',    1));
@@ -663,6 +966,262 @@
   curDblDown.addEventListener('click',  () => moveCursor('down',  10));
   curDblLeft.addEventListener('click',  () => moveCursor('left',  10));
   curDblRight.addEventListener('click', () => moveCursor('right', 10));
+
+  /* ================================================================
+     CENTER DRAG — GAMING GRADE
+     ================================================================ */
+
+  let centerDrag = null;
+  let selectionBase = null;
+  let lastDragDir = null;
+
+  function getSelectionMidpoint(cm) {
+    const from = cm.getCursor('from');
+    const to = cm.getCursor('to');
+    const startCoords = cm.charCoords(from, 'window');
+    const endCoords = cm.charCoords(to, 'window');
+    return {
+      x: (startCoords.left + endCoords.right) / 2,
+      y: (startCoords.top + startCoords.bottom + endCoords.top + endCoords.bottom) / 4,
+      from: from,
+      to: to
+    };
+  }
+
+  function updateCenterHandle() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm || isHomepage()) {
+      centerHandle.classList.remove('visible');
+      return;
+    }
+
+    const sel = cm.getSelection();
+    if (!sel || sel.length === 0) {
+      centerHandle.classList.remove('visible');
+      return;
+    }
+
+    const mid = getSelectionMidpoint(cm);
+    const toCoords = cm.charCoords(cm.getCursor('to'), 'window');
+    const x = mid.x - 22; // half of 44px
+    const y = toCoords.bottom + 6;
+
+    centerHandle.style.left = `${Math.max(4, Math.min(window.innerWidth - 48, x))}px`;
+    centerHandle.style.top = `${Math.max(4, Math.min(window.innerHeight - 48, y))}px`;
+    centerHandle.classList.add('visible');
+  }
+
+  function updateSelectionPreview() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) {
+      selectionPreview.classList.remove('visible');
+      return;
+    }
+
+    const sel = cm.getSelection();
+    if (!sel || sel.length === 0) {
+      selectionPreview.classList.remove('visible');
+      return;
+    }
+
+    const preview = sel.length > 30 ? sel.slice(0, 30) + '...' : sel;
+    selectionPreview.innerHTML = `<span>${escapeHtml(preview)}</span><span class="dex-preview-count">${sel.length} chars</span>`;
+
+    const toCoords = cm.charCoords(cm.getCursor('to'), 'window');
+    const px = toCoords.right + 8;
+    const py = toCoords.top - 40;
+
+    selectionPreview.style.left = `${Math.max(4, Math.min(window.innerWidth - 250, px))}px`;
+    selectionPreview.style.top = `${Math.max(4, py)}px`;
+    selectionPreview.classList.add('visible');
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function setDragDirection(dir) {
+    centerHandle.classList.remove('dragging-right', 'dragging-left', 'dragging-up', 'dragging-down');
+    if (dir) centerHandle.classList.add('dragging-' + dir);
+    if (dir && dir !== lastDragDir) {
+      // Direction change feedback
+      const rect = centerHandle.getBoundingClientRect();
+      for (let i = 0; i < 5; i++) {
+        spawnParticle(rect.left + rect.width/2, rect.top + rect.height/2, THEME.accent);
+      }
+      lastDragDir = dir;
+    }
+  }
+
+  function snapToWordBoundary(cm, pos) {
+    const line = cm.getLine(pos.line) || '';
+    const isWord = (c) => c && /[\w$@#-]/.test(c);
+    let s = pos.ch, e = pos.ch;
+    while (s > 0 && isWord(line[s - 1])) s--;
+    while (e < line.length && isWord(line[e])) e++;
+    if (s === e) {
+      if (e < line.length) e = s + 1;
+      else if (s > 0) s = e - 1;
+    }
+    return { line: pos.line, ch: s };
+  }
+
+  centerHandle.addEventListener('pointerdown', (e) => {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const from = cm.getCursor('from');
+    const to = cm.getCursor('to');
+    selectionBase = { anchor: from, head: to };
+    lastDragDir = null;
+
+    centerDrag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false
+    };
+
+    centerHandle.classList.add('dragging');
+    try { centerHandle.setPointerCapture(e.pointerId); } catch (_e) {}
+
+    // Spawn initial particles
+    for (let i = 0; i < 8; i++) {
+      spawnParticle(e.clientX, e.clientY, THEME.accent);
+    }
+  });
+
+  centerHandle.addEventListener('pointermove', (e) => {
+    if (!centerDrag || e.pointerId !== centerDrag.pointerId) return;
+
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm || !selectionBase) return;
+
+    const dx = e.clientX - centerDrag.startX;
+    const dy = e.clientY - centerDrag.startY;
+
+    if (!centerDrag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!centerDrag.moved) {
+      centerDrag.moved = true;
+    }
+
+    // Spawn trail particles
+    if (Math.random() > 0.5) {
+      spawnParticle(e.clientX, e.clientY, THEME.accentDim);
+    }
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    const currentPos = cm.coordsChar({ left: e.clientX, top: e.clientY }, 'window');
+
+    let newAnchor = selectionBase.anchor;
+    let newHead = selectionBase.head;
+    let dir = null;
+
+    if (absDx > absDy) {
+      // Horizontal dominant
+      if (dx > 0) {
+        newHead = currentPos;
+        dir = 'right';
+      } else {
+        newAnchor = currentPos;
+        dir = 'left';
+      }
+    } else {
+      // Vertical dominant
+      if (dy > 0) {
+        newHead = currentPos;
+        dir = 'down';
+      } else {
+        newAnchor = currentPos;
+        dir = 'up';
+      }
+    }
+
+    setDragDirection(dir);
+
+    // Ensure anchor is before head
+    const cmp = cm.comparePos(newAnchor, newHead);
+    if (cmp > 0) {
+      const tmp = newAnchor;
+      newAnchor = newHead;
+      newHead = tmp;
+    }
+
+    cm.setSelection(newAnchor, newHead);
+    updateCenterHandle();
+    updateSelectionPreview();
+
+    // Snap indicator at cursor position
+    const snapCoords = cm.charCoords(newHead, 'window');
+    snapIndicator.style.left = (snapCoords.left - 2) + 'px';
+    snapIndicator.style.top = (snapCoords.top + snapCoords.bottom)/2 - 2 + 'px';
+    snapIndicator.classList.add('visible');
+  });
+
+  function endCenterDrag(e) {
+    if (!centerDrag || e.pointerId !== centerDrag.pointerId) return;
+
+    const wasDrag = centerDrag.moved;
+    try { centerHandle.releasePointerCapture(centerDrag.pointerId); } catch (_e) {}
+    centerDrag = null;
+    centerHandle.classList.remove('dragging');
+    setDragDirection(null);
+    snapIndicator.classList.remove('visible');
+
+    if (wasDrag) {
+      const ed = window.dexEditor;
+      const cm = ed && ed.cm ? ed.cm : null;
+      if (cm) {
+        // Snap to word boundary on release for polished feel
+        const from = cm.getCursor('from');
+        const to = cm.getCursor('to');
+        const snappedFrom = snapToWordBoundary(cm, from);
+        const snappedTo = snapToWordBoundary(cm, to);
+        // Only snap if the selection is small (word-level), keep large selections
+        const selText = cm.getSelection();
+        if (selText && selText.length > 0 && selText.length < 100) {
+          // Find word end for "to" position
+          const line = cm.getLine(to.line) || '';
+          let endCh = to.ch;
+          while (endCh < line.length && /[\w$@#-]/.test(line[endCh])) endCh++;
+          const finalTo = { line: to.line, ch: endCh };
+          cm.setSelection(from, finalTo);
+        }
+
+        const finalSel = cm.getSelection();
+        if (finalSel && finalSel.length > 0) {
+          savedSelection = {
+            from: cm.getCursor('from'),
+            to: cm.getCursor('to'),
+            text: finalSel
+          };
+          // Burst particles on release
+          const rect = centerHandle.getBoundingClientRect();
+          for (let i = 0; i < 12; i++) {
+            spawnParticle(
+              rect.left + rect.width/2 + (Math.random()-0.5)*30,
+              rect.top + rect.height/2 + (Math.random()-0.5)*30,
+              THEME.accent
+            );
+          }
+          scheduleMenuOpen();
+        }
+      }
+    }
+  }
+
+  centerHandle.addEventListener('pointerup', endCenterDrag);
+  centerHandle.addEventListener('pointercancel', endCenterDrag);
 
   /* ====== AUTO-OPEN MENU AFTER 5 SECONDS OF INACTIVITY ====== */
   let selectionTimeout = null;
@@ -682,7 +1241,6 @@
     const sel = cm.getSelection();
     if (sel && sel.length > 0 && !menuOpen()) {
       selectionTimeout = setTimeout(() => {
-        // Only open if selection still exists and menu is closed
         if (cm.getSelection() && !menuOpen()) {
           openMenu();
         }
@@ -699,12 +1257,12 @@
     cm.__dexCursorActivityBound = true;
 
     cm.on('cursorActivity', () => {
-      // Close menu if selection is cleared
       if (menuOpen() && !cm.getSelection()) {
         closeMenu();
       }
-      // Schedule auto-open if selection exists
       scheduleMenuOpen();
+      updateCenterHandle();
+      updateSelectionPreview();
     });
   }
 
@@ -732,19 +1290,15 @@
     try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
     catch (_e) { return; }
     if (!pos) return;
-    // Select the entire line / paragraph for huge selection
     const line = pos.line;
     const lineLen = cm.getLine(line).length;
     const from = { line: line, ch: 0 };
     const to = { line: line, ch: lineLen };
-    // If line is empty, try to select surrounding non-empty block
     let selFrom = from, selTo = to;
     if (lineLen === 0) {
-      // Find start of block (previous non-empty lines)
       let startLine = line;
       while (startLine > 0 && cm.getLine(startLine - 1).length === 0) startLine--;
       while (startLine > 0 && cm.getLine(startLine - 1).length > 0) startLine--;
-      // Find end of block
       let endLine = line;
       const totalLines = cm.lineCount();
       while (endLine < totalLines - 1 && cm.getLine(endLine + 1).length === 0) endLine++;
@@ -760,6 +1314,8 @@
       to:   selTo,
       text: cm.getRange(selFrom, selTo)
     };
+    updateCenterHandle();
+    updateSelectionPreview();
     openMenu();
   }
 
@@ -834,6 +1390,8 @@
         if (currentPos) {
           cm.setSelection(dragSelectState.startPos, currentPos);
           dragSelectState.lastPos = currentPos;
+          updateCenterHandle();
+          updateSelectionPreview();
         }
       }
     });
@@ -857,7 +1415,8 @@
               to: cm.getCursor('to'),
               text: selText
             };
-            // Schedule auto-open after drag ends
+            updateCenterHandle();
+            updateSelectionPreview();
             scheduleMenuOpen();
           }
         }
