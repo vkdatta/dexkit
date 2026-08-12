@@ -93,24 +93,27 @@
       margin: 4px 6px;
     }
 
-    /* ====== CURSOR CONTROLS (always visible) ====== */
+    /* ====== CURSOR CONTROLS – PERFECT CIRCLE ====== */
     #dexCursorControls {
       position: fixed;
       z-index: 9996;
-      display: flex;           /* always visible */
+      display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 2px;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
       background: var(--matte, #181C1F);
       border: 1px solid var(--border, rgba(255,255,255,0.10));
-      border-radius: 14px;
-      padding: 5px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none;
       cursor: grab;
+      padding: 6px;
     }
     #dexCursorControls.dragging {
       cursor: grabbing;
@@ -120,11 +123,12 @@
       display: flex;
       gap: 2px;
       align-items: center;
+      justify-content: center;
     }
     #dexCursorControls .dex-cursor-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
       background: transparent;
       border: 1px solid var(--border, rgba(255,255,255,0.08));
       color: var(--color, #cacaca);
@@ -140,7 +144,9 @@
       background: rgba(255,255,255,0.10);
       transform: scale(0.92);
     }
-    #dexCursorControls .dex-cursor-btn .material-symbols-rounded { font-size: 20px; }
+    #dexCursorControls .dex-cursor-btn .material-symbols-rounded {
+      font-size: 16px;
+    }
   `;
   document.head.appendChild(style);
 
@@ -171,7 +177,7 @@
     '</button>';
   document.body.appendChild(menu);
 
-  /* ====== CURSOR CONTROLS (always visible) ====== */
+  /* ====== CURSOR CONTROLS (circular) ====== */
   const cursorControls = document.createElement('div');
   cursorControls.id = 'dexCursorControls';
   cursorControls.innerHTML =
@@ -235,7 +241,6 @@
     if (isHomepage()) {
       btn.style.display = 'none';
       closeMenu();
-      // We keep cursor controls visible but you might want to hide them too? I'll hide them on homepage.
       cursorControls.style.display = 'none';
     } else {
       btn.style.display = '';
@@ -437,10 +442,12 @@
     captureSelection();
     positionMenu();
     menu.classList.add('open');
+    clearSelectionTimeout(); // cancel auto-open timer
   }
   function closeMenu() {
     menu.classList.remove('open');
     setTimeout(() => { savedSelection = null; }, 300);
+    clearSelectionTimeout();
   }
   function toggleMenu() { menuOpen() ? closeMenu() : openMenu(); }
 
@@ -548,8 +555,8 @@
     try { localStorage.setItem(CURSOR_KEY, JSON.stringify({ left, top })); } catch (e) {}
   }
   function clampCursor(left, top) {
-    const cw = cursorControls.offsetWidth || 130;
-    const ch = cursorControls.offsetHeight || 200;
+    const cw = cursorControls.offsetWidth || 150;
+    const ch = cursorControls.offsetHeight || 150;
     const maxLeft = window.innerWidth  - cw - EDGE_MARGIN;
     const maxTop  = window.innerHeight - ch - EDGE_MARGIN;
     return {
@@ -559,7 +566,7 @@
   }
   function defaultCursorPos() {
     return clampCursor(
-      window.innerWidth  - 150,
+      window.innerWidth  - 160,
       Math.round(window.innerHeight * 0.55)
     );
   }
@@ -573,14 +580,12 @@
     applyCursorPos(clampCursor(pos.left, pos.top));
   }
 
-  // Initial positioning
   positionCursorControls();
 
-  // Dragging the cursor controls
   let cursorDrag = null;
 
   cursorControls.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.dex-cursor-btn')) return; // Don't drag on buttons
+    if (e.target.closest('.dex-cursor-btn')) return;
     cursorDrag = {
       pointerId: e.pointerId,
       startX: e.clientX,
@@ -625,22 +630,24 @@
     saveCursorPos(clamped.left, clamped.top);
   });
 
-  /* ====== CURSOR MOVEMENT (selection always on) ====== */
+  /* ====== CURSOR MOVEMENT (selection starts from caret) ====== */
   let cursorAnchor = null;
-  const cursorSelectMode = true; // always on
 
   function moveCursor(dir, multiplier) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
 
-    // Do not focus – avoids keyboard popup
+    // If there is no selection, set anchor to current cursor (start new selection)
+    if (!cm.getSelection()) {
+      cursorAnchor = cm.getCursor('from');
+    } else if (!cursorAnchor) {
+      cursorAnchor = cm.getCursor('from');
+    }
 
     const isVertical = (dir === 'up' || dir === 'down');
     const amount = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
 
-    // Always extend selection
-    if (!cursorAnchor) cursorAnchor = cm.getCursor('from');
     let head = cm.getCursor('to');
     for (let i = 0; i < multiplier; i++) {
       head = isVertical
@@ -659,28 +666,47 @@
   curDblLeft.addEventListener('click',  () => moveCursor('left',  10));
   curDblRight.addEventListener('click', () => moveCursor('right', 10));
 
-  // When cursor controls are opened (they're always open, but we need to set anchor on first use)
-  // Since they're always visible, we can set anchor when the editor is ready.
-  function setInitialAnchor() {
-    const ed = window.dexEditor;
-    const cm = ed && ed.cm ? ed.cm : null;
-    if (cm) {
-      cursorAnchor = cm.getCursor('from');
+  /* ====== AUTO-OPEN MENU AFTER 2 SECONDS OF INACTIVITY ====== */
+  let selectionTimeout = null;
+
+  function clearSelectionTimeout() {
+    if (selectionTimeout) {
+      clearTimeout(selectionTimeout);
+      selectionTimeout = null;
     }
   }
-  // Run after init
-  setTimeout(setInitialAnchor, 500);
 
-  /* ====== CURSOR MOVE -> CLOSE MENU ====== */
-  function attachCursorClose() {
+  function scheduleMenuOpen() {
+    clearSelectionTimeout();
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
-    if (!cm) { setTimeout(attachCursorClose, 300); return; }
-    if (cm.__dexCursorCloseBound) return;
-    cm.__dexCursorCloseBound = true;
+    if (!cm) return;
+    const sel = cm.getSelection();
+    if (sel && sel.length > 0 && !menuOpen()) {
+      selectionTimeout = setTimeout(() => {
+        // Only open if selection still exists and menu is closed
+        if (cm.getSelection() && !menuOpen()) {
+          openMenu();
+        }
+        selectionTimeout = null;
+      }, 2000);
+    }
+  }
+
+  function attachCursorActivity() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { setTimeout(attachCursorActivity, 300); return; }
+    if (cm.__dexCursorActivityBound) return;
+    cm.__dexCursorActivityBound = true;
 
     cm.on('cursorActivity', () => {
-      if (menuOpen()) closeMenu();
+      // Close menu if selection is cleared
+      if (menuOpen() && !cm.getSelection()) {
+        closeMenu();
+      }
+      // Schedule auto-open if selection exists
+      scheduleMenuOpen();
     });
   }
 
@@ -814,6 +840,8 @@
               to: cm.getCursor('to'),
               text: selText
             };
+            // Schedule auto-open after drag ends
+            scheduleMenuOpen();
           }
         }
       }
@@ -826,9 +854,8 @@
   /* ====== INITIALIZATION ====== */
   function init() {
     updateToolbarVisibility();
-    attachCursorClose();
+    attachCursorActivity();
     attachMobileDragSelect();
-    setInitialAnchor(); // set anchor once editor is ready
   }
 
   if (document.readyState === 'loading') {
