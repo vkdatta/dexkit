@@ -640,23 +640,16 @@
     let to   = cm.getCursor('to');
     const isVertical = (dir === 'up' || dir === 'down');
 
-    if (dir === 'left' || dir === 'up') {
-      // Move anchor (from) left/up
-      for (let i = 0; i < multiplier; i++) {
-        from = isVertical
-          ? cm.findPosV(from, -1, 'line')
-          : cm.findPosH(from, -1, 'char');
-      }
-      cm.setSelection(from, to);
-    } else {
-      // Move head (to) right/down
-      for (let i = 0; i < multiplier; i++) {
-        to = isVertical
-          ? cm.findPosV(to, 1, 'line')
-          : cm.findPosH(to, 1, 'char');
-      }
-      cm.setSelection(from, to);
+    // Move the head (to) in the desired direction
+    for (let i = 0; i < multiplier; i++) {
+      if (dir === 'up') to = cm.findPosV(to, -1, 'line');
+      else if (dir === 'down') to = cm.findPosV(to, 1, 'line');
+      else if (dir === 'left') to = cm.findPosH(to, -1, 'char');
+      else if (dir === 'right') to = cm.findPosH(to, 1, 'char');
     }
+    cm.setSelection(from, to);
+    // Scroll the cursor into view
+    cm.scrollIntoView();
   }
 
   curUp.addEventListener('click',    () => moveCursor('up',    1));
