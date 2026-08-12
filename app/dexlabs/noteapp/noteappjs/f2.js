@@ -5,7 +5,6 @@
 
   const LS_KEY = 'dexToolbarPos';
   const CURSOR_KEY = 'dexCursorPos';
-  const CENTER_KEY = 'dexCenterPos';
   const TRIGGER_SIZE = 40;
   const DRAG_THRESHOLD = 8;
   const EDGE_MARGIN = 8;
@@ -24,14 +23,11 @@
     select_all: 'select_all'
   };
 
-  /* ================================================================
-     THEME & VISUAL TOKENS — Gaming Aesthetic
-     ================================================================ */
   const THEME = {
     matte: '#181C1F',
     surface: '#1E2327',
     surfaceHover: '#252B30',
-    accent: '#00D4AA',      /* Gaming teal */
+    accent: '#00D4AA',
     accentGlow: 'rgba(0, 212, 170, 0.35)',
     accentDim: 'rgba(0, 212, 170, 0.12)',
     danger: '#FF4757',
@@ -48,7 +44,6 @@
   const style = document.createElement('style');
   style.id = 'dex-toolbar2-styles';
   style.textContent = `
-    /* ====== BASE ====== */
     #dexToolbarBtn {
       position: fixed;
       width: ${TRIGGER_SIZE}px;
@@ -82,7 +77,6 @@
       border-color: ${THEME.accent};
     }
 
-    /* ====== MENU ====== */
     #dexToolbarMenu {
       position: fixed;
       background: ${THEME.matte};
@@ -145,7 +139,6 @@
       margin: 4px 8px;
     }
 
-    /* ====== CURSOR CONTROLS — Gaming D-Pad ====== */
     #dexCursorControls {
       position: fixed;
       z-index: 9996;
@@ -216,11 +209,11 @@
       font-size: 16px;
     }
 
-    /* ====== CENTER DRAG HANDLE — Gaming Grade ====== */
+    /* ====== CENTER DRAG HANDLE ====== */
     #dexCenterHandle {
       position: fixed;
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background: ${THEME.matte};
       border: 2px solid ${THEME.border};
@@ -233,6 +226,7 @@
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
       box-shadow: ${THEME.shadow};
       opacity: 0;
       pointer-events: none;
@@ -255,18 +249,18 @@
       border-color: ${THEME.accent};
       color: ${THEME.accent};
       box-shadow: 0 0 24px ${THEME.accentGlow}, 0 8px 32px rgba(0,0,0,0.6);
-      transform: scale(1.1);
+      transform: scale(1.12);
       opacity: 1;
     }
     #dexCenterHandle .material-symbols-rounded {
-      font-size: 20px;
+      font-size: 22px;
       transition: transform 0.2s ease;
+      pointer-events: none;
     }
     #dexCenterHandle.dragging .material-symbols-rounded {
       transform: scale(1.2);
     }
 
-    /* Direction indicator ring */
     #dexCenterHandle::after {
       content: '';
       position: absolute;
@@ -305,7 +299,24 @@
       box-shadow: 0 0 12px ${THEME.accentGlow};
     }
 
-    /* ====== SELECTION MAGNIFIER / PREVIEW ====== */
+    /* ====== DRAG OVERLAY — Critical for mobile ====== */
+    #dexDragOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: transparent;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      pointer-events: none;
+      display: none;
+    }
+    #dexDragOverlay.active {
+      display: block;
+      pointer-events: auto;
+    }
+
+    /* ====== SELECTION PREVIEW ====== */
     #dexSelectionPreview {
       position: fixed;
       z-index: 9994;
@@ -338,7 +349,6 @@
       margin-left: 6px;
     }
 
-    /* ====== PARTICLE TRAIL CANVAS ====== */
     #dexParticleCanvas {
       position: fixed;
       inset: 0;
@@ -346,7 +356,6 @@
       pointer-events: none;
     }
 
-    /* ====== SNAP INDICATOR ====== */
     #dexSnapIndicator {
       position: fixed;
       z-index: 9992;
@@ -377,13 +386,13 @@
   resizeParticleCanvas();
   window.addEventListener('resize', resizeParticleCanvas);
 
-  function spawnParticle(x, y, color = THEME.accent) {
+  function spawnParticle(x, y, color) {
     particles.push({
       x, y,
-      vx: (Math.random() - 0.5) * 2,
-      vy: (Math.random() - 0.5) * 2 - 1,
+      vx: (Math.random() - 0.5) * 3,
+      vy: (Math.random() - 0.5) * 3 - 1.5,
       life: 1,
-      decay: 0.03 + Math.random() * 0.03,
+      decay: 0.025 + Math.random() * 0.025,
       size: 2 + Math.random() * 3,
       color
     });
@@ -396,7 +405,7 @@
       p.x += p.vx;
       p.y += p.vy;
       p.life -= p.decay;
-      p.vy += 0.05; // gravity
+      p.vy += 0.04;
       if (p.life <= 0) {
         particles.splice(i, 1);
         continue;
@@ -411,6 +420,11 @@
     requestAnimationFrame(updateParticles);
   }
   requestAnimationFrame(updateParticles);
+
+  /* ====== DRAG OVERLAY — Critical for mobile capture ====== */
+  const dragOverlay = document.createElement('div');
+  dragOverlay.id = 'dexDragOverlay';
+  document.body.appendChild(dragOverlay);
 
   /* ====== TOOLBAR BUTTON ====== */
   const btn = document.createElement('button');
@@ -444,7 +458,7 @@
     '</button>';
   document.body.appendChild(menu);
 
-  /* ====== CURSOR CONTROLS (circular D-Pad) ====== */
+  /* ====== CURSOR CONTROLS ====== */
   const cursorControls = document.createElement('div');
   cursorControls.id = 'dexCursorControls';
   cursorControls.innerHTML =
@@ -536,7 +550,7 @@
     }
   }
 
-  /* ====== POSITION / DRAG for toolbar button ====== */
+  /* ====== TOOLBAR BUTTON POSITION / DRAG ====== */
   function loadPos() {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -591,7 +605,6 @@
   const initial = loadPos() || defaultPos();
   applyPos(clamp(initial.left, initial.top));
 
-  /* ====== BUTTON DRAG ====== */
   let drag = null;
 
   btn.addEventListener('pointerdown', (e) => {
@@ -932,7 +945,7 @@
     saveCursorPos(clamped.left, clamped.top);
   });
 
-  /* ====== CURSOR MOVEMENT (selection starts from caret) ====== */
+  /* ====== CURSOR MOVEMENT ====== */
   let cursorAnchor = null;
 
   function moveCursor(dir, multiplier) {
@@ -968,7 +981,7 @@
   curDblRight.addEventListener('click', () => moveCursor('right', 10));
 
   /* ================================================================
-     CENTER DRAG — GAMING GRADE
+     CENTER DRAG — MOBILE-FIXED WITH OVERLAY CAPTURE
      ================================================================ */
 
   let centerDrag = null;
@@ -1004,11 +1017,11 @@
 
     const mid = getSelectionMidpoint(cm);
     const toCoords = cm.charCoords(cm.getCursor('to'), 'window');
-    const x = mid.x - 22; // half of 44px
+    const x = mid.x - 24;
     const y = toCoords.bottom + 6;
 
-    centerHandle.style.left = `${Math.max(4, Math.min(window.innerWidth - 48, x))}px`;
-    centerHandle.style.top = `${Math.max(4, Math.min(window.innerHeight - 48, y))}px`;
+    centerHandle.style.left = `${Math.max(4, Math.min(window.innerWidth - 52, x))}px`;
+    centerHandle.style.top = `${Math.max(4, Math.min(window.innerHeight - 52, y))}px`;
     centerHandle.classList.add('visible');
   }
 
@@ -1048,7 +1061,6 @@
     centerHandle.classList.remove('dragging-right', 'dragging-left', 'dragging-up', 'dragging-down');
     if (dir) centerHandle.classList.add('dragging-' + dir);
     if (dir && dir !== lastDragDir) {
-      // Direction change feedback
       const rect = centerHandle.getBoundingClientRect();
       for (let i = 0; i < 5; i++) {
         spawnParticle(rect.left + rect.width/2, rect.top + rect.height/2, THEME.accent);
@@ -1070,13 +1082,16 @@
     return { line: pos.line, ch: s };
   }
 
-  centerHandle.addEventListener('pointerdown', (e) => {
+  /*
+   * MOBILE FIX: We use touchstart explicitly on the handle,
+   * then immediately activate a fullscreen overlay that captures
+   * ALL subsequent touch events. This prevents the browser's
+   * native text selection from stealing the touch sequence.
+   */
+  function onCenterDragStart(clientX, clientY) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
-    if (!cm) return;
-
-    e.preventDefault();
-    e.stopPropagation();
+    if (!cm) return false;
 
     const from = cm.getCursor('from');
     const to = cm.getCursor('to');
@@ -1084,72 +1099,65 @@
     lastDragDir = null;
 
     centerDrag = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
+      startX: clientX,
+      startY: clientY,
       moved: false
     };
 
     centerHandle.classList.add('dragging');
-    try { centerHandle.setPointerCapture(e.pointerId); } catch (_e) {}
 
-    // Spawn initial particles
+    // Activate overlay to capture all touch events
+    dragOverlay.classList.add('active');
+
+    // Prevent native selection
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.userSelect = 'none';
+
+    // Burst particles
     for (let i = 0; i < 8; i++) {
-      spawnParticle(e.clientX, e.clientY, THEME.accent);
+      spawnParticle(clientX, clientY, THEME.accent);
     }
-  });
 
-  centerHandle.addEventListener('pointermove', (e) => {
-    if (!centerDrag || e.pointerId !== centerDrag.pointerId) return;
+    return true;
+  }
+
+  function onCenterDragMove(clientX, clientY) {
+    if (!centerDrag) return;
 
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm || !selectionBase) return;
 
-    const dx = e.clientX - centerDrag.startX;
-    const dy = e.clientY - centerDrag.startY;
+    const dx = clientX - centerDrag.startX;
+    const dy = clientY - centerDrag.startY;
 
     if (!centerDrag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     if (!centerDrag.moved) {
       centerDrag.moved = true;
     }
 
-    // Spawn trail particles
     if (Math.random() > 0.5) {
-      spawnParticle(e.clientX, e.clientY, THEME.accentDim);
+      spawnParticle(clientX, clientY, THEME.accentDim);
     }
 
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
-    const currentPos = cm.coordsChar({ left: e.clientX, top: e.clientY }, 'window');
+    const currentPos = cm.coordsChar({ left: clientX, top: clientY }, 'window');
 
     let newAnchor = selectionBase.anchor;
     let newHead = selectionBase.head;
     let dir = null;
 
     if (absDx > absDy) {
-      // Horizontal dominant
-      if (dx > 0) {
-        newHead = currentPos;
-        dir = 'right';
-      } else {
-        newAnchor = currentPos;
-        dir = 'left';
-      }
+      if (dx > 0) { newHead = currentPos; dir = 'right'; }
+      else { newAnchor = currentPos; dir = 'left'; }
     } else {
-      // Vertical dominant
-      if (dy > 0) {
-        newHead = currentPos;
-        dir = 'down';
-      } else {
-        newAnchor = currentPos;
-        dir = 'up';
-      }
+      if (dy > 0) { newHead = currentPos; dir = 'down'; }
+      else { newAnchor = currentPos; dir = 'up'; }
     }
 
     setDragDirection(dir);
 
-    // Ensure anchor is before head
     const cmp = cm.comparePos(newAnchor, newHead);
     if (cmp > 0) {
       const tmp = newAnchor;
@@ -1161,36 +1169,36 @@
     updateCenterHandle();
     updateSelectionPreview();
 
-    // Snap indicator at cursor position
     const snapCoords = cm.charCoords(newHead, 'window');
     snapIndicator.style.left = (snapCoords.left - 2) + 'px';
     snapIndicator.style.top = (snapCoords.top + snapCoords.bottom)/2 - 2 + 'px';
     snapIndicator.classList.add('visible');
-  });
+  }
 
-  function endCenterDrag(e) {
-    if (!centerDrag || e.pointerId !== centerDrag.pointerId) return;
+  function onCenterDragEnd() {
+    if (!centerDrag) return;
 
     const wasDrag = centerDrag.moved;
-    try { centerHandle.releasePointerCapture(centerDrag.pointerId); } catch (_e) {}
     centerDrag = null;
     centerHandle.classList.remove('dragging');
     setDragDirection(null);
     snapIndicator.classList.remove('visible');
 
+    // Deactivate overlay
+    dragOverlay.classList.remove('active');
+
+    // Restore native selection
+    document.body.style.webkitUserSelect = '';
+    document.body.style.userSelect = '';
+
     if (wasDrag) {
       const ed = window.dexEditor;
       const cm = ed && ed.cm ? ed.cm : null;
       if (cm) {
-        // Snap to word boundary on release for polished feel
         const from = cm.getCursor('from');
         const to = cm.getCursor('to');
-        const snappedFrom = snapToWordBoundary(cm, from);
-        const snappedTo = snapToWordBoundary(cm, to);
-        // Only snap if the selection is small (word-level), keep large selections
         const selText = cm.getSelection();
         if (selText && selText.length > 0 && selText.length < 100) {
-          // Find word end for "to" position
           const line = cm.getLine(to.line) || '';
           let endCh = to.ch;
           while (endCh < line.length && /[\w$@#-]/.test(line[endCh])) endCh++;
@@ -1205,7 +1213,6 @@
             to: cm.getCursor('to'),
             text: finalSel
           };
-          // Burst particles on release
           const rect = centerHandle.getBoundingClientRect();
           for (let i = 0; i < 12; i++) {
             spawnParticle(
@@ -1220,10 +1227,83 @@
     }
   }
 
-  centerHandle.addEventListener('pointerup', endCenterDrag);
-  centerHandle.addEventListener('pointercancel', endCenterDrag);
+  /* Touch events on the handle itself */
+  centerHandle.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const touch = e.touches[0];
+    onCenterDragStart(touch.clientX, touch.clientY);
+  }, { passive: false, capture: true });
 
-  /* ====== AUTO-OPEN MENU AFTER 5 SECONDS OF INACTIVITY ====== */
+  /* Touch events on the overlay (captures after handle) */
+  dragOverlay.addEventListener('touchmove', (e) => {
+    if (!centerDrag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const touch = e.touches[0];
+    onCenterDragMove(touch.clientX, touch.clientY);
+  }, { passive: false, capture: true });
+
+  dragOverlay.addEventListener('touchend', (e) => {
+    if (!centerDrag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onCenterDragEnd();
+  }, { passive: false, capture: true });
+
+  dragOverlay.addEventListener('touchcancel', (e) => {
+    if (!centerDrag) return;
+    e.preventDefault();
+    onCenterDragEnd();
+  }, { passive: false, capture: true });
+
+  /* Pointer events for desktop (fallback) */
+  centerHandle.addEventListener('pointerdown', (e) => {
+    // On touch devices, let touchstart handle it
+    if (e.pointerType === 'touch') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+
+    const from = cm.getCursor('from');
+    const to = cm.getCursor('to');
+    selectionBase = { anchor: from, head: to };
+    lastDragDir = null;
+
+    centerDrag = {
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false
+    };
+
+    centerHandle.classList.add('dragging');
+    try { centerHandle.setPointerCapture(e.pointerId); } catch (_e) {}
+
+    for (let i = 0; i < 8; i++) {
+      spawnParticle(e.clientX, e.clientY, THEME.accent);
+    }
+  });
+
+  centerHandle.addEventListener('pointermove', (e) => {
+    if (!centerDrag || e.pointerType === 'touch') return;
+    onCenterDragMove(e.clientX, e.clientY);
+  });
+
+  centerHandle.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'touch') return;
+    onCenterDragEnd();
+  });
+
+  centerHandle.addEventListener('pointercancel', (e) => {
+    if (e.pointerType === 'touch') return;
+    onCenterDragEnd();
+  });
+
+  /* ====== AUTO-OPEN MENU ====== */
   let selectionTimeout = null;
 
   function clearSelectionTimeout() {
