@@ -11,6 +11,12 @@
   const EDGE_MARGIN = 8;
   const MENU_GAP = 12;
 
+  // Long-press auto-repeat tuning
+  const HOLD_START_DELAY = 350;   // ms before repeat kicks in
+  const HOLD_INITIAL_INTERVAL = 90; // ms between repeats at start
+  const HOLD_MIN_INTERVAL = 20;    // ms between repeats at max speed
+  const HOLD_ACCEL_STEP = 4;       // ms subtracted per tick (ramp-up)
+
   const ICONS = {
     down: 'expand_more', up: 'expand_less',
     left: 'chevron_left', right: 'chevron_right',
@@ -205,7 +211,8 @@
       border-color: ${THEME.borderActive};
       transform: scale(1.08);
     }
-    #dexCursorControls .dex-cursor-btn:active {
+    #dexCursorControls .dex-cursor-btn:active,
+    #dexCursorControls .dex-cursor-btn.holding {
       background: ${THEME.accentDim};
       color: ${THEME.accent};
       border-color: ${THEME.accent};
@@ -958,14 +965,110 @@
     updateSelectionPreview();
   }
 
-  curUp.addEventListener('click',    () => moveCursor('up',    1));
-  curDown.addEventListener('click',  () => moveCursor('down',  1));
-  curLeft.addEventListener('click',  () => moveCursor('left',  1));
-  curRight.addEventListener('click', () => moveCursor('right', 1));
-  curDblUp.addEventListener('click',    () => moveCursor('up',    10));
-  curDblDown.addEventListener('click',  () => moveCursor('down',  10));
-  curDblLeft.addEventListener('click',  () => moveCursor('left',  10));
-  curDblRight.addEventListener('click', () => moveCursor('right', 10));
+  /* ====== LONG-PRESS AUTO-REPEAT FOR CURSOR BUTTONS ======
+     Behavior: single tap -> one movement. Press-and-hold -> after
+     HOLD_START_DELAY ms, keeps moving on an accelerating interval until
+     the pointer is released, cancelled, or leaves the button. Works with
+     touch, pen, and mouse via Pointer Events. Uses pointer capture so a
+     finger sliding slightly off the button still counts as held.
+  */
+  function attachHoldRepeat(el, dir, multiplier) {
+    // State kept on the element so repeated pointerdown/up cycles don't leak.
+    let holdState = null;
+
+    function stopHold(reason) {
+      if (!holdState) return;
+      clearTimeout(holdState.startTimer);
+      clearInterval(holdState.intervalId);
+      try { el.releasePointerCapture(holdState.pointerId); } catch (_e) {}
+      el.classList.remove('holding');
+      const wasRepeating = holdState.repeating;
+      const pid = holdState.pointerId;
+      holdState = null;
+      // If the pointer never repeated (short tap), the click handler below
+      // will fire the single move. If we DID repeat, suppress the trailing
+      // click so we don't do one extra move.
+      if (wasRepeating) {
+        el.__dexSuppressNextClick = true;
+        // Clear the suppression after a tick in case click never fires.
+        setTimeout(() => { el.__dexSuppressNextClick = false; }, 300);
+      }
+      return pid;
+    }
+
+    el.addEventListener('pointerdown', (e) => {
+      // Only start a hold for primary button / touch / pen.
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // If a previous hold somehow wasn't cleaned up, kill it first.
+      if (holdState) stopHold('restart');
+
+      holdState = {
+        pointerId: e.pointerId,
+        repeating: false,
+        interval: HOLD_INITIAL_INTERVAL,
+        startTimer: null,
+        intervalId: null
+      };
+
+      try { el.setPointerCapture(e.pointerId); } catch (_e) {}
+      el.classList.add('holding');
+
+      holdState.startTimer = setTimeout(() => {
+        if (!holdState) return;
+        holdState.repeating = true;
+        // Fire first repeat immediately so the hold feels responsive.
+        moveCursor(dir, multiplier);
+        const tick = () => {
+          if (!holdState) return;
+          moveCursor(dir, multiplier);
+          // Accelerate: shrink interval down to HOLD_MIN_INTERVAL.
+          const nextInterval = Math.max(HOLD_MIN_INTERVAL, holdState.interval - HOLD_ACCEL_STEP);
+          if (nextInterval !== holdState.interval) {
+            holdState.interval = nextInterval;
+            clearInterval(holdState.intervalId);
+            holdState.intervalId = setInterval(tick, holdState.interval);
+          }
+        };
+        holdState.intervalId = setInterval(tick, holdState.interval);
+      }, HOLD_START_DELAY);
+    });
+
+    el.addEventListener('pointerup', (e) => {
+      if (!holdState || e.pointerId !== holdState.pointerId) return;
+      stopHold('pointerup');
+    });
+    el.addEventListener('pointercancel', (e) => {
+      if (!holdState || e.pointerId !== holdState.pointerId) return;
+      stopHold('pointercancel');
+    });
+    // pointerleave only fires when NOT pointer-captured, which is fine —
+    // it's a fallback safety net.
+    el.addEventListener('pointerleave', (e) => {
+      if (!holdState || e.pointerId !== holdState.pointerId) return;
+      stopHold('pointerleave');
+    });
+
+    // Single-tap fallback via click. Suppressed when a hold-repeat ran,
+    // otherwise fires exactly one movement.
+    el.addEventListener('click', (e) => {
+      if (el.__dexSuppressNextClick) {
+        el.__dexSuppressNextClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      moveCursor(dir, multiplier);
+    });
+  }
+
+  attachHoldRepeat(curUp,       'up',    1);
+  attachHoldRepeat(curDown,     'down',  1);
+  attachHoldRepeat(curLeft,     'left',  1);
+  attachHoldRepeat(curRight,    'right', 1);
+  attachHoldRepeat(curDblUp,    'up',    10);
+  attachHoldRepeat(curDblDown,  'down',  10);
+  attachHoldRepeat(curDblLeft,  'left',  10);
+  attachHoldRepeat(curDblRight, 'right', 10);
 
   /* ================================================================
      CENTER DRAG — GAMING GRADE
@@ -1325,17 +1428,40 @@
     if (cmEl.__dexMobileDragBound) return;
     cmEl.__dexMobileDragBound = true;
 
-    cmEl.addEventListener('contextmenu', (e) => {});
-    cmEl.addEventListener('selectstart', (e) => {});
+    // Kill browser gesture claim — this is why drag never fired on mobile.
+    // The browser was hijacking the pointer stream for native selection/scroll
+    // before our pointermove handler could preventDefault().
+    const scroller = cmEl.querySelector('.CodeMirror-scroll') || cmEl;
+    cmEl.style.touchAction = 'none';
+    scroller.style.touchAction = 'none';
+    scroller.style.webkitUserSelect = 'none';
+    scroller.style.userSelect = 'none';
+
+    // Block native context menu / selectstart which also cancel our stream.
+    cmEl.addEventListener('contextmenu', (e) => e.preventDefault());
+    cmEl.addEventListener('selectstart', (e) => e.preventDefault());
+    // iOS Safari-specific: preventing touchstart stops the native
+    // magnifier / callout from stealing the gesture.
+    scroller.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) e.preventDefault();
+    }, { passive: false });
+    scroller.addEventListener('touchmove', (e) => {
+      if (dragSelectState && dragSelectState.isDragging) e.preventDefault();
+    }, { passive: false });
 
     let dragSelectState = null;
 
-    cmEl.addEventListener('pointerdown', (e) => {
+    // Use capture phase so we see the event before CodeMirror's own
+    // input-layer handlers grab it.
+    scroller.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
 
       const ed = window.dexEditor;
       const cm = ed && ed.cm ? ed.cm : null;
       if (!cm) return;
+
+      // Prevent the browser from starting native selection/scroll from here.
+      e.preventDefault();
 
       const startX = e.clientX, startY = e.clientY;
       const longPressTimer = setTimeout(() => {
@@ -1360,10 +1486,10 @@
         dragSelectState.lastPos = dragSelectState.startPos;
       } catch (_e) {}
 
-      try { cmEl.setPointerCapture(e.pointerId); } catch (_e) {}
-    });
+      try { scroller.setPointerCapture(e.pointerId); } catch (_e) {}
+    }, { capture: true });
 
-    cmEl.addEventListener('pointermove', (e) => {
+    scroller.addEventListener('pointermove', (e) => {
       if (!dragSelectState || e.pointerId !== dragSelectState.pointerId) return;
       if (dragSelectState.cancelled) return;
 
@@ -1374,14 +1500,19 @@
       if (!dragSelectState.isDragging && dist > MOVE_TOLERANCE) {
         dragSelectState.isDragging = true;
         clearTimeout(dragSelectState.longPressTimer);
-        dragSelectState.cancelled = true;
+        // NOTE: don't set cancelled=true here — we want the drag to keep going.
         if (dragSelectState.startPos) {
-          cm.setSelection(dragSelectState.startPos, dragSelectState.startPos);
+          const ed = window.dexEditor;
+          const cm = ed && ed.cm ? ed.cm : null;
+          if (cm) cm.setSelection(dragSelectState.startPos, dragSelectState.startPos);
         }
       }
 
       if (dragSelectState.isDragging) {
         e.preventDefault();
+        const ed = window.dexEditor;
+        const cm = ed && ed.cm ? ed.cm : null;
+        if (!cm) return;
         let currentPos;
         try {
           currentPos = cm.coordsChar({ left: e.clientX, top: e.clientY }, 'window');
@@ -1394,7 +1525,7 @@
           updateSelectionPreview();
         }
       }
-    });
+    }, { capture: true, passive: false });
 
     function endDragSelect(e) {
       if (!dragSelectState || e.pointerId !== dragSelectState.pointerId) return;
@@ -1402,7 +1533,7 @@
       const wasDragging = dragSelectState.isDragging;
       const state = dragSelectState;
       dragSelectState = null;
-      try { cmEl.releasePointerCapture(e.pointerId); } catch (_e) {}
+      try { scroller.releasePointerCapture(e.pointerId); } catch (_e) {}
 
       if (wasDragging) {
         const ed = window.dexEditor;
@@ -1423,8 +1554,8 @@
       }
     }
 
-    cmEl.addEventListener('pointerup', endDragSelect);
-    cmEl.addEventListener('pointercancel', endDragSelect);
+    scroller.addEventListener('pointerup', endDragSelect, { capture: true });
+    scroller.addEventListener('pointercancel', endDragSelect, { capture: true });
   }
 
   /* ====== INITIALIZATION ====== */
