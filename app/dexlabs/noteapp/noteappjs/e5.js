@@ -649,11 +649,9 @@
     const amount = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
 
     let head = cm.getCursor('to');
-    for (let i = 0; i < multiplier; i++) {
-      head = isVertical
-        ? cm.findPosV(head, amount > 0 ? 1 : -1, 'line')
-        : cm.findPosH(head, amount > 0 ? 1 : -1, 'char');
-    }
+    head = isVertical
+      ? cm.findPosV(head, amount, 'line')
+      : cm.findPosH(head, amount, 'char');
     cm.setSelection(cursorAnchor, head);
   }
 
@@ -689,7 +687,7 @@
           openMenu();
         }
         selectionTimeout = null;
-      }, 2000);
+      }, 5000);
     }
   }
 
@@ -734,14 +732,33 @@
     try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
     catch (_e) { return; }
     if (!pos) return;
-    const bounds = wordBoundsAt(cm, pos);
+    // Select the entire line / paragraph for huge selection
+    const line = pos.line;
+    const lineLen = cm.getLine(line).length;
+    const from = { line: line, ch: 0 };
+    const to = { line: line, ch: lineLen };
+    // If line is empty, try to select surrounding non-empty block
+    let selFrom = from, selTo = to;
+    if (lineLen === 0) {
+      // Find start of block (previous non-empty lines)
+      let startLine = line;
+      while (startLine > 0 && cm.getLine(startLine - 1).length === 0) startLine--;
+      while (startLine > 0 && cm.getLine(startLine - 1).length > 0) startLine--;
+      // Find end of block
+      let endLine = line;
+      const totalLines = cm.lineCount();
+      while (endLine < totalLines - 1 && cm.getLine(endLine + 1).length === 0) endLine++;
+      while (endLine < totalLines - 1 && cm.getLine(endLine + 1).length > 0) endLine++;
+      selFrom = { line: startLine, ch: 0 };
+      selTo = { line: endLine, ch: cm.getLine(endLine).length };
+    }
     try {
-      cm.setSelection(bounds.from, bounds.to);
+      cm.setSelection(selFrom, selTo);
     } catch (_e) { return; }
     savedSelection = {
-      from: bounds.from,
-      to:   bounds.to,
-      text: cm.getRange(bounds.from, bounds.to)
+      from: selFrom,
+      to:   selTo,
+      text: cm.getRange(selFrom, selTo)
     };
     openMenu();
   }
