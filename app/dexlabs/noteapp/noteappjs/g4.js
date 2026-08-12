@@ -1,0 +1,1821 @@
+(function () {
+  'use strict';
+  if (window.__dexToolbar2Loaded) return;
+  window.__dexToolbar2Loaded = true;
+
+  const LS_KEY = 'dexToolbarPos';
+  const CURSOR_KEY = 'dexCursorPos';
+  const CENTER_KEY = 'dexCenterPos';
+  const TRIGGER_SIZE = 40;
+  const DRAG_THRESHOLD = 8;
+  const EDGE_MARGIN = 8;
+  const MENU_GAP = 12;
+  const DBL_TAP_WINDOW   = 300;    // ms between taps to count as double-tap
+  const INACTIVITY_TIMEOUT = 60000; // ms of no D-Pad use before auto-collapse (1 min)
+
+  // Long-press auto-repeat tuning
+  const HOLD_START_DELAY = 350;   // ms before repeat kicks in
+  const HOLD_INITIAL_INTERVAL = 90; // ms between repeats at start
+  const HOLD_MIN_INTERVAL = 20;    // ms between repeats at max speed
+  const HOLD_ACCEL_STEP = 4;       // ms subtracted per tick (ramp-up)
+
+  const ICONS = {
+    down: 'expand_more', up: 'expand_less',
+    left: 'chevron_left', right: 'chevron_right',
+    copy: 'content_copy', paste: 'content_paste',
+    close: 'close',
+    dbl_up: 'keyboard_double_arrow_up',
+    dbl_down: 'keyboard_double_arrow_down',
+    dbl_left: 'keyboard_double_arrow_left',
+    dbl_right: 'keyboard_double_arrow_right',
+    drag: 'drag_indicator',
+    select_all: 'select_all'
+  };
+
+  /* ================================================================
+     THEME & VISUAL TOKENS — Gaming Aesthetic
+     ================================================================ */
+  const THEME = {
+    matte: '#181C1F',
+    surface: '#1E2327',
+    surfaceHover: '#252B30',
+    accent: '#00D4AA',      /* Gaming teal */
+    accentGlow: 'rgba(0, 212, 170, 0.35)',
+    accentDim: 'rgba(0, 212, 170, 0.12)',
+    danger: '#FF4757',
+    dangerGlow: 'rgba(255, 71, 87, 0.35)',
+    text: '#E8ECF0',
+    textMuted: '#8A9199',
+    border: 'rgba(255,255,255,0.08)',
+    borderActive: 'rgba(0, 212, 170, 0.4)',
+    shadow: '0 8px 32px rgba(0,0,0,0.55)',
+    shadowGlow: '0 0 20px rgba(0, 212, 170, 0.15), 0 8px 32px rgba(0,0,0,0.55)',
+    shadowDanger: '0 0 20px rgba(255, 71, 87, 0.15), 0 8px 32px rgba(0,0,0,0.55)'
+  };
+
+  const style = document.createElement('style');
+  style.id = 'dex-toolbar2-styles';
+  style.textContent = `
+    /* ====== BASE ====== */
+    /* Old standalone toolbar button is retired — D-Pad center circle now serves this role */
+    #dexToolbarBtn { display: none !important; }
+    #dexToolbarBtn_LEGACY {
+      position: fixed;
+      width: ${TRIGGER_SIZE}px;
+      height: ${TRIGGER_SIZE}px;
+      border-radius: 50%;
+      background: ${THEME.matte};
+      color: ${THEME.text};
+      border: 1px solid ${THEME.border};
+      display: flex; align-items: center; justify-content: center;
+      cursor: grab;
+      z-index: 9997;
+      box-shadow: ${THEME.shadow};
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      font-family: 'classy', sans-serif;
+      padding: 0;
+      transition: box-shadow 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+    }
+    #dexToolbarBtn:hover {
+      border-color: ${THEME.borderActive};
+      box-shadow: ${THEME.shadowGlow};
+    }
+    #dexToolbarBtn:active { cursor: grabbing; transform: scale(0.94); }
+    #dexToolbarBtn > * { pointer-events: none; }
+    #dexToolbarBtn .material-symbols-rounded { font-size: 24px; }
+    #dexToolbarBtn.dragging {
+      box-shadow: 0 12px 36px rgba(0,0,0,0.7);
+      opacity: 0.85;
+      border-color: ${THEME.accent};
+    }
+
+    /* ====== MENU ====== */
+    #dexToolbarMenu {
+      position: fixed;
+      background: ${THEME.matte};
+      border: 1px solid ${THEME.border};
+      border-radius: 14px;
+      padding: 6px;
+      z-index: 9998;
+      display: none;
+      flex-direction: column;
+      min-width: 180px;
+      box-shadow: ${THEME.shadow};
+      font-family: 'classy', sans-serif;
+      -webkit-touch-callout: none;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    #dexToolbarMenu.open { display: flex; animation: dexMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes dexMenuIn {
+      from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .dex-tb-item {
+      background: transparent;
+      border: none;
+      color: ${THEME.text};
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13.5px;
+      text-align: left;
+      width: 100%;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      transition: background 0.12s ease, color 0.12s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .dex-tb-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.4s ease;
+    }
+    .dex-tb-item:hover::before { transform: translateX(100%); }
+    .dex-tb-item:hover, .dex-tb-item:active {
+      background: ${THEME.surfaceHover};
+      color: ${THEME.accent};
+    }
+    .dex-tb-item > * { pointer-events: none; }
+    .dex-tb-item .material-symbols-rounded { font-size: 20px; }
+    .dex-tb-sep {
+      height: 1px;
+      background: ${THEME.border};
+      margin: 4px 8px;
+    }
+
+    /* ====== D-PAD 2100 — Compass + Center Dragger ======
+       Layout: single 165px transparent circle. 8 octagonal direction buttons
+       positioned at compass points (N, NE, E, SE, S, SW, W, NW) around a
+       minimal dark-grey center dragger. No outer rim — borderless design. */
+    /* ====== D-PAD 2100 — Metallic Grey Core ====== */
+    #dexCursorControls {
+      position: fixed;
+      z-index: 9996;
+      width: 165px;
+      height: 165px;
+      border-radius: 50%;
+      background: transparent;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      cursor: grab;
+      padding: 0;
+      transition: transform 0.15s ease;
+    }
+    #dexCursorControls.dragging {
+      cursor: grabbing;
+      transform: scale(1.02);
+    }
+
+    /* All children (buttons, center) sit above the ::before inner disc */
+    #dexCursorControls > * { position: relative; z-index: 1; }
+
+    /* ====== COMPASS DIRECTION BUTTONS — 2100 Octagonal ====== */
+    #dexCursorControls .dex-cursor-btn {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+      background: rgba(30, 30, 32, 0.95);
+      border: none;
+      color: #E0E0E0;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+      transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.08);
+    }
+    #dexCursorControls .dex-cursor-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent);
+      pointer-events: none;
+    }
+    #dexCursorControls .dex-cursor-btn:hover {
+      background: #404040;
+      color: #FFFFFF;
+      transform: scale(1.15);
+      filter: drop-shadow(0 0 8px rgba(128, 128, 128, 0.5));
+    }
+    #dexCursorControls .dex-cursor-btn:active,
+    #dexCursorControls .dex-cursor-btn.holding {
+      background: #606060;
+      color: #FFFFFF;
+      transform: scale(0.92);
+      filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+    }
+    #dexCursorControls .dex-cursor-btn .material-symbols-rounded {
+      font-size: 15px;
+      width: 15px;
+      height: 15px;
+      line-height: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* Compass positions — 8 points around center. Center of 165px widget
+       is at (82.5,82.5). Buttons are 26px so offset is -13px. */
+    #dexCursorControls .cmp-n  { left: 69.5px; top: 28px;    } /* N   */
+    #dexCursorControls .cmp-ne { left: 98px;   top: 39px;    } /* NE  */
+    #dexCursorControls .cmp-e  { left: 111px;  top: 69.5px;  } /* E   */
+    #dexCursorControls .cmp-se { left: 98px;   top: 100px;   } /* SE  */
+    #dexCursorControls .cmp-s  { left: 69.5px; top: 111px;   } /* S   */
+    #dexCursorControls .cmp-sw { left: 41px;   top: 100px;   } /* SW  */
+    #dexCursorControls .cmp-w  { left: 28px;   top: 69.5px;  } /* W   */
+    #dexCursorControls .cmp-nw { left: 41px;   top: 39px;    } /* NW  */
+
+    /* ====== CENTER CORE DRAGGER — 2100 Minimal Grey ====== */
+    #dexCursorControls .dex-center-drag {
+      position: absolute;
+      left: 68.5px;  /* (165 - 28) / 2 = 68.5 */
+      top:  68.5px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 50%, #2A2A2E 0%, #121214 100%);
+      border: 1.5px solid #404040;
+      color: #E0E0E0;
+      display: flex; align-items: center; justify-content: center;
+      cursor: grab;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.6),
+                  inset 0 0 5px rgba(255, 255, 255, 0.1);
+      transition: transform 0.15s ease,
+                  border-color 0.15s ease,
+                  box-shadow 0.15s ease;
+    }
+    #dexCursorControls .dex-center-drag:hover {
+      border-color: #808080;
+      box-shadow: 0 0 12px rgba(128, 128, 128, 0.4),
+                  inset 0 0 6px rgba(255, 255, 255, 0.2);
+      transform: scale(1.12);
+    }
+    #dexCursorControls .dex-center-drag.dragging {
+      cursor: grabbing;
+      border-color: #00FF88;
+      transform: scale(1.2);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.7),
+                  inset 0 0 8px rgba(0, 255, 136, 0.5);
+    }
+
+    /* Direction indicator ring on center dragger — 2100 directional glow */
+    #dexCursorControls .dex-center-drag::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 1.5px solid transparent;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease;
+      pointer-events: none;
+    }
+    #dexCursorControls .dex-center-drag.dragging-right::after {
+      border-right-color: #00FF88;
+      box-shadow: 4px 0 10px rgba(0, 255, 136, 0.5);
+    }
+    #dexCursorControls .dex-center-drag.dragging-left::after {
+      border-left-color: #00FF88;
+      box-shadow: -4px 0 10px rgba(0, 255, 136, 0.5);
+    }
+    #dexCursorControls .dex-center-drag.dragging-up::after {
+      border-top-color: #00FF88;
+      box-shadow: 0 -4px 10px rgba(0, 255, 136, 0.5);
+    }
+    #dexCursorControls .dex-center-drag.dragging-down::after {
+      border-bottom-color: #00FF88;
+      box-shadow: 0 4px 10px rgba(0, 255, 136, 0.5);
+    }
+
+    /* Old free-floating center handle is retired — kept invisible in case
+       any legacy code still references it. */
+    #dexCenterHandle { display: none !important; }
+
+    /* ====== CENTER DRAG HANDLE — Gaming Grade ====== */
+    #dexCenterHandle {
+      position: fixed;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: ${THEME.matte};
+      border: 2px solid ${THEME.border};
+      color: ${THEME.textMuted};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999; /* above everything so it's always the touch target */
+      cursor: grab;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none; -webkit-user-select: none;
+      box-shadow: ${THEME.shadow};
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+      font-family: 'classy', sans-serif;
+    }
+    /* Invisible larger hit area for easier grabbing on mobile */
+    #dexCenterHandle::before {
+      content: '';
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+    }
+    #dexCenterHandle.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #dexCenterHandle:hover {
+      border-color: ${THEME.borderActive};
+      color: ${THEME.text};
+      box-shadow: ${THEME.shadowGlow};
+      transform: scale(1.05);
+    }
+    #dexCenterHandle.dragging {
+      cursor: grabbing;
+      border-color: ${THEME.accent};
+      color: ${THEME.accent};
+      box-shadow: 0 0 24px ${THEME.accentGlow}, 0 8px 32px rgba(0,0,0,0.6);
+      transform: scale(1.1);
+      opacity: 1;
+    }
+    #dexCenterHandle .material-symbols-rounded {
+      font-size: 20px;
+      transition: transform 0.2s ease;
+    }
+    #dexCenterHandle.dragging .material-symbols-rounded {
+      transform: scale(1.2);
+    }
+
+    /* Direction indicator ring */
+    #dexCenterHandle::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      pointer-events: none;
+    }
+    #dexCenterHandle.dragging-right::after {
+      border-color: ${THEME.accent};
+      border-left-color: transparent;
+      border-top-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+    #dexCenterHandle.dragging-left::after {
+      border-color: ${THEME.accent};
+      border-right-color: transparent;
+      border-top-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+    #dexCenterHandle.dragging-up::after {
+      border-color: ${THEME.accent};
+      border-left-color: transparent;
+      border-right-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+    #dexCenterHandle.dragging-down::after {
+      border-color: ${THEME.accent};
+      border-left-color: transparent;
+      border-right-color: transparent;
+      border-top-color: transparent;
+      box-shadow: 0 0 12px ${THEME.accentGlow};
+    }
+
+    /* ====== SELECTION MAGNIFIER / PREVIEW ====== */
+    #dexSelectionPreview {
+      position: fixed;
+      z-index: 9994;
+      background: ${THEME.matte};
+      border: 1px solid ${THEME.borderActive};
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-family: 'classy', monospace;
+      font-size: 12px;
+      color: ${THEME.accent};
+      box-shadow: ${THEME.shadowGlow};
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px) scale(0.95);
+      transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #dexSelectionPreview.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    #dexSelectionPreview .dex-preview-count {
+      color: ${THEME.textMuted};
+      font-size: 10px;
+      margin-left: 6px;
+    }
+
+    /* ====== PARTICLE TRAIL CANVAS ====== */
+    #dexParticleCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 9993;
+      pointer-events: none;
+    }
+
+    /* ====== CODEMIRROR 5 SELECTION COLORS ====== */
+    .CodeMirror-selected { background: #606060 !important; }
+    .CodeMirror-focused .CodeMirror-selected { background: #606060 !important; }
+    .CodeMirror-line ::selection,
+    .CodeMirror-line > span ::selection,
+    .CodeMirror-line > span > span ::selection { background: #606060 !important; color: #000000 !important; }
+    .CodeMirror-line ::-moz-selection,
+    .CodeMirror-line > span ::-moz-selection,
+    .CodeMirror-line > span > span ::-moz-selection { background: #606060 !important; color: #000000 !important; }
+    /* Force text color of selected characters — CM5 paints selection behind text,
+       so we tint the text via a stacked overlay class CM adds to selected spans. */
+    .CodeMirror .CodeMirror-selectedtext { color: #000000 !important; }
+
+    /* ====== COLLAPSED D-PAD STATE ====== */
+    /* In collapsed mode: direction buttons fade out, center circle dims to 50% */
+    #dexCursorControls.dpad-collapsed .dex-cursor-btn {
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transition: opacity 0.25s ease !important;
+    }
+    #dexCursorControls.dpad-collapsed .dex-center-drag {
+      opacity: 0.5;
+      cursor: grab;
+      transition: opacity 0.25s ease, transform 0.25s ease,
+                  border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    #dexCursorControls.dpad-collapsed .dex-center-drag:hover {
+      opacity: 0.8;
+      transform: scale(1.18) !important;
+      border-color: ${THEME.accent};
+      box-shadow: 0 0 14px ${THEME.accentGlow}, inset 0 0 6px rgba(255,255,255,0.15);
+    }
+    #dexCursorControls.dpad-collapsed .dex-center-drag.dragging {
+      opacity: 0.95;
+      cursor: grabbing;
+    }
+    /* Expand animation when D-Pad opens */
+    @keyframes dexDpadBtnIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    #dexCursorControls:not(.dpad-collapsed) .dex-cursor-btn {
+      animation: dexDpadBtnIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    /* Visual hint on center circle: gentle pulse when collapsed */
+    @keyframes dexCenterPulse {
+      0%, 100% { box-shadow: 0 0 10px rgba(0,0,0,0.6), inset 0 0 5px rgba(255,255,255,0.1); }
+      50%       { box-shadow: 0 0 14px rgba(0, 212, 170, 0.2), inset 0 0 5px rgba(255,255,255,0.1); }
+    }
+    #dexCursorControls.dpad-collapsed .dex-center-drag {
+      animation: dexCenterPulse 3s ease-in-out infinite;
+    }
+    #dexCursorControls.dpad-collapsed .dex-center-drag:hover,
+    #dexCursorControls.dpad-collapsed .dex-center-drag.dragging {
+      animation: none;
+    }
+
+    /* ====== SNAP INDICATOR ====== */
+    #dexSnapIndicator {
+      position: fixed;
+      z-index: 9992;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: ${THEME.accent};
+      box-shadow: 0 0 8px ${THEME.accentGlow}, 0 0 16px ${THEME.accentGlow};
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+    #dexSnapIndicator.visible { opacity: 1; }
+  `;
+  document.head.appendChild(style);
+
+  /* ====== PARTICLE SYSTEM ====== */
+  const particleCanvas = document.createElement('canvas');
+  particleCanvas.id = 'dexParticleCanvas';
+  document.body.appendChild(particleCanvas);
+  const pCtx = particleCanvas.getContext('2d');
+  let particles = [];
+
+  function resizeParticleCanvas() {
+    particleCanvas.width = window.innerWidth;
+    particleCanvas.height = window.innerHeight;
+  }
+  resizeParticleCanvas();
+  window.addEventListener('resize', resizeParticleCanvas);
+
+  function spawnParticle(x, y, color = THEME.accent) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2 - 1,
+      life: 1,
+      decay: 0.03 + Math.random() * 0.03,
+      size: 2 + Math.random() * 3,
+      color
+    });
+  }
+
+  function updateParticles() {
+    pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= p.decay;
+      p.vy += 0.05; // gravity
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+        continue;
+      }
+      pCtx.globalAlpha = p.life * 0.6;
+      pCtx.fillStyle = p.color;
+      pCtx.beginPath();
+      pCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      pCtx.fill();
+    }
+    pCtx.globalAlpha = 1;
+    requestAnimationFrame(updateParticles);
+  }
+  requestAnimationFrame(updateParticles);
+
+  /* ====== TOOLBAR BUTTON (retired — kept as hidden stub for legacy refs) ====== */
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'dexToolbarBtn';
+  btn.setAttribute('aria-label', 'Open editor toolbar');
+  btn.innerHTML = '<span class="material-symbols-rounded" id="dexToolbarBtnIcon">' + ICONS.down + '</span>';
+  btn.style.display = 'none'; // hidden — D-Pad center circle is the new toolbar
+  document.body.appendChild(btn);
+
+  /* ====== MENU ====== */
+  const menu = document.createElement('div');
+  menu.id = 'dexToolbarMenu';
+  menu.innerHTML =
+    '<button type="button" class="dex-tb-item" id="dexTbCopy">'  +
+      '<span class="material-symbols-rounded">' + ICONS.copy  + '</span>' +
+      '<span>Copy</span>' +
+    '</button>' +
+    '<button type="button" class="dex-tb-item" id="dexTbPaste">' +
+      '<span class="material-symbols-rounded">' + ICONS.paste + '</span>' +
+      '<span>Paste</span>' +
+    '</button>' +
+    '<div class="dex-tb-sep"></div>' +
+    '<button type="button" class="dex-tb-item" id="dexTbSelectAll">' +
+      '<span class="material-symbols-rounded">' + ICONS.select_all + '</span>' +
+      '<span>Select All</span>' +
+    '</button>' +
+    '<div class="dex-tb-sep"></div>' +
+    '<button type="button" class="dex-tb-item" id="dexTbClose">' +
+      '<span class="material-symbols-rounded">' + ICONS.close + '</span>' +
+      '<span>Close menu</span>' +
+    '</button>';
+  document.body.appendChild(menu);
+
+  /* ====== CURSOR CONTROLS (Ultimate D-Pad — compass + center dragger) ====== */
+  const cursorControls = document.createElement('div');
+  cursorControls.id = 'dexCursorControls';
+  cursorControls.innerHTML =
+    // Compass direction buttons — cardinals = single step, diagonals = ×10 fast
+    '<button type="button" class="dex-cursor-btn cmp-n"  id="dexCurUp"       aria-label="Up">'         + '<span class="material-symbols-rounded">' + ICONS.up         + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-ne" id="dexCurDblUp"    aria-label="Fast up">'    + '<span class="material-symbols-rounded">' + ICONS.dbl_up     + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-e"  id="dexCurRight"    aria-label="Right">'      + '<span class="material-symbols-rounded">' + ICONS.right      + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-se" id="dexCurDblRight" aria-label="Fast right">' + '<span class="material-symbols-rounded">' + ICONS.dbl_right  + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-s"  id="dexCurDown"     aria-label="Down">'       + '<span class="material-symbols-rounded">' + ICONS.down       + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-sw" id="dexCurDblDown"  aria-label="Fast down">'  + '<span class="material-symbols-rounded">' + ICONS.dbl_down   + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-w"  id="dexCurLeft"     aria-label="Left">'       + '<span class="material-symbols-rounded">' + ICONS.left       + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-nw" id="dexCurDblLeft"  aria-label="Fast left">'  + '<span class="material-symbols-rounded">' + ICONS.dbl_left   + '</span></button>' +
+    // Center dragger — lives inside the D-Pad (2100: bare circle, no icon)
+    '<div class="dex-center-drag" id="dexCenterDrag" aria-label="Drag to select"></div>';
+  document.body.appendChild(cursorControls);
+
+  /* ====== CENTER DRAG HANDLE (legacy — kept as no-op stub) ====== */
+  const centerHandle = document.getElementById('dexCenterDrag');
+
+
+  /* ====== SELECTION PREVIEW ====== */
+  const selectionPreview = document.createElement('div');
+  selectionPreview.id = 'dexSelectionPreview';
+  document.body.appendChild(selectionPreview);
+
+  /* ====== SNAP INDICATOR ====== */
+  const snapIndicator = document.createElement('div');
+  snapIndicator.id = 'dexSnapIndicator';
+  document.body.appendChild(snapIndicator);
+
+  /* ====== ELEMENT REFERENCES ====== */
+  const btnIcon = document.getElementById('dexToolbarBtnIcon');
+  const copyEl  = document.getElementById('dexTbCopy');
+  const pasteEl = document.getElementById('dexTbPaste');
+  const selectAllEl = document.getElementById('dexTbSelectAll');
+  const closeEl = document.getElementById('dexTbClose');
+
+  const curUp      = document.getElementById('dexCurUp');
+  const curDown    = document.getElementById('dexCurDown');
+  const curLeft    = document.getElementById('dexCurLeft');
+  const curRight   = document.getElementById('dexCurRight');
+  const curDblUp   = document.getElementById('dexCurDblUp');
+  const curDblDown = document.getElementById('dexCurDblDown');
+  const curDblLeft = document.getElementById('dexCurDblLeft');
+  const curDblRight= document.getElementById('dexCurDblRight');
+
+  /* ====== HOMEPAGE DETECTION ====== */
+  function isHomepage() {
+    const path = window.location.pathname;
+    return path === '/' || path === '/index.html' || path === '/home' || path === '';
+  }
+
+  function updateToolbarVisibility() {
+    if (isHomepage()) {
+      // btn already hidden permanently
+      closeMenu();
+      cursorControls.style.display = 'none';
+      centerHandle.classList.remove('visible');
+    } else {
+      // btn stays hidden — never re-show it
+      cursorControls.style.display = 'flex';
+      updateCenterHandle();
+    }
+  }
+
+  /* ====== POSITION / DRAG for toolbar button ====== */
+  function loadPos() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.left === 'number' && typeof p.top === 'number') return p;
+    } catch (e) {}
+    return null;
+  }
+  function savePos(left, top) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ left, top })); } catch (e) {}
+  }
+  function clamp(left, top) {
+    const maxLeft = window.innerWidth  - TRIGGER_SIZE - EDGE_MARGIN;
+    const maxTop  = window.innerHeight - TRIGGER_SIZE - EDGE_MARGIN;
+    return {
+      left: Math.max(EDGE_MARGIN, Math.min(maxLeft, left)),
+      top:  Math.max(EDGE_MARGIN, Math.min(maxTop,  top))
+    };
+  }
+  function defaultPos() {
+    return clamp(
+      window.innerWidth  - TRIGGER_SIZE - 16,
+      Math.round(window.innerHeight * 0.35)
+    );
+  }
+  function applyPos(pos) {
+    btn.style.left = pos.left + 'px';
+    btn.style.top  = pos.top  + 'px';
+    updateChevron(pos);
+  }
+
+  function chevronForPos(pos) {
+    const w = window.innerWidth, h = window.innerHeight;
+    const distLeft   = pos.left;
+    const distRight  = w - pos.left - TRIGGER_SIZE;
+    const distTop    = pos.top;
+    const distBottom = h - pos.top - TRIGGER_SIZE;
+    const min = Math.min(distLeft, distRight, distTop, distBottom);
+    if (min === distTop && distTop <= distLeft && distTop <= distRight && distTop <= distBottom) return 'down';
+    if (min === distBottom) return 'up';
+    if (min === distLeft)   return 'right';
+    if (min === distRight)  return 'left';
+    return 'down';
+  }
+  function updateChevron(pos) {
+    const dir = chevronForPos(pos);
+    btnIcon.textContent = ICONS[dir];
+    btn.dataset.dir = dir;
+  }
+
+  const initial = loadPos() || defaultPos();
+  applyPos(clamp(initial.left, initial.top));
+
+  /* ====== BUTTON DRAG ====== */
+  let drag = null;
+
+  btn.addEventListener('pointerdown', (e) => {
+    drag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: btn.offsetLeft,
+      startTop:  btn.offsetTop,
+      moved: false
+    };
+    try { btn.setPointerCapture(e.pointerId); } catch (_e) {}
+  });
+
+  btn.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      btn.classList.add('dragging');
+      if (menuOpen()) closeMenu();
+    }
+    const next = clamp(drag.startLeft + dx, drag.startTop + dy);
+    applyPos(next);
+  });
+
+  function endDrag(e) {
+    if (!drag) return;
+    const wasDrag = drag.moved;
+    try { btn.releasePointerCapture(drag.pointerId); } catch (_e) {}
+    drag = null;
+    btn.classList.remove('dragging');
+    if (wasDrag) {
+      const pos = { left: btn.offsetLeft, top: btn.offsetTop };
+      savePos(pos.left, pos.top);
+      updateChevron(pos);
+    } else {
+      toggleMenu();
+    }
+  }
+  btn.addEventListener('pointerup',     endDrag);
+  btn.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', () => {
+    const clamped = clamp(btn.offsetLeft, btn.offsetTop);
+    applyPos(clamped);
+    savePos(clamped.left, clamped.top);
+  });
+
+  /* ====== MENU ====== */
+  function menuOpen() { return menu.classList.contains('open'); }
+
+  function positionMenu() {
+    let anchor = null;
+    try {
+      const ed = window.dexEditor;
+      const cm = ed && ed.cm ? ed.cm : null;
+      if (cm) {
+        const sel = cm.getSelection();
+        if (sel && sel.length > 0) {
+          const to = cm.getCursor('to');
+          const c = cm.charCoords(to, 'window');
+          anchor = { x: c.right, y: c.bottom, fromSelection: true };
+        } else {
+          const c = cm.charCoords(cm.getCursor(), 'window');
+          anchor = { x: c.right, y: c.bottom, fromSelection: false };
+        }
+      }
+    } catch (_e) {}
+
+    menu.style.visibility = 'hidden';
+    menu.classList.add('open');
+    const menuW = menu.offsetWidth;
+    const menuH = menu.offsetHeight;
+    menu.classList.remove('open');
+    menu.style.visibility = '';
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left, top;
+
+    if (anchor && anchor.fromSelection) {
+      left = anchor.x + MENU_GAP;
+      top  = anchor.y + MENU_GAP;
+    } else {
+      // Anchor menu to the center circle within cursorControls
+      // Center circle is at 68.5+14=82.5px from left/top of the 165px container
+      const ccLeft = cursorControls.offsetLeft;
+      const ccTop  = cursorControls.offsetTop;
+      const cx = ccLeft + 82.5; // center of the circle
+      const cy = ccTop  + 82.5;
+      left = cx - menuW / 2;
+      // Place above or below based on available space
+      if (cy > vh / 2) {
+        top = ccTop - menuH - MENU_GAP;
+      } else {
+        top = ccTop + 165 + MENU_GAP;
+      }
+    }
+
+    left = Math.max(EDGE_MARGIN, Math.min(vw - menuW - EDGE_MARGIN, left));
+    top  = Math.max(EDGE_MARGIN, Math.min(vh - menuH - EDGE_MARGIN, top));
+
+    menu.style.left = left + 'px';
+    menu.style.top  = top  + 'px';
+  }
+
+  let savedSelection = null;
+
+  function captureSelection() {
+    try {
+      const ed = window.dexEditor;
+      if (ed && ed.cm) {
+        const cm = ed.cm;
+        const from = cm.getCursor('from');
+        const to   = cm.getCursor('to');
+        const text = cm.getSelection();
+        savedSelection = { from, to, text };
+      }
+    } catch (_e) {}
+  }
+  function restoreSelection() {
+    try {
+      const ed = window.dexEditor;
+      if (ed && ed.cm && savedSelection) {
+        ed.cm.setSelection(savedSelection.from, savedSelection.to);
+        ed.cm.focus();
+      }
+    } catch (_e) {}
+  }
+
+  function openMenu()  {
+    captureSelection();
+    positionMenu();
+    menu.classList.add('open');
+    clearSelectionTimeout();
+  }
+  function closeMenu() {
+    menu.classList.remove('open');
+    setTimeout(() => { savedSelection = null; }, 300);
+    clearSelectionTimeout();
+  }
+  function toggleMenu() { menuOpen() ? closeMenu() : openMenu(); }
+
+  window.dexOpenToolbar   = openMenu;
+  window.dexCloseToolbar  = closeMenu;
+  window.dexToggleToolbar = toggleMenu;
+
+  [copyEl, pasteEl, selectAllEl, closeEl].forEach(el => {
+    el.addEventListener('mousedown', e => e.preventDefault());
+  });
+
+  function notify(m) {
+    if (typeof showNotification === 'function') showNotification(m);
+  }
+
+  /* ====== COPY ====== */
+  copyEl.addEventListener('click', async () => {
+    const ed = window.dexEditor;
+    let text = '';
+    if (savedSelection && savedSelection.text) text = savedSelection.text;
+    else if (ed && ed.getSelection) {
+      const s = ed.getSelection();
+      if (s && s.text) text = s.text;
+    }
+    if (!text && ed && ed.getValue) text = ed.getValue();
+    if (!text) { notify('Nothing to copy'); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      notify('Copied');
+      closeMenu(); // close menu, D-Pad stays open
+    } catch (_e) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        notify('Copied');
+        closeMenu(); // close menu, D-Pad stays open
+      } catch (_e2) {
+        notify('Copy failed — grant clipboard permission');
+        // keep menu open on failure so user can retry
+      }
+    }
+  });
+
+  /* ====== PASTE ====== */
+  pasteEl.addEventListener('click', async () => {
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch (_e) {
+      notify('Paste blocked — allow clipboard permission');
+      return;
+    }
+    if (!text) { notify('Clipboard is empty'); return; }
+
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { notify('Editor not ready'); return; }
+
+    let from, to;
+    if (savedSelection && isPosValid(cm, savedSelection.from) && isPosValid(cm, savedSelection.to)) {
+      from = savedSelection.from;
+      to   = savedSelection.to;
+    } else {
+      const c = cm.getCursor();
+      from = c; to = c;
+    }
+
+    cm.operation(() => {
+      cm.replaceRange(text, from, to);
+      const startIdx = cm.indexFromPos(from);
+      const endPos   = cm.posFromIndex(startIdx + text.length);
+      cm.setSelection(endPos, endPos);
+    });
+
+    const startIdx = cm.indexFromPos(from);
+    const endPos   = cm.posFromIndex(startIdx + text.length);
+    savedSelection = { from: endPos, to: endPos, text: '' };
+
+    notify('Pasted ' + text.length + ' character' + (text.length === 1 ? '' : 's'));
+    closeMenu(); // close menu, D-Pad stays open
+  });
+
+  /* ====== SELECT ALL ====== */
+  selectAllEl.addEventListener('click', () => {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { notify('Editor not ready'); return; }
+    const lastLine = cm.lineCount() - 1;
+    const from = { line: 0, ch: 0 };
+    const to = { line: lastLine, ch: cm.getLine(lastLine).length };
+    cm.setSelection(from, to);
+    savedSelection = { from, to, text: cm.getValue() };
+    notify('Selected all');
+    // NOTE: menu stays open after Select All so user can immediately Copy
+  });
+
+  function isPosValid(cm, pos) {
+    if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
+    const lc = cm.lineCount();
+    if (pos.line < 0 || pos.line >= lc) return false;
+    const lineLen = cm.getLine(pos.line).length;
+    return pos.ch >= 0 && pos.ch <= lineLen;
+  }
+
+  closeEl.addEventListener('click', closeMenu);
+
+  /* ====== CURSOR CONTROLS POSITION & DRAG ====== */
+  function loadCursorPos() {
+    try {
+      const raw = localStorage.getItem(CURSOR_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.left === 'number' && typeof p.top === 'number') return p;
+    } catch (e) {}
+    return null;
+  }
+  function saveCursorPos(left, top) {
+    try { localStorage.setItem(CURSOR_KEY, JSON.stringify({ left, top })); } catch (e) {}
+  }
+  function clampCursor(left, top) {
+    const cw = cursorControls.offsetWidth || 165;
+    const ch = cursorControls.offsetHeight || 165;
+    const maxLeft = window.innerWidth  - cw - EDGE_MARGIN;
+    const maxTop  = window.innerHeight - ch - EDGE_MARGIN;
+    return {
+      left: Math.max(EDGE_MARGIN, Math.min(maxLeft, left)),
+      top:  Math.max(EDGE_MARGIN, Math.min(maxTop,  top))
+    };
+  }
+  function defaultCursorPos() {
+    return clampCursor(
+      window.innerWidth  - 185,
+      Math.round(window.innerHeight * 0.5)
+    );
+  }
+  function applyCursorPos(pos) {
+    cursorControls.style.left = pos.left + 'px';
+    cursorControls.style.top  = pos.top  + 'px';
+  }
+
+  function positionCursorControls() {
+    const pos = loadCursorPos() || defaultCursorPos();
+    applyCursorPos(clampCursor(pos.left, pos.top));
+  }
+
+  positionCursorControls();
+
+  /* ====== D-PAD STATE MANAGEMENT ======
+     collapsed → center circle only (50% opacity), draggable, double-tap to expand
+     expanded  → full D-Pad visible, double-tap center to open menu
+     Auto-collapses after INACTIVITY_TIMEOUT ms of no interaction. */
+
+  let dpadState = 'collapsed';
+  let inactivityTimer = null;
+  let centerLastTap = 0; // timestamp of last tap on center circle (for double-tap detection)
+
+  // Start in collapsed state
+  cursorControls.classList.add('dpad-collapsed');
+
+  function clearInactivityTimer() {
+    if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+  }
+
+  function resetInactivityTimer() {
+    clearInactivityTimer();
+    if (dpadState === 'expanded') {
+      inactivityTimer = setTimeout(collapseDpad, INACTIVITY_TIMEOUT);
+    }
+  }
+
+  function collapseDpad() {
+    dpadState = 'collapsed';
+    cursorControls.classList.add('dpad-collapsed');
+    clearInactivityTimer();
+    if (menuOpen()) closeMenu();
+  }
+
+  function expandDpad() {
+    dpadState = 'expanded';
+    cursorControls.classList.remove('dpad-collapsed');
+    resetInactivityTimer();
+  }
+
+  /* Handle a confirmed double-tap on the center circle */
+  function handleCenterDoubleTap() {
+    if (dpadState === 'collapsed') {
+      expandDpad();
+    } else {
+      // Expanded: toggle menu
+      if (!menuOpen()) openMenu();
+      else closeMenu();
+    }
+  }
+
+  /* Called on every pointer-up on the center that wasn't a drag.
+     Returns true if this was the 2nd tap of a double-tap (action consumed). */
+  function recordCenterTap() {
+    const now = Date.now();
+    if (now - centerLastTap < DBL_TAP_WINDOW) {
+      centerLastTap = 0; // reset so a 3rd tap doesn't retrigger
+      handleCenterDoubleTap();
+      return true;
+    }
+    centerLastTap = now;
+    return false;
+  }
+
+  /* ====== COLLAPSED-MODE CENTER DRAG (repositions the whole D-Pad) ====== */
+  let collapsedCenterDrag = null;
+  let collapsedCenterTouchId = null;
+
+  function startCollapsedCenterDrag(clientX, clientY) {
+    collapsedCenterDrag = {
+      startX: clientX,
+      startY: clientY,
+      startLeft: cursorControls.offsetLeft,
+      startTop:  cursorControls.offsetTop,
+      moved: false
+    };
+  }
+
+  function moveCollapsedCenterDrag(clientX, clientY) {
+    if (!collapsedCenterDrag) return;
+    const dx = clientX - collapsedCenterDrag.startX;
+    const dy = clientY - collapsedCenterDrag.startY;
+    if (!collapsedCenterDrag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    collapsedCenterDrag.moved = true;
+    const next = clampCursor(collapsedCenterDrag.startLeft + dx, collapsedCenterDrag.startTop + dy);
+    applyCursorPos(next);
+    centerHandle.classList.add('dragging');
+  }
+
+  /* Returns true if it was a clean tap (no drag), so caller can check double-tap */
+  function endCollapsedCenterDrag() {
+    if (!collapsedCenterDrag) return false;
+    const wasDrag = collapsedCenterDrag.moved;
+    collapsedCenterDrag = null;
+    centerHandle.classList.remove('dragging');
+    if (wasDrag) {
+      saveCursorPos(cursorControls.offsetLeft, cursorControls.offsetTop);
+    }
+    return !wasDrag; // true = tap
+  }
+
+  let cursorDrag = null;
+
+  cursorControls.addEventListener('pointerdown', (e) => {
+    if (dpadState === 'collapsed') return; // collapsed: center circle handles all dragging
+    if (e.target.closest('.dex-cursor-btn')) return;
+    if (e.target.closest('.dex-center-drag')) return;
+    cursorDrag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: cursorControls.offsetLeft,
+      startTop:  cursorControls.offsetTop,
+      moved: false
+    };
+    try { cursorControls.setPointerCapture(e.pointerId); } catch (_e) {}
+  });
+
+  cursorControls.addEventListener('pointermove', (e) => {
+    if (!cursorDrag || e.pointerId !== cursorDrag.pointerId) return;
+    const dx = e.clientX - cursorDrag.startX;
+    const dy = e.clientY - cursorDrag.startY;
+    if (!cursorDrag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!cursorDrag.moved) {
+      cursorDrag.moved = true;
+      cursorControls.classList.add('dragging');
+    }
+    const next = clampCursor(cursorDrag.startLeft + dx, cursorDrag.startTop + dy);
+    applyCursorPos(next);
+  });
+
+  function endCursorDrag(e) {
+    if (!cursorDrag || e.pointerId !== cursorDrag.pointerId) return;
+    const wasDrag = cursorDrag.moved;
+    try { cursorControls.releasePointerCapture(cursorDrag.pointerId); } catch (_e) {}
+    cursorDrag = null;
+    cursorControls.classList.remove('dragging');
+    if (wasDrag) {
+      const pos = { left: cursorControls.offsetLeft, top: cursorControls.offsetTop };
+      saveCursorPos(pos.left, pos.top);
+    }
+  }
+  cursorControls.addEventListener('pointerup',     endCursorDrag);
+  cursorControls.addEventListener('pointercancel', endCursorDrag);
+
+  window.addEventListener('resize', () => {
+    const clamped = clampCursor(cursorControls.offsetLeft, cursorControls.offsetTop);
+    applyCursorPos(clamped);
+    saveCursorPos(clamped.left, clamped.top);
+  });
+
+  /* ====== UNIFIED SELECTION ANCHOR ======
+     Single source of truth for both the D-Pad and the center handle.
+     Seeded on cursorActivity (when caret moves with no selection) and
+     kept in sync whenever either method commits a new selection. */
+  let selectionAnchor = null;
+
+  function ensureAnchor(cm) {
+    if (selectionAnchor) return selectionAnchor;
+    // Prefer the current selection's anchor if there is one; otherwise the caret.
+    selectionAnchor = cm.getSelection() ? cm.getCursor('anchor') : cm.getCursor('head');
+    return selectionAnchor;
+  }
+
+  function moveCursor(dir, multiplier) {
+    resetInactivityTimer(); // D-Pad button used — reset 1-min inactivity timer
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+
+    const anchor = ensureAnchor(cm);
+    const isVertical = (dir === 'up' || dir === 'down');
+    const amount = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
+
+    let head = cm.getCursor('head');
+    head = isVertical
+      ? cm.findPosV(head, amount, 'line')
+      : cm.findPosH(head, amount, 'char');
+    cm.setSelection(anchor, head);
+    updateCenterHandle();
+    updateSelectionPreview();
+  }
+
+  /* ====== LONG-PRESS AUTO-REPEAT FOR CURSOR BUTTONS ======
+     Behavior: single tap -> one movement. Press-and-hold -> after
+     HOLD_START_DELAY ms, keeps moving on an accelerating interval until
+     the pointer is released, cancelled, or leaves the button. Works with
+     touch, pen, and mouse via Pointer Events. Uses pointer capture so a
+     finger sliding slightly off the button still counts as held.
+  */
+  function attachHoldRepeat(el, dir, multiplier) {
+    // State kept on the element so repeated pointerdown/up cycles don't leak.
+    let holdState = null;
+
+    function stopHold(reason) {
+      if (!holdState) return;
+      clearTimeout(holdState.startTimer);
+      clearInterval(holdState.intervalId);
+      try { el.releasePointerCapture(holdState.pointerId); } catch (_e) {}
+      el.classList.remove('holding');
+      const wasRepeating = holdState.repeating;
+      const pid = holdState.pointerId;
+      holdState = null;
+      // If the pointer never repeated (short tap), the click handler below
+      // will fire the single move. If we DID repeat, suppress the trailing
+      // click so we don't do one extra move.
+      if (wasRepeating) {
+        el.__dexSuppressNextClick = true;
+        // Clear the suppression after a tick in case click never fires.
+        setTimeout(() => { el.__dexSuppressNextClick = false; }, 300);
+      }
+      return pid;
+    }
+
+    el.addEventListener('pointerdown', (e) => {
+      // Only start a hold for primary button / touch / pen.
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // If a previous hold somehow wasn't cleaned up, kill it first.
+      if (holdState) stopHold('restart');
+
+      holdState = {
+        pointerId: e.pointerId,
+        repeating: false,
+        interval: HOLD_INITIAL_INTERVAL,
+        startTimer: null,
+        intervalId: null
+      };
+
+      try { el.setPointerCapture(e.pointerId); } catch (_e) {}
+      el.classList.add('holding');
+
+      holdState.startTimer = setTimeout(() => {
+        if (!holdState) return;
+        holdState.repeating = true;
+        // Fire first repeat immediately so the hold feels responsive.
+        moveCursor(dir, multiplier);
+        const tick = () => {
+          if (!holdState) return;
+          moveCursor(dir, multiplier);
+          // Accelerate: shrink interval down to HOLD_MIN_INTERVAL.
+          const nextInterval = Math.max(HOLD_MIN_INTERVAL, holdState.interval - HOLD_ACCEL_STEP);
+          if (nextInterval !== holdState.interval) {
+            holdState.interval = nextInterval;
+            clearInterval(holdState.intervalId);
+            holdState.intervalId = setInterval(tick, holdState.interval);
+          }
+        };
+        holdState.intervalId = setInterval(tick, holdState.interval);
+      }, HOLD_START_DELAY);
+    });
+
+    el.addEventListener('pointerup', (e) => {
+      if (!holdState || e.pointerId !== holdState.pointerId) return;
+      stopHold('pointerup');
+    });
+    el.addEventListener('pointercancel', (e) => {
+      if (!holdState || e.pointerId !== holdState.pointerId) return;
+      stopHold('pointercancel');
+    });
+    // pointerleave only fires when NOT pointer-captured, which is fine —
+    // it's a fallback safety net.
+    el.addEventListener('pointerleave', (e) => {
+      if (!holdState || e.pointerId !== holdState.pointerId) return;
+      stopHold('pointerleave');
+    });
+
+    // Single-tap fallback via click. Suppressed when a hold-repeat ran,
+    // otherwise fires exactly one movement.
+    el.addEventListener('click', (e) => {
+      if (el.__dexSuppressNextClick) {
+        el.__dexSuppressNextClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      moveCursor(dir, multiplier);
+    });
+  }
+
+  attachHoldRepeat(curUp,       'up',    1);
+  attachHoldRepeat(curDown,     'down',  1);
+  attachHoldRepeat(curLeft,     'left',  1);
+  attachHoldRepeat(curRight,    'right', 1);
+  attachHoldRepeat(curDblUp,    'up',    10);
+  attachHoldRepeat(curDblDown,  'down',  10);
+  attachHoldRepeat(curDblLeft,  'left',  10);
+  attachHoldRepeat(curDblRight, 'right', 10);
+
+  /* ================================================================
+     CENTER DRAG — GAMING GRADE
+     ================================================================ */
+
+  let centerDrag = null;
+  let lastDragDir = null;
+
+  // Rate-based joystick tuning
+  const JOY_DEAD_ZONE = 15;      // px from start before movement begins
+  const JOY_MAX_DIST  = 80;      // px beyond which we're at max speed
+  const JOY_MIN_INTERVAL = 20;   // ms between ticks at max speed
+  const JOY_MAX_INTERVAL = 90;   // ms between ticks at edge of dead zone
+
+  function getSelectionMidpoint(cm) {
+    const from = cm.getCursor('from');
+    const to = cm.getCursor('to');
+    const startCoords = cm.charCoords(from, 'window');
+    const endCoords = cm.charCoords(to, 'window');
+    return {
+      x: (startCoords.left + endCoords.right) / 2,
+      y: (startCoords.top + startCoords.bottom + endCoords.top + endCoords.bottom) / 4,
+      from: from,
+      to: to
+    };
+  }
+
+  function updateCenterHandle() {
+    // The center dragger now lives inside the D-Pad at a fixed position,
+    // so there's nothing to move. Kept as a no-op so existing call sites
+    // don't need to change.
+  }
+
+  function updateSelectionPreview() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) {
+      selectionPreview.classList.remove('visible');
+      return;
+    }
+
+    const sel = cm.getSelection();
+    if (!sel || sel.length === 0) {
+      selectionPreview.classList.remove('visible');
+      return;
+    }
+
+    const preview = sel.length > 30 ? sel.slice(0, 30) + '...' : sel;
+    selectionPreview.innerHTML = `<span>${escapeHtml(preview)}</span><span class="dex-preview-count">${sel.length} chars</span>`;
+
+    const toCoords = cm.charCoords(cm.getCursor('to'), 'window');
+    const px = toCoords.right + 8;
+    const py = toCoords.top - 40;
+
+    selectionPreview.style.left = `${Math.max(4, Math.min(window.innerWidth - 250, px))}px`;
+    selectionPreview.style.top = `${Math.max(4, py)}px`;
+    selectionPreview.classList.add('visible');
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function setDragDirection(dir) {
+    centerHandle.classList.remove('dragging-right', 'dragging-left', 'dragging-up', 'dragging-down');
+    if (dir) centerHandle.classList.add('dragging-' + dir);
+    if (dir && dir !== lastDragDir) {
+      // Direction change feedback
+      const rect = centerHandle.getBoundingClientRect();
+      for (let i = 0; i < 5; i++) {
+        spawnParticle(rect.left + rect.width/2, rect.top + rect.height/2, THEME.accent);
+      }
+      lastDragDir = dir;
+    }
+  }
+
+  function snapToWordBoundary(cm, pos) {
+    const line = cm.getLine(pos.line) || '';
+    const isWord = (c) => c && /[\w$@#-]/.test(c);
+    let s = pos.ch, e = pos.ch;
+    while (s > 0 && isWord(line[s - 1])) s--;
+    while (e < line.length && isWord(line[e])) e++;
+    if (s === e) {
+      if (e < line.length) e = s + 1;
+      else if (s > 0) s = e - 1;
+    }
+    return { line: pos.line, ch: s };
+  }
+
+  /* ================================================================
+     CENTER HANDLE DRAG — dual pathway (touch + mouse/pointer)
+
+     Mobile browsers on the CodeMirror area often refuse to hand us clean
+     pointer events because native text selection wins the gesture. Instead
+     of fighting that on the editor, we bind a dedicated touch pathway to
+     the center handle itself. Touch events fire BEFORE the browser's
+     selection heuristic and we preventDefault() immediately, which locks
+     the gesture to us for its entire lifetime.
+
+     Desktop (mouse) uses pointer events as before.
+     ================================================================ */
+
+  function startCenterDrag(clientX, clientY, pointerId) {
+    resetInactivityTimer(); // center drag = D-Pad interaction — reset inactivity timer
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return false;
+
+    // Lock in the unified anchor. If there's a selection, use its far end
+    // (the one opposite the current head) so head-motion feels natural.
+    if (cm.getSelection()) {
+      selectionAnchor = cm.getCursor('anchor');
+    } else {
+      ensureAnchor(cm);
+    }
+    lastDragDir = null;
+
+    centerDrag = {
+      pointerId: pointerId,
+      startX: clientX,
+      startY: clientY,
+      curX: clientX,
+      curY: clientY,
+      moved: false,
+      tickId: null
+    };
+
+    centerHandle.classList.add('dragging');
+
+    for (let i = 0; i < 8; i++) {
+      spawnParticle(clientX, clientY, THEME.accent);
+    }
+
+    // Kick off the rate-based tick loop.
+    startJoystickLoop();
+    return true;
+  }
+
+  function startJoystickLoop() {
+    if (!centerDrag) return;
+    if (centerDrag.tickId) clearTimeout(centerDrag.tickId);
+
+    const tick = () => {
+      if (!centerDrag) return;
+      const dx = centerDrag.curX - centerDrag.startX;
+      const dy = centerDrag.curY - centerDrag.startY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < JOY_DEAD_ZONE) {
+        setDragDirection(null);
+        centerDrag.tickId = setTimeout(tick, JOY_MAX_INTERVAL);
+        return;
+      }
+
+      const absDx = Math.abs(dx), absDy = Math.abs(dy);
+      let dir;
+      if (absDx > absDy) dir = dx > 0 ? 'right' : 'left';
+      else               dir = dy > 0 ? 'down'  : 'up';
+      setDragDirection(dir);
+
+      // Move head one step in that direction using CM primitives.
+      const ed = window.dexEditor;
+      const cm = ed && ed.cm ? ed.cm : null;
+      if (cm) {
+        const anchor = ensureAnchor(cm);
+        let head = cm.getCursor('head');
+        if (dir === 'up' || dir === 'down') {
+          head = cm.findPosV(head, dir === 'up' ? -1 : 1, 'line');
+        } else {
+          head = cm.findPosH(head, dir === 'left' ? -1 : 1, 'char');
+        }
+        cm.setSelection(anchor, head);
+        centerDrag.moved = true;
+        updateCenterHandle();
+        updateSelectionPreview();
+
+        // Snap indicator glow on the moving head.
+        try {
+          const c = cm.charCoords(head, 'window');
+          snapIndicator.style.left = (c.left - 2) + 'px';
+          snapIndicator.style.top  = (c.top + c.bottom) / 2 - 2 + 'px';
+          snapIndicator.classList.add('visible');
+        } catch (_e) {}
+
+        // Occasional particle for feedback.
+        if (Math.random() > 0.7) {
+          spawnParticle(centerDrag.curX, centerDrag.curY, THEME.accentDim);
+        }
+      }
+
+      // Interval scales inversely with distance past the dead zone.
+      const t = Math.min(1, (dist - JOY_DEAD_ZONE) / (JOY_MAX_DIST - JOY_DEAD_ZONE));
+      const interval = JOY_MAX_INTERVAL - t * (JOY_MAX_INTERVAL - JOY_MIN_INTERVAL);
+      centerDrag.tickId = setTimeout(tick, interval);
+    };
+
+    centerDrag.tickId = setTimeout(tick, JOY_MAX_INTERVAL);
+  }
+
+  function moveCenterDrag(clientX, clientY) {
+    if (!centerDrag) return;
+    // Rate-based: just record where the finger is; the joystick loop reads this.
+    centerDrag.curX = clientX;
+    centerDrag.curY = clientY;
+  }
+
+  // ---------- TOUCH pathway (mobile) ----------
+  let centerTouchId = null;
+
+  centerHandle.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    if (!t) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (dpadState === 'collapsed') {
+      // Collapsed: start a potential reposition drag
+      if (collapsedCenterDrag) return;
+      collapsedCenterTouchId = t.identifier;
+      startCollapsedCenterDrag(t.clientX, t.clientY);
+      return;
+    }
+
+    // Expanded: start joystick selection drag
+    if (centerDrag) return;
+    centerTouchId = t.identifier;
+    startCenterDrag(t.clientX, t.clientY, t.identifier);
+  }, { passive: false, capture: true });
+
+  centerHandle.addEventListener('touchmove', (e) => {
+    if (dpadState === 'collapsed') {
+      if (collapsedCenterTouchId === null) return;
+      let t = null;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === collapsedCenterTouchId) { t = e.changedTouches[i]; break; }
+      }
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      moveCollapsedCenterDrag(t.clientX, t.clientY);
+      return;
+    }
+    if (!centerDrag || centerTouchId === null) return;
+    let t = null;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === centerTouchId) { t = e.changedTouches[i]; break; }
+    }
+    if (!t) return;
+    e.preventDefault();
+    e.stopPropagation();
+    moveCenterDrag(t.clientX, t.clientY);
+  }, { passive: false, capture: true });
+
+  // touchmove also has to be caught on document once the finger leaves the
+  // small circle — because touchmove events on iOS follow the ORIGINAL
+  // target (the circle) only if we preventDefault the touchstart, which we
+  // do. But for safety on Android where behaviors differ, also mirror on
+  // document.
+  document.addEventListener('touchmove', (e) => {
+    if (dpadState === 'collapsed') {
+      if (!collapsedCenterDrag || collapsedCenterTouchId === null) return;
+      let t = null;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === collapsedCenterTouchId) { t = e.changedTouches[i]; break; }
+      }
+      if (!t) return;
+      e.preventDefault();
+      moveCollapsedCenterDrag(t.clientX, t.clientY);
+      return;
+    }
+    if (!centerDrag || centerTouchId === null) return;
+    let t = null;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === centerTouchId) { t = e.changedTouches[i]; break; }
+    }
+    if (!t) return;
+    e.preventDefault();
+    moveCenterDrag(t.clientX, t.clientY);
+  }, { passive: false, capture: true });
+
+  function endCenterTouch(e) {
+    if (dpadState === 'collapsed') {
+      if (collapsedCenterTouchId === null) return;
+      let matched = false;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === collapsedCenterTouchId) { matched = true; break; }
+      }
+      if (!matched) return;
+      e.preventDefault();
+      const wasTap = endCollapsedCenterDrag();
+      collapsedCenterTouchId = null;
+      if (wasTap) recordCenterTap(); // check for double-tap → expand or open menu
+      return;
+    }
+    if (!centerDrag || centerTouchId === null) return;
+    let matched = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === centerTouchId) { matched = true; break; }
+    }
+    if (!matched) return;
+    e.preventDefault();
+    const wasDrag = centerDrag ? centerDrag.moved : false;
+    finishCenterDrag();
+    centerTouchId = null;
+    // In expanded mode: if it was a clean tap (not a drag), check for double-tap → open menu
+    if (!wasDrag) recordCenterTap();
+  }
+  centerHandle.addEventListener('touchend',    endCenterTouch, { passive: false, capture: true });
+  centerHandle.addEventListener('touchcancel', endCenterTouch, { passive: false, capture: true });
+  document.addEventListener('touchend',        endCenterTouch, { passive: false, capture: true });
+  document.addEventListener('touchcancel',     endCenterTouch, { passive: false, capture: true });
+
+  // ---------- POINTER pathway (mouse / pen) ----------
+  centerHandle.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return; // handled by touch pathway above
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (dpadState === 'collapsed') {
+      if (collapsedCenterDrag) return;
+      startCollapsedCenterDrag(e.clientX, e.clientY);
+      collapsedCenterDrag.pointerId = e.pointerId; // track for pointermove
+      try { centerHandle.setPointerCapture(e.pointerId); } catch (_e) {}
+      return;
+    }
+
+    if (centerDrag) return;
+    if (!startCenterDrag(e.clientX, e.clientY, e.pointerId)) return;
+    try { centerHandle.setPointerCapture(e.pointerId); } catch (_e) {}
+  });
+
+  centerHandle.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+
+    if (dpadState === 'collapsed') {
+      if (!collapsedCenterDrag || collapsedCenterDrag.pointerId !== e.pointerId) return;
+      moveCollapsedCenterDrag(e.clientX, e.clientY);
+      return;
+    }
+
+    if (!centerDrag) return;
+    if (e.pointerId !== centerDrag.pointerId) return;
+    moveCenterDrag(e.clientX, e.clientY);
+  });
+
+  function finishCenterDrag() {
+    if (!centerDrag) return;
+    if (centerDrag.tickId) clearTimeout(centerDrag.tickId);
+    const wasDrag = centerDrag.moved;
+    centerDrag = null;
+    centerHandle.classList.remove('dragging');
+    setDragDirection(null);
+    snapIndicator.classList.remove('visible');
+    afterCenterDrag(wasDrag);
+  }
+
+  function endCenterDrag(e) {
+    if (e.pointerType === 'touch') return;
+
+    if (dpadState === 'collapsed') {
+      if (!collapsedCenterDrag || collapsedCenterDrag.pointerId !== e.pointerId) return;
+      try { centerHandle.releasePointerCapture(e.pointerId); } catch (_e) {}
+      const wasTap = endCollapsedCenterDrag();
+      if (wasTap) recordCenterTap();
+      return;
+    }
+
+    if (!centerDrag) return;
+    if (e.pointerId !== centerDrag.pointerId) return;
+
+    try { centerHandle.releasePointerCapture(centerDrag.pointerId); } catch (_e) {}
+    if (centerDrag.tickId) clearTimeout(centerDrag.tickId);
+    const wasDrag = centerDrag.moved;
+    centerDrag = null;
+    centerHandle.classList.remove('dragging');
+    setDragDirection(null);
+    snapIndicator.classList.remove('visible');
+    afterCenterDrag(wasDrag);
+    // In expanded mode: clean tap = check for double-tap → open menu
+    if (!wasDrag) recordCenterTap();
+  }
+
+  function afterCenterDrag(wasDrag) {
+    if (!wasDrag) return;
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+
+    // Keep the raw selection — no word-snap rewrite (it was overriding the drag).
+    const finalSel = cm.getSelection();
+    if (finalSel && finalSel.length > 0) {
+      savedSelection = {
+        from: cm.getCursor('from'),
+        to: cm.getCursor('to'),
+        text: finalSel
+      };
+      // Burst particles on release
+      const rect = centerHandle.getBoundingClientRect();
+      for (let i = 0; i < 12; i++) {
+        spawnParticle(
+          rect.left + rect.width/2 + (Math.random()-0.5)*30,
+          rect.top + rect.height/2 + (Math.random()-0.5)*30,
+          THEME.accent
+        );
+      }
+      // Menu is now opened via double-tap on center, not automatically
+    }
+  }
+
+  centerHandle.addEventListener('pointerup', endCenterDrag);
+  centerHandle.addEventListener('pointercancel', endCenterDrag);
+
+  /* ====== AUTO-OPEN MENU AFTER 5 SECONDS OF INACTIVITY ====== */
+  let selectionTimeout = null;
+
+  function clearSelectionTimeout() {
+    if (selectionTimeout) {
+      clearTimeout(selectionTimeout);
+      selectionTimeout = null;
+    }
+  }
+
+  function scheduleMenuOpen() {
+    clearSelectionTimeout();
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+    const sel = cm.getSelection();
+    if (sel && sel.length > 0 && !menuOpen()) {
+      selectionTimeout = setTimeout(() => {
+        if (cm.getSelection() && !menuOpen()) {
+          openMenu();
+        }
+        selectionTimeout = null;
+      }, 5000);
+    }
+  }
+
+  function attachCursorActivity() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { setTimeout(attachCursorActivity, 300); return; }
+    if (cm.__dexCursorActivityBound) return;
+    cm.__dexCursorActivityBound = true;
+
+    // Enable per-character selection styling so text color in .CodeMirror-selectedtext
+    // actually applies. No-op if the addon isn't loaded.
+    try { cm.setOption('styleSelectedText', true); } catch (_e) {}
+
+    cm.on('cursorActivity', () => {
+      if (menuOpen() && !cm.getSelection()) {
+        closeMenu();
+      }
+      // Seed the unified anchor whenever the caret moves with no selection.
+      if (!cm.getSelection()) {
+        selectionAnchor = cm.getCursor('head');
+      }
+      // Menu is now opened via double-tap — no auto-schedule
+      updateCenterHandle();
+      updateSelectionPreview();
+    });
+  }
+
+  /* ====== INITIALIZATION ====== */
+  function suppressNativeSelectionUI() {
+    // Kill iOS/Android long-press callout and browser context menu on the
+    // editor WITHOUT touching touch-action (that would kill native scroll).
+    const attach = () => {
+      const cmEl = document.querySelector('.CodeMirror');
+      if (!cmEl) { setTimeout(attach, 200); return; }
+      if (cmEl.__dexNoNativeUI) return;
+      cmEl.__dexNoNativeUI = true;
+
+      // iOS callout / share-sheet suppressor.
+      cmEl.style.webkitTouchCallout = 'none';
+      // Belt-and-suspenders: also on the scroll layer.
+      const scroller = cmEl.querySelector('.CodeMirror-scroll');
+      if (scroller) scroller.style.webkitTouchCallout = 'none';
+
+      // Kill the right-click / long-press context menu.
+      cmEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      // Kill native selection start — CM manages its own selection via
+      // its hidden textarea, so blocking selectstart on the visible layer
+      // does NOT break CM's selection API (setSelection etc still work).
+      cmEl.addEventListener('selectstart', (e) => e.preventDefault());
+    };
+    attach();
+  }
+
+  function init() {
+    updateToolbarVisibility();
+    attachCursorActivity();
+    suppressNativeSelectionUI();
+    // NOTE: attachMobileDragSelect intentionally not called.
+    // It was hijacking touch-action and killing native editor scroll.
+    // Selection is now Method 1 (D-Pad) + Method 3 (center handle), both
+    // sharing the unified selectionAnchor.
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+
+  window.addEventListener('popstate', updateToolbarVisibility);
+  window.addEventListener('hashchange', updateToolbarVisibility);
+
+})();
