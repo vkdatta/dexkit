@@ -1,36 +1,13 @@
-// ============================================================================
-// DexLabs — Custom editor toolbar, v2.
-//
-// A floating draggable chevron button + a popup menu.
-//
-//   * The user can drag the button anywhere on the screen. Position persists
-//     across refreshes (localStorage → 'dexToolbarPos').
-//   * The chevron icon on the button changes based on where it is relative
-//     to the viewport's nearest edge — near the top → chevron-down (default),
-//     near the left → chevron-right, and so on. The chevron always points
-//     toward where the menu will open.
-//   * Tapping the button opens the menu. Dragging moves it. The drag/tap
-//     boundary is 8px of movement.
-//   * The menu opens NEAR the current text selection when there is one, or
-//     next to the button (on the chevron side) when there is not.
-//   * The menu stays open across any editor activity — only the trigger tap
-//     or the in-menu Close button dismisses it.
-//   * NO contextmenu interception, NO edits to the CM element's CSS or
-//     event handlers → native long-press text selection continues to work
-//     exactly as the browser provides. We only suppress the browser's
-//     native callout via `-webkit-touch-callout: none` on the whole
-//     document, which does not block selection.
-// ============================================================================
 (function () {
   'use strict';
   if (window.__dexToolbar2Loaded) return;
   window.__dexToolbar2Loaded = true;
 
   const LS_KEY = 'dexToolbarPos';
-  const TRIGGER_SIZE = 40;   // px, circle diameter
-  const DRAG_THRESHOLD = 8;  // px before a pointerdown counts as a drag
-  const EDGE_MARGIN = 8;     // px kept clear at viewport edges
-  const MENU_GAP = 12;       // px space between menu and its anchor point
+  const TRIGGER_SIZE = 40;
+  const DRAG_THRESHOLD = 8;
+  const EDGE_MARGIN = 8;
+  const MENU_GAP = 12;
 
   const ICONS = {
     down: 'expand_more', up: 'expand_less',
@@ -39,7 +16,6 @@
     close: 'close'
   };
 
-  // ── styles ────────────────────────────────────────────────────────────────
   const style = document.createElement('style');
   style.id = 'dex-toolbar2-styles';
   style.textContent = `
@@ -55,7 +31,7 @@
       cursor: grab;
       z-index: 9997;
       box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-      touch-action: none;                 /* let us handle pan gestures ourselves */
+      touch-action: none;                 
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none;
@@ -112,16 +88,13 @@
       margin: 4px 6px;
     }
 
-    /* Custom selection takeover — we do our own long-press selection via
-       cm.setSelection (which paints into CM's own .CodeMirror-selected
-       overlay). The browser's native selection AND its callout toolbar are
-       both suppressed by disabling user-select on the CM lines and disabling
-       the callout on the wrapper. */
+    
     .CodeMirror { -webkit-touch-callout: none; }
     .CodeMirror-line,
     .CodeMirror-line *,
     .CodeMirror pre.CodeMirror-line,
-    .CodeMirror pre.CodeMirror-line-like {
+    .CodeMirror pre.CodeMirror-line-like,
+    .CodeMirror textarea {
       -webkit-user-select: none !important;
       -moz-user-select: none !important;
       -ms-user-select: none !important;
@@ -131,7 +104,6 @@
   `;
   document.head.appendChild(style);
 
-  // ── DOM ───────────────────────────────────────────────────────────────────
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.id = 'dexToolbarBtn';
@@ -162,7 +134,6 @@
   const pasteEl = document.getElementById('dexTbPaste');
   const closeEl = document.getElementById('dexTbClose');
 
-  // ── position: load / save / clamp ─────────────────────────────────────────
   function loadPos() {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -184,8 +155,6 @@
     };
   }
   function defaultPos() {
-    // Right side, roughly a third down. Natural resting position that
-    // doesn't collide with topbar or the note textarea's typical caret zone.
     return clamp(
       window.innerWidth  - TRIGGER_SIZE - 16,
       Math.round(window.innerHeight * 0.35)
@@ -197,7 +166,6 @@
     updateChevron(pos);
   }
 
-  // ── chevron direction: opposite of the nearest viewport edge ─────────────
   function chevronForPos(pos) {
     const w = window.innerWidth, h = window.innerHeight;
     const distLeft   = pos.left;
@@ -205,7 +173,6 @@
     const distTop    = pos.top;
     const distBottom = h - pos.top - TRIGGER_SIZE;
     const min = Math.min(distLeft, distRight, distTop, distBottom);
-    // Tie-break preference is DOWN — spec default.
     if (min === distTop && distTop <= distLeft && distTop <= distRight && distTop <= distBottom) return 'down';
     if (min === distBottom) return 'up';
     if (min === distLeft)   return 'right';
@@ -215,13 +182,12 @@
   function updateChevron(pos) {
     const dir = chevronForPos(pos);
     btnIcon.textContent = ICONS[dir];
-    btn.dataset.dir = dir;   // used later when positioning the menu
+    btn.dataset.dir = dir;
   }
 
   const initial = loadPos() || defaultPos();
   applyPos(clamp(initial.left, initial.top));
 
-  // ── drag vs tap ───────────────────────────────────────────────────────────
   let drag = null;
 
   btn.addEventListener('pointerdown', (e) => {
@@ -244,7 +210,6 @@
     if (!drag.moved) {
       drag.moved = true;
       btn.classList.add('dragging');
-      // If the menu is open, close it while dragging.
       if (menuOpen()) closeMenu();
     }
     const next = clamp(drag.startLeft + dx, drag.startTop + dy);
@@ -263,26 +228,21 @@
       savePos(pos.left, pos.top);
       updateChevron(pos);
     } else {
-      // Treated as a tap on the trigger.
       toggleMenu();
     }
   }
   btn.addEventListener('pointerup',     endDrag);
   btn.addEventListener('pointercancel', endDrag);
 
-  // Reclamp on viewport resize (rotation, keyboard show/hide, etc.)
   window.addEventListener('resize', () => {
     const clamped = clamp(btn.offsetLeft, btn.offsetTop);
     applyPos(clamped);
     savePos(clamped.left, clamped.top);
   });
 
-  // ── menu open / close ─────────────────────────────────────────────────────
   function menuOpen() { return menu.classList.contains('open'); }
 
   function positionMenu() {
-    // Prefer: near current CM selection. Fallback: adjacent to trigger,
-    // on the side the chevron points to (so the visual promise is honoured).
     let anchor = null;
     try {
       const ed = window.dexEditor;
@@ -300,7 +260,6 @@
       }
     } catch (_e) {}
 
-    // Get menu size (needs to be display:flex briefly to measure).
     menu.style.visibility = 'hidden';
     menu.classList.add('open');
     const menuW = menu.offsetWidth;
@@ -312,24 +271,18 @@
     let left, top;
 
     if (anchor && anchor.fromSelection) {
-      // Place menu just below the selection end, offset a bit.
       left = anchor.x + MENU_GAP;
       top  = anchor.y + MENU_GAP;
     } else if (anchor) {
-      // Cursor exists but nothing selected — put menu somewhere that doesn't
-      // collide with the cursor. Bias to the opposite half of the viewport
-      // from the cursor.
       const bx = btn.offsetLeft, by = btn.offsetTop;
       left = (anchor.x < vw / 2) ? (vw - menuW - MENU_GAP - EDGE_MARGIN) : (MENU_GAP + EDGE_MARGIN);
       top  = (anchor.y < vh / 2) ? (vh - menuH - MENU_GAP - EDGE_MARGIN) : (MENU_GAP + EDGE_MARGIN);
-      // But also keep some proximity to the trigger's chevron direction.
       const dir = btn.dataset.dir;
       if (dir === 'left')  left = bx - menuW - MENU_GAP;
       if (dir === 'right') left = bx + TRIGGER_SIZE + MENU_GAP;
       if (dir === 'up')    top  = by - menuH - MENU_GAP;
       if (dir === 'down')  top  = by + TRIGGER_SIZE + MENU_GAP;
     } else {
-      // Editor not ready — anchor to the trigger on the chevron side.
       const bx = btn.offsetLeft, by = btn.offsetTop;
       const dir = btn.dataset.dir || 'down';
       if (dir === 'left')  { left = bx - menuW - MENU_GAP; top = by; }
@@ -338,7 +291,6 @@
       else                       { left = bx; top = by + TRIGGER_SIZE + MENU_GAP; }
     }
 
-    // Clamp to viewport with edge margins.
     left = Math.max(EDGE_MARGIN, Math.min(vw - menuW - EDGE_MARGIN, left));
     top  = Math.max(EDGE_MARGIN, Math.min(vh - menuH - EDGE_MARGIN, top));
 
@@ -346,8 +298,6 @@
     menu.style.top  = top  + 'px';
   }
 
-  // Preserve any live text selection in CM: we capture it at open time
-  // AND arrange for menu-button mousedowns not to steal focus.
   let savedSelection = null;
 
   function captureSelection() {
@@ -379,8 +329,6 @@
   }
   function closeMenu() {
     menu.classList.remove('open');
-    // Don't clear savedSelection here — the button click handlers may still
-    // need it (they fire slightly after our close in some paths).
     setTimeout(() => { savedSelection = null; }, 300);
   }
   function toggleMenu() { menuOpen() ? closeMenu() : openMenu(); }
@@ -389,9 +337,6 @@
   window.dexCloseToolbar  = closeMenu;
   window.dexToggleToolbar = toggleMenu;
 
-  // ── menu button behaviour ─────────────────────────────────────────────────
-  // Preventing default on `mousedown` keeps focus on CM so the selection
-  // isn't wiped before we read it.
   [copyEl, pasteEl, closeEl].forEach(el => {
     el.addEventListener('mousedown', e => e.preventDefault());
   });
@@ -402,8 +347,6 @@
 
   copyEl.addEventListener('click', async () => {
     const ed = window.dexEditor;
-    // Prefer the selection we captured when the menu opened — the tap
-    // trip on some Android WebViews can briefly collapse the selection.
     let text = '';
     if (savedSelection && savedSelection.text) text = savedSelection.text;
     else if (ed && ed.getSelection) {
@@ -445,12 +388,6 @@
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) { notify('Editor not ready'); return; }
 
-    // Insertion range: prefer the range we captured when the menu opened
-    // (before any focus shift), fall back to the current cursor, then to
-    // the start of the doc. NEVER call cm.focus() before the mutation —
-    // on mobile that crosses the user-gesture boundary after the awaited
-    // clipboard read and can leave the selection in a stale/collapsed
-    // state that swallows replaceSelection silently.
     let from, to;
     if (savedSelection && isPosValid(cm, savedSelection.from) && isPosValid(cm, savedSelection.to)) {
       from = savedSelection.from;
@@ -460,9 +397,6 @@
       from = c; to = c;
     }
 
-    // Atomic doc mutation. cm.replaceRange doesn't care about focus or
-    // the currently rendered selection — it edits the document model
-    // directly. That's what "Pasted" should mean.
     cm.operation(() => {
       cm.replaceRange(text, from, to);
       const startIdx = cm.indexFromPos(from);
@@ -470,8 +404,6 @@
       cm.setSelection(endPos, endPos);
     });
 
-    // Refresh savedSelection to the post-paste caret so a chained action
-    // (e.g., paste twice, or paste then copy) lands where you'd expect.
     const startIdx = cm.indexFromPos(from);
     const endPos   = cm.posFromIndex(startIdx + text.length);
     savedSelection = { from: endPos, to: endPos, text: '' };
@@ -479,9 +411,6 @@
     notify('Pasted ' + text.length + ' character' + (text.length === 1 ? '' : 's'));
   });
 
-  // Position validity check — a saved selection from before a doc edit
-  // could point beyond the current line count / line length. Guard against
-  // that so a stale saved range never crashes cm.replaceRange.
   function isPosValid(cm, pos) {
     if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
     const lc = cm.lineCount();
@@ -492,31 +421,16 @@
 
   closeEl.addEventListener('click', closeMenu);
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // Custom long-press selection.
-  //
-  // Native mobile selection is off (via user-select:none on CM lines), so we
-  // provide our own: hold a finger on the editor for LONG_PRESS_MS, and we
-  // (a) figure out which character was under the finger, (b) find the word
-  // bounds, (c) select that word via cm.setSelection (which draws into CM's
-  // own overlay), and (d) auto-open the menu right next to the selection.
-  //
-  // Short taps aren't intercepted — the pointerdown callback just starts a
-  // timer; anything under LONG_PRESS_MS or with movement > MOVE_TOLERANCE
-  // cancels, letting CM's own tap handling place the cursor normally.
-  // ═══════════════════════════════════════════════════════════════════════
-  const LONG_PRESS_MS  = 500;   // change to 2000 if you want the 2-second hold you described
-  const MOVE_TOLERANCE = 10;    // px finger drift allowed before cancel
+  const LONG_PRESS_MS  = 500;
+  const MOVE_TOLERANCE = 10;
 
   function wordBoundsAt(cm, pos) {
     const line = cm.getLine(pos.line) || '';
-    const isWord = (c) => c && /[\w$@#-]/.test(c);   // liberal: hyphens, $, @, #
+    const isWord = (c) => c && /[\w$@#-]/.test(c);
     let s = pos.ch, e = pos.ch;
     while (s > 0 && isWord(line[s - 1])) s--;
     while (e < line.length && isWord(line[e])) e++;
     if (s === e) {
-      // Not on a word char — select the single char under the finger, or
-      // if we're at end-of-line, just place a caret.
       if (e < line.length) e = s + 1;
     }
     return { from: { line: pos.line, ch: s }, to: { line: pos.line, ch: e } };
@@ -534,14 +448,11 @@
     try {
       cm.setSelection(bounds.from, bounds.to);
     } catch (_e) { return; }
-    // Prime savedSelection immediately so a Copy tap right after has the
-    // exact range without going back through captureSelection().
     savedSelection = {
       from: bounds.from,
       to:   bounds.to,
       text: cm.getRange(bounds.from, bounds.to)
     };
-    // Open menu positioned against the fresh selection.
     openMenu();
   }
 
@@ -551,9 +462,10 @@
     if (cmEl.__dexLongPressBound) return;
     cmEl.__dexLongPressBound = true;
 
+    cmEl.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+    cmEl.addEventListener('selectstart', (e) => { e.preventDefault(); });
+
     cmEl.addEventListener('pointerdown', (e) => {
-      // Only for touch — mouse users have right-click via contextmenu (which
-      // browsers still fire; CM handles it internally).
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
       const startX = e.clientX, startY = e.clientY;
       let cancelled = false;
@@ -590,7 +502,6 @@
     });
   }
 
-  // .CodeMirror may not exist yet when this script loads; retry until it does.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', attachLongPress, { once: true });
   } else {
