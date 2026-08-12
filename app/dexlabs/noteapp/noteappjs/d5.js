@@ -13,7 +13,11 @@
     down: 'expand_more', up: 'expand_less',
     left: 'chevron_left', right: 'chevron_right',
     copy: 'content_copy', paste: 'content_paste',
-    close: 'close'
+    close: 'close',
+    arrowUp: 'arrow_upward',
+    arrowDown: 'arrow_downward',
+    selectOff: 'select_all',
+    selectOn: 'text_select_end'
   };
 
   const style = document.createElement('style');
@@ -88,7 +92,48 @@
       margin: 4px 6px;
     }
 
-    .CodeMirror { -webkit-touch-callout: none; }
+    .dex-tb-arrow {
+      background: transparent;
+      border: none;
+      color: var(--color, #cacaca);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .dex-tb-arrow:hover, .dex-tb-arrow:active { background: rgba(255,255,255,0.08); }
+    .dex-tb-arrow > * { pointer-events: none; }
+    .dex-tb-arrow .material-symbols-rounded { font-size: 22px; }
+
+    .dex-tb-select-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--color, #cacaca);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .dex-tb-select-toggle:hover, .dex-tb-select-toggle:active {
+      background: rgba(255,255,255,0.06);
+    }
+    .dex-tb-select-toggle.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
   `;
   document.head.appendChild(style);
 
@@ -99,45 +144,172 @@
   btn.innerHTML = '<span class="material-symbols-rounded" id="dexToolbarBtnIcon">' + ICONS.down + '</span>';
   document.body.appendChild(btn);
 
+  // Build menu with arrows and select toggle
   const menu = document.createElement('div');
   menu.id = 'dexToolbarMenu';
-  menu.innerHTML =
-    '<button type="button" class="dex-tb-item" id="dexTbCopy">'  +
-      '<span class="material-symbols-rounded">' + ICONS.copy  + '</span>' +
-      '<span>Copy</span>' +
-    '</button>' +
-    '<button type="button" class="dex-tb-item" id="dexTbPaste">' +
-      '<span class="material-symbols-rounded">' + ICONS.paste + '</span>' +
-      '<span>Paste</span>' +
-    '</button>' +
-    '<div class="dex-tb-sep"></div>' +
-    '<button type="button" class="dex-tb-item" id="dexTbClose">' +
-      '<span class="material-symbols-rounded">' + ICONS.close + '</span>' +
-      '<span>Close menu</span>' +
-    '</button>';
+  menu.innerHTML = `
+    <button type="button" class="dex-tb-item" id="dexTbCopy">
+      <span class="material-symbols-rounded">${ICONS.copy}</span>
+      <span>Copy</span>
+    </button>
+    <button type="button" class="dex-tb-item" id="dexTbPaste">
+      <span class="material-symbols-rounded">${ICONS.paste}</span>
+      <span>Paste</span>
+    </button>
+    <div class="dex-tb-sep"></div>
+    <div style="display:flex; gap:6px; padding:4px 8px; justify-content:space-around;">
+      <button type="button" class="dex-tb-arrow" data-dir="left"><span class="material-symbols-rounded">${ICONS.left}</span></button>
+      <button type="button" class="dex-tb-arrow" data-dir="right"><span class="material-symbols-rounded">${ICONS.right}</span></button>
+      <button type="button" class="dex-tb-arrow" data-dir="up"><span class="material-symbols-rounded">${ICONS.arrowUp}</span></button>
+      <button type="button" class="dex-tb-arrow" data-dir="down"><span class="material-symbols-rounded">${ICONS.arrowDown}</span></button>
+    </div>
+    <div style="display:flex; padding:2px 8px 6px; justify-content:center;">
+      <button type="button" class="dex-tb-select-toggle" id="dexTbSelectToggle">
+        <span class="material-symbols-rounded" id="dexTbSelectIcon">${ICONS.selectOff}</span>
+        <span id="dexTbSelectLabel">Select</span>
+      </button>
+    </div>
+    <div class="dex-tb-sep"></div>
+    <button type="button" class="dex-tb-item" id="dexTbClose">
+      <span class="material-symbols-rounded">${ICONS.close}</span>
+      <span>Close menu</span>
+    </button>
+  `;
   document.body.appendChild(menu);
 
   const btnIcon = document.getElementById('dexToolbarBtnIcon');
   const copyEl  = document.getElementById('dexTbCopy');
   const pasteEl = document.getElementById('dexTbPaste');
   const closeEl = document.getElementById('dexTbClose');
+  const selectToggle = document.getElementById('dexTbSelectToggle');
+  const selectIcon = document.getElementById('dexTbSelectIcon');
+  const selectLabel = document.getElementById('dexTbSelectLabel');
 
-  /* ====== HOMEPAGE DETECTION ====== */
-  function isHomepage() {
-    const path = window.location.pathname;
-    return path === '/' || path === '/index.html' || path === '/home' || path === '';
-  }
+  let selectMode = false;
 
-  function updateToolbarVisibility() {
-    if (isHomepage()) {
-      btn.style.display = 'none';
-      closeMenu();
-    } else {
-      btn.style.display = '';
+  // Toggle select mode
+  selectToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    selectMode = !selectMode;
+    selectToggle.classList.toggle('active', selectMode);
+    selectIcon.textContent = selectMode ? ICONS.selectOn : ICONS.selectOff;
+    selectLabel.textContent = selectMode ? 'Select on' : 'Select';
+  });
+
+  // Arrow button handler
+  function handleArrow(dir) {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm;
+    if (!cm) return;
+
+    // Suppress auto-close during this operation
+    window._dexSuppressAutoClose = true;
+    setTimeout(() => { window._dexSuppressAutoClose = false; }, 100);
+
+    const cursor = cm.getCursor();
+    let anchor = cm.getCursor('from'); // start of selection or cursor
+    let head = { line: cursor.line, ch: cursor.ch };
+
+    // Compute new head based on direction
+    const line = cm.getLine(head.line);
+    const lastCh = line ? line.length : 0;
+    switch (dir) {
+      case 'left':
+        if (head.ch > 0) head.ch--;
+        else if (head.line > 0) { head.line--; head.ch = cm.getLine(head.line).length; }
+        break;
+      case 'right':
+        if (head.ch < lastCh) head.ch++;
+        else if (head.line < cm.lineCount() - 1) { head.line++; head.ch = 0; }
+        break;
+      case 'up':
+        if (head.line > 0) {
+          head.line--;
+          const newLine = cm.getLine(head.line);
+          head.ch = Math.min(head.ch, newLine.length);
+        }
+        break;
+      case 'down':
+        if (head.line < cm.lineCount() - 1) {
+          head.line++;
+          const newLine = cm.getLine(head.line);
+          head.ch = Math.min(head.ch, newLine.length);
+        }
+        break;
     }
+
+    if (selectMode) {
+      // Extend selection: keep anchor fixed, move head
+      cm.setSelection(anchor, head);
+    } else {
+      // Just move cursor, clear selection
+      cm.setCursor(head);
+    }
+
+    // Update savedSelection for copy/paste
+    const sel = cm.getSelection();
+    if (sel) {
+      savedSelection = { from: cm.getCursor('from'), to: cm.getCursor('to'), text: sel };
+    } else {
+      savedSelection = null;
+    }
+
+    // Reposition menu to stay near selection/cursor
+    if (menuOpen()) positionMenu();
   }
 
-  /* ====== POSITION / DRAG ====== */
+  // Attach arrow listeners
+  document.querySelectorAll('.dex-tb-arrow').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const dir = el.dataset.dir;
+      handleArrow(dir);
+    });
+    // Prevent menu close on touch/pointer
+    el.addEventListener('mousedown', e => e.preventDefault());
+  });
+
+  // ----------------------------------------
+  //  Homepage detection and visibility
+  // ----------------------------------------
+  let toolbarVisible = true;
+
+  function hideToolbar() {
+    toolbarVisible = false;
+    btn.style.display = 'none';
+    menu.style.display = 'none';
+    menu.classList.remove('open');
+  }
+
+  function showToolbar() {
+    toolbarVisible = true;
+    btn.style.display = '';
+    menu.style.display = '';
+  }
+
+  function isEditorPage() {
+    return !!(window.dexEditor && window.dexEditor.cm);
+  }
+
+  let editorCheckAttempts = 0;
+  function checkEditorPresence() {
+    if (isEditorPage()) {
+      showToolbar();
+      attachEditorListeners();
+      return;
+    }
+    if (++editorCheckAttempts > 10) {
+      hideToolbar();
+      return;
+    }
+    setTimeout(checkEditorPresence, 300);
+  }
+
+  // ----------------------------------------
+  //  Positioning & drag logic
+  // ----------------------------------------
   function loadPos() {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -192,7 +364,6 @@
   const initial = loadPos() || defaultPos();
   applyPos(clamp(initial.left, initial.top));
 
-  /* ====== BUTTON DRAG ====== */
   let drag = null;
 
   btn.addEventListener('pointerdown', (e) => {
@@ -244,8 +415,25 @@
     savePos(clamped.left, clamped.top);
   });
 
-  /* ====== MENU ====== */
+  // ----------------------------------------
+  //  Menu open/close / positioning
+  // ----------------------------------------
   function menuOpen() { return menu.classList.contains('open'); }
+
+  let savedSelection = null;
+
+  function captureSelection() {
+    try {
+      const ed = window.dexEditor;
+      if (ed && ed.cm) {
+        const cm = ed.cm;
+        const from = cm.getCursor('from');
+        const to   = cm.getCursor('to');
+        const text = cm.getSelection();
+        savedSelection = { from, to, text };
+      }
+    } catch (_e) {}
+  }
 
   function positionMenu() {
     let anchor = null;
@@ -303,54 +491,83 @@
     menu.style.top  = top  + 'px';
   }
 
-  let savedSelection = null;
-
-  function captureSelection() {
-    try {
-      const ed = window.dexEditor;
-      if (ed && ed.cm) {
-        const cm = ed.cm;
-        const from = cm.getCursor('from');
-        const to   = cm.getCursor('to');
-        const text = cm.getSelection();
-        savedSelection = { from, to, text };
-      }
-    } catch (_e) {}
-  }
-  function restoreSelection() {
-    try {
-      const ed = window.dexEditor;
-      if (ed && ed.cm && savedSelection) {
-        ed.cm.setSelection(savedSelection.from, savedSelection.to);
-        ed.cm.focus();
-      }
-    } catch (_e) {}
-  }
-
-  function openMenu()  {
+  function openMenu() {
+    if (!toolbarVisible) return;
     captureSelection();
     positionMenu();
     menu.classList.add('open');
   }
+
   function closeMenu() {
     menu.classList.remove('open');
     setTimeout(() => { savedSelection = null; }, 300);
   }
-  function toggleMenu() { menuOpen() ? closeMenu() : openMenu(); }
+
+  function toggleMenu() {
+    if (!toolbarVisible) return;
+    menuOpen() ? closeMenu() : openMenu();
+  }
 
   window.dexOpenToolbar   = openMenu;
   window.dexCloseToolbar  = closeMenu;
   window.dexToggleToolbar = toggleMenu;
 
-  [copyEl, pasteEl, closeEl].forEach(el => {
-    el.addEventListener('mousedown', e => e.preventDefault());
-  });
+  // ----------------------------------------
+  //  Editor listeners: auto-open on selection, close on cursor move (with suppress flag)
+  // ----------------------------------------
+  function attachEditorListeners() {
+    const cm = window.dexEditor && window.dexEditor.cm;
+    if (!cm) {
+      setTimeout(attachEditorListeners, 300);
+      return;
+    }
 
+    if (cm.__dexCursorListener) {
+      cm.off('cursorActivity', cm.__dexCursorListener);
+    }
+
+    const handler = function() {
+      // If suppressed, skip auto-close
+      if (window._dexSuppressAutoClose) return;
+
+      if (!menuOpen()) {
+        const sel = cm.getSelection();
+        if (sel && sel.length > 0) {
+          openMenu();
+        }
+        return;
+      }
+
+      // Menu is open
+      const sel = cm.getSelection();
+      if (sel && sel.length > 0) {
+        // Selection still there – reposition menu
+        positionMenu();
+      } else {
+        // Selection cleared – close menu
+        closeMenu();
+      }
+    };
+
+    cm.on('cursorActivity', handler);
+    cm.__dexCursorListener = handler;
+  }
+
+  // ----------------------------------------
+  //  Copy / Paste / Close actions
+  // ----------------------------------------
   function notify(m) {
     if (typeof showNotification === 'function') showNotification(m);
   }
 
-  /* ====== COPY ====== */
+  function isPosValid(cm, pos) {
+    if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
+    const lc = cm.lineCount();
+    if (pos.line < 0 || pos.line >= lc) return false;
+    const lineLen = cm.getLine(pos.line).length;
+    return pos.ch >= 0 && pos.ch <= lineLen;
+  }
+
   copyEl.addEventListener('click', async () => {
     const ed = window.dexEditor;
     let text = '';
@@ -380,7 +597,6 @@
     }
   });
 
-  /* ====== PASTE ====== */
   pasteEl.addEventListener('click', async () => {
     let text = '';
     try {
@@ -418,204 +634,15 @@
     notify('Pasted ' + text.length + ' character' + (text.length === 1 ? '' : 's'));
   });
 
-  function isPosValid(cm, pos) {
-    if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
-    const lc = cm.lineCount();
-    if (pos.line < 0 || pos.line >= lc) return false;
-    const lineLen = cm.getLine(pos.line).length;
-    return pos.ch >= 0 && pos.ch <= lineLen;
-  }
-
   closeEl.addEventListener('click', closeMenu);
 
-  /* ====== CURSOR MOVE → CLOSE MENU ====== */
-  function attachCursorClose() {
-    const ed = window.dexEditor;
-    const cm = ed && ed.cm ? ed.cm : null;
-    if (!cm) { setTimeout(attachCursorClose, 300); return; }
-    if (cm.__dexCursorCloseBound) return;
-    cm.__dexCursorCloseBound = true;
+  // Prevent context menu on editor (optional)
+  document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.CodeMirror')) e.preventDefault();
+  });
 
-    cm.on('cursorActivity', () => {
-      if (menuOpen()) {
-        closeMenu();
-      }
-    });
-  }
-
-  /* ====== DRAG-TO-SELECT FOR MOBILE/TABLET ====== */
-  const LONG_PRESS_MS  = 500;
-  const MOVE_TOLERANCE = 10;
-
-  function wordBoundsAt(cm, pos) {
-    const line = cm.getLine(pos.line) || '';
-    const isWord = (c) => c && /[\w$@#-]/.test(c);
-    let s = pos.ch, e = pos.ch;
-    while (s > 0 && isWord(line[s - 1])) s--;
-    while (e < line.length && isWord(line[e])) e++;
-    if (s === e) {
-      if (e < line.length) e = s + 1;
-    }
-    return { from: { line: pos.line, ch: s }, to: { line: pos.line, ch: e } };
-  }
-
-  function fireLongPress(clientX, clientY) {
-    const ed = window.dexEditor;
-    const cm = ed && ed.cm ? ed.cm : null;
-    if (!cm) return;
-    let pos;
-    try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
-    catch (_e) { return; }
-    if (!pos) return;
-    const bounds = wordBoundsAt(cm, pos);
-    try {
-      cm.setSelection(bounds.from, bounds.to);
-    } catch (_e) { return; }
-    savedSelection = {
-      from: bounds.from,
-      to:   bounds.to,
-      text: cm.getRange(bounds.from, bounds.to)
-    };
-    openMenu();
-  }
-
-  /* ====== MOBILE DRAG SELECTION ====== */
-  function attachMobileDragSelect() {
-    const cmEl = document.querySelector('.CodeMirror');
-    if (!cmEl) { setTimeout(attachMobileDragSelect, 200); return; }
-    if (cmEl.__dexMobileDragBound) return;
-    cmEl.__dexMobileDragBound = true;
-
-    /* Allow native context menu to show on long press */
-    cmEl.addEventListener('contextmenu', (e) => {
-      /* Allow default context menu for native selection */
-    });
-
-    /* Prevent default selectstart to avoid double selection */
-    cmEl.addEventListener('selectstart', (e) => {
-      /* Allow default selection for drag-to-select */
-    });
-
-    let dragSelectState = null;
-
-    cmEl.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-
-      const ed = window.dexEditor;
-      const cm = ed && ed.cm ? ed.cm : null;
-      if (!cm) return;
-
-      const startX = e.clientX, startY = e.clientY;
-
-      /* Start a timer for long press (word select + menu) */
-      const longPressTimer = setTimeout(() => {
-        if (dragSelectState && dragSelectState.isDragging) return; /* Already dragging, skip long press */
-        fireLongPress(startX, startY);
-        if (dragSelectState) dragSelectState.cancelled = true;
-      }, LONG_PRESS_MS);
-
-      dragSelectState = {
-        pointerId: e.pointerId,
-        startX: startX,
-        startY: startY,
-        cancelled: false,
-        isDragging: false,
-        longPressTimer: longPressTimer,
-        startPos: null,
-        lastPos: null
-      };
-
-      try {
-        dragSelectState.startPos = cm.coordsChar({ left: startX, top: startY }, 'window');
-        dragSelectState.lastPos = dragSelectState.startPos;
-      } catch (_e) {}
-
-      try { cmEl.setPointerCapture(e.pointerId); } catch (_e) {}
-    });
-
-    cmEl.addEventListener('pointermove', (e) => {
-      if (!dragSelectState || e.pointerId !== dragSelectState.pointerId) return;
-      if (dragSelectState.cancelled) return;
-
-      const dx = e.clientX - dragSelectState.startX;
-      const dy = e.clientY - dragSelectState.startY;
-      const dist = Math.hypot(dx, dy);
-
-      /* If moved beyond tolerance, start drag selection */
-      if (!dragSelectState.isDragging && dist > MOVE_TOLERANCE) {
-        dragSelectState.isDragging = true;
-        clearTimeout(dragSelectState.longPressTimer);
-
-        /* Cancel any pending long press menu open */
-        dragSelectState.cancelled = true;
-
-        /* Start selection from initial position */
-        if (dragSelectState.startPos) {
-          cm.setSelection(dragSelectState.startPos, dragSelectState.startPos);
-        }
-      }
-
-      if (dragSelectState.isDragging) {
-        e.preventDefault();
-        let currentPos;
-        try {
-          currentPos = cm.coordsChar({ left: e.clientX, top: e.clientY }, 'window');
-        } catch (_e) { return; }
-
-        if (currentPos) {
-          cm.setSelection(dragSelectState.startPos, currentPos);
-          dragSelectState.lastPos = currentPos;
-        }
-      }
-    });
-
-    function endDragSelect(e) {
-      if (!dragSelectState || e.pointerId !== dragSelectState.pointerId) return;
-
-      clearTimeout(dragSelectState.longPressTimer);
-
-      const wasDragging = dragSelectState.isDragging;
-      const state = dragSelectState;
-      dragSelectState = null;
-
-      try { cmEl.releasePointerCapture(e.pointerId); } catch (_e) {}
-
-      if (wasDragging) {
-        /* Selection completed via drag — don't open menu, just save selection */
-        const ed = window.dexEditor;
-        const cm = ed && ed.cm ? ed.cm : null;
-        if (cm && state.startPos && state.lastPos) {
-          const selText = cm.getSelection();
-          if (selText && selText.length > 0) {
-            savedSelection = {
-              from: cm.getCursor('from'),
-              to: cm.getCursor('to'),
-              text: selText
-            };
-          }
-        }
-      }
-    }
-
-    cmEl.addEventListener('pointerup', endDragSelect);
-    cmEl.addEventListener('pointercancel', endDragSelect);
-  }
-
-  /* ====== INITIALIZATION ====== */
-  function init() {
-    updateToolbarVisibility();
-    attachCursorClose();
-    attachMobileDragSelect();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
-
-  /* Re-check visibility on navigation (for SPAs) */
-  window.addEventListener('popstate', updateToolbarVisibility);
-  window.addEventListener('hashchange', updateToolbarVisibility);
-
+  // ----------------------------------------
+  //  Initialize
+  // ----------------------------------------
+  checkEditorPresence();
 })();
