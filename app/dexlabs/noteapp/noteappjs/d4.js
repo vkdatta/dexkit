@@ -88,19 +88,7 @@
       margin: 4px 6px;
     }
 
-    
     .CodeMirror { -webkit-touch-callout: none; }
-    .CodeMirror-line,
-    .CodeMirror-line *,
-    .CodeMirror pre.CodeMirror-line,
-    .CodeMirror pre.CodeMirror-line-like,
-    .CodeMirror textarea {
-      -webkit-user-select: none !important;
-      -moz-user-select: none !important;
-      -ms-user-select: none !important;
-      user-select: none !important;
-      -webkit-touch-callout: none !important;
-    }
   `;
   document.head.appendChild(style);
 
@@ -134,6 +122,22 @@
   const pasteEl = document.getElementById('dexTbPaste');
   const closeEl = document.getElementById('dexTbClose');
 
+  /* ====== HOMEPAGE DETECTION ====== */
+  function isHomepage() {
+    const path = window.location.pathname;
+    return path === '/' || path === '/index.html' || path === '/home' || path === '';
+  }
+
+  function updateToolbarVisibility() {
+    if (isHomepage()) {
+      btn.style.display = 'none';
+      closeMenu();
+    } else {
+      btn.style.display = '';
+    }
+  }
+
+  /* ====== POSITION / DRAG ====== */
   function loadPos() {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -188,65 +192,7 @@
   const initial = loadPos() || defaultPos();
   applyPos(clamp(initial.left, initial.top));
 
-  /* ---------------------------------------------------------------------
-   * Global visibility: hide the toolbar entirely on the homepage.
-   *
-   * This is a note-editor toolbar, so it has no business showing up on
-   * any screen that isn't actively editing a note. Detection is done
-   * defensively with a few fallbacks, in priority order:
-   *   1. window.dexIsHomepage — if the app defines this as a function or
-   *      boolean, it wins. This is the recommended integration point:
-   *      have the app's router set/update this on every navigation.
-   *   2. document.body.dataset.page / body classes, if the app tags the
-   *      body element with the current view.
-   *   3. Fallback: if there's no live editor instance (window.dexEditor
-   *      / .cm), assume we're not on a note screen and hide.
-   * The app can also force a re-check at any time by calling
-   * window.dexToolbarRefreshVisibility().
-   * --------------------------------------------------------------------- */
-  function isHomepage() {
-    if (typeof window.dexIsHomepage === 'function') {
-      try { return !!window.dexIsHomepage(); } catch (_e) {}
-    }
-    if (typeof window.dexIsHomepage === 'boolean') return window.dexIsHomepage;
-
-    const page = document.body && document.body.dataset ? document.body.dataset.page : null;
-    if (page) return page === 'home' || page === 'homepage';
-
-    if (document.body && (document.body.classList.contains('page-home') ||
-                           document.body.classList.contains('homepage'))) {
-      return true;
-    }
-
-    const ed = window.dexEditor;
-    if (!ed || !ed.cm) return true;
-
-    return false;
-  }
-
-  function updateToolbarVisibility() {
-    const hide = isHomepage();
-    if (hide) {
-      btn.style.display = 'none';
-      if (menuOpen()) closeMenu();
-    } else {
-      btn.style.display = '';
-    }
-    return !hide;
-  }
-
-  window.dexToolbarRefreshVisibility = updateToolbarVisibility;
-
-  updateToolbarVisibility();
-
-  window.addEventListener('popstate', updateToolbarVisibility);
-  window.addEventListener('hashchange', updateToolbarVisibility);
-
-  try {
-    const bodyObserver = new MutationObserver(updateToolbarVisibility);
-    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-page'] });
-  } catch (_e) {}
-
+  /* ====== BUTTON DRAG ====== */
   let drag = null;
 
   btn.addEventListener('pointerdown', (e) => {
@@ -278,7 +224,6 @@
   function endDrag(e) {
     if (!drag) return;
     const wasDrag = drag.moved;
-    const startedAt = { x: drag.startLeft, y: drag.startTop };
     try { btn.releasePointerCapture(drag.pointerId); } catch (_e) {}
     drag = null;
     btn.classList.remove('dragging');
@@ -299,6 +244,7 @@
     savePos(clamped.left, clamped.top);
   });
 
+  /* ====== MENU ====== */
   function menuOpen() { return menu.classList.contains('open'); }
 
   function positionMenu() {
@@ -359,33 +305,6 @@
 
   let savedSelection = null;
 
-  /* ---------------------------------------------------------------------
-   * Close the toolbar whenever the editor's cursor moves while the menu
-   * is open — e.g. the user taps elsewhere in the note, or starts typing.
-   * Programmatic selection changes made BY the toolbar itself (paste,
-   * drag-select finalize, restoreSelection) are wrapped in cursorGuard so
-   * they don't immediately self-close the menu they just opened.
-   * --------------------------------------------------------------------- */
-  let cursorGuard = false;
-  function guardedCmChange(fn) {
-    cursorGuard = true;
-    try { fn(); } finally { cursorGuard = false; }
-  }
-  function onEditorCursorActivity() {
-    if (cursorGuard) return;
-    if (!menuOpen()) return;
-    closeMenu();
-  }
-  function bindCursorWatcher() {
-    const ed = window.dexEditor;
-    const cm = ed && ed.cm ? ed.cm : null;
-    if (!cm) { setTimeout(bindCursorWatcher, 200); return; }
-    if (cm.__dexCursorWatcherBound) return;
-    cm.__dexCursorWatcherBound = true;
-    cm.on('cursorActivity', onEditorCursorActivity);
-  }
-  bindCursorWatcher();
-
   function captureSelection() {
     try {
       const ed = window.dexEditor;
@@ -402,10 +321,8 @@
     try {
       const ed = window.dexEditor;
       if (ed && ed.cm && savedSelection) {
-        guardedCmChange(() => {
-          ed.cm.setSelection(savedSelection.from, savedSelection.to);
-          ed.cm.focus();
-        });
+        ed.cm.setSelection(savedSelection.from, savedSelection.to);
+        ed.cm.focus();
       }
     } catch (_e) {}
   }
@@ -419,10 +336,7 @@
     menu.classList.remove('open');
     setTimeout(() => { savedSelection = null; }, 300);
   }
-  function toggleMenu() {
-    if (!menuOpen() && isHomepage()) return;
-    menuOpen() ? closeMenu() : openMenu();
-  }
+  function toggleMenu() { menuOpen() ? closeMenu() : openMenu(); }
 
   window.dexOpenToolbar   = openMenu;
   window.dexCloseToolbar  = closeMenu;
@@ -436,6 +350,7 @@
     if (typeof showNotification === 'function') showNotification(m);
   }
 
+  /* ====== COPY ====== */
   copyEl.addEventListener('click', async () => {
     const ed = window.dexEditor;
     let text = '';
@@ -465,6 +380,7 @@
     }
   });
 
+  /* ====== PASTE ====== */
   pasteEl.addEventListener('click', async () => {
     let text = '';
     try {
@@ -488,13 +404,11 @@
       from = c; to = c;
     }
 
-    guardedCmChange(() => {
-      cm.operation(() => {
-        cm.replaceRange(text, from, to);
-        const startIdx = cm.indexFromPos(from);
-        const endPos   = cm.posFromIndex(startIdx + text.length);
-        cm.setSelection(endPos, endPos);
-      });
+    cm.operation(() => {
+      cm.replaceRange(text, from, to);
+      const startIdx = cm.indexFromPos(from);
+      const endPos   = cm.posFromIndex(startIdx + text.length);
+      cm.setSelection(endPos, endPos);
     });
 
     const startIdx = cm.indexFromPos(from);
@@ -514,6 +428,22 @@
 
   closeEl.addEventListener('click', closeMenu);
 
+  /* ====== CURSOR MOVE → CLOSE MENU ====== */
+  function attachCursorClose() {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { setTimeout(attachCursorClose, 300); return; }
+    if (cm.__dexCursorCloseBound) return;
+    cm.__dexCursorCloseBound = true;
+
+    cm.on('cursorActivity', () => {
+      if (menuOpen()) {
+        closeMenu();
+      }
+    });
+  }
+
+  /* ====== DRAG-TO-SELECT FOR MOBILE/TABLET ====== */
   const LONG_PRESS_MS  = 500;
   const MOVE_TOLERANCE = 10;
 
@@ -529,22 +459,7 @@
     return { from: { line: pos.line, ch: s }, to: { line: pos.line, ch: e } };
   }
 
-  function cmpPos(a, b) {
-    if (a.line !== b.line) return a.line - b.line;
-    return a.ch - b.ch;
-  }
-
-  /* ---------------------------------------------------------------------
-   * Drag-style text selection for touch/pen, mirroring how selection
-   * works with a mouse: press-and-hold anchors on the word under the
-   * finger, then dragging (without lifting) extends the selection from
-   * that anchor in either direction, just like a mouse-drag selection.
-   * The toolbar opens once the finger lifts, with whatever range ended
-   * up selected (a single word if the finger never moved).
-   * --------------------------------------------------------------------- */
-  let selectState = null;
-
-  function beginDragSelect(cmEl, clientX, clientY, pointerId) {
+  function fireLongPress(clientX, clientY) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
@@ -552,108 +467,155 @@
     try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
     catch (_e) { return; }
     if (!pos) return;
-
     const bounds = wordBoundsAt(cm, pos);
-    try { guardedCmChange(() => cm.setSelection(bounds.from, bounds.to)); }
-    catch (_e) { return; }
-
-    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_e) {} }
-
-    const prevTouchAction = cmEl.style.touchAction;
-    cmEl.style.touchAction = 'none';
-
-    selectState = { pointerId, cm, anchorFrom: bounds.from, anchorTo: bounds.to };
-
-    function onMove(ev) {
-      if (!selectState || ev.pointerId !== selectState.pointerId) return;
-      let p;
-      try { p = cm.coordsChar({ left: ev.clientX, top: ev.clientY }, 'window'); }
-      catch (_e) { return; }
-      if (!p) return;
-
-      let from, to;
-      if (cmpPos(p, selectState.anchorFrom) < 0) {
-        from = p; to = selectState.anchorTo;
-      } else if (cmpPos(p, selectState.anchorTo) > 0) {
-        from = selectState.anchorFrom; to = p;
-      } else {
-        from = selectState.anchorFrom; to = selectState.anchorTo;
-      }
-      guardedCmChange(() => cm.setSelection(from, to));
-    }
-    function onEnd(ev) {
-      if (!selectState || ev.pointerId !== selectState.pointerId) return;
-      cleanup();
-      finalizeDragSelect();
-    }
-    function cleanup() {
-      document.removeEventListener('pointermove',   onMove);
-      document.removeEventListener('pointerup',     onEnd);
-      document.removeEventListener('pointercancel', onEnd);
-      cmEl.style.touchAction = prevTouchAction;
-    }
-    function finalizeDragSelect() {
-      const from = cm.getCursor('from');
-      const to   = cm.getCursor('to');
-      savedSelection = { from, to, text: cm.getRange(from, to) };
-      selectState = null;
-      openMenu();
-    }
-
-    document.addEventListener('pointermove',   onMove);
-    document.addEventListener('pointerup',     onEnd);
-    document.addEventListener('pointercancel', onEnd);
+    try {
+      cm.setSelection(bounds.from, bounds.to);
+    } catch (_e) { return; }
+    savedSelection = {
+      from: bounds.from,
+      to:   bounds.to,
+      text: cm.getRange(bounds.from, bounds.to)
+    };
+    openMenu();
   }
 
-  function attachLongPress() {
+  /* ====== MOBILE DRAG SELECTION ====== */
+  function attachMobileDragSelect() {
     const cmEl = document.querySelector('.CodeMirror');
-    if (!cmEl) { setTimeout(attachLongPress, 200); return; }
-    if (cmEl.__dexLongPressBound) return;
-    cmEl.__dexLongPressBound = true;
+    if (!cmEl) { setTimeout(attachMobileDragSelect, 200); return; }
+    if (cmEl.__dexMobileDragBound) return;
+    cmEl.__dexMobileDragBound = true;
 
-    cmEl.addEventListener('contextmenu', (e) => { e.preventDefault(); });
-    cmEl.addEventListener('selectstart', (e) => { e.preventDefault(); });
+    /* Allow native context menu to show on long press */
+    cmEl.addEventListener('contextmenu', (e) => {
+      /* Allow default context menu for native selection */
+    });
+
+    /* Prevent default selectstart to avoid double selection */
+    cmEl.addEventListener('selectstart', (e) => {
+      /* Allow default selection for drag-to-select */
+    });
+
+    let dragSelectState = null;
 
     cmEl.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-      const startX = e.clientX, startY = e.clientY;
-      let cancelled = false;
 
-      const timer = setTimeout(() => {
-        if (cancelled) return;
-        cleanup();
-        beginDragSelect(cmEl, startX, startY, e.pointerId);
+      const ed = window.dexEditor;
+      const cm = ed && ed.cm ? ed.cm : null;
+      if (!cm) return;
+
+      const startX = e.clientX, startY = e.clientY;
+
+      /* Start a timer for long press (word select + menu) */
+      const longPressTimer = setTimeout(() => {
+        if (dragSelectState && dragSelectState.isDragging) return; /* Already dragging, skip long press */
+        fireLongPress(startX, startY);
+        if (dragSelectState) dragSelectState.cancelled = true;
       }, LONG_PRESS_MS);
 
-      function onMove(ev) {
-        if (cancelled) return;
-        const dx = ev.clientX - startX, dy = ev.clientY - startY;
-        if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
-          cancelled = true;
-          clearTimeout(timer);
-          cleanup();
+      dragSelectState = {
+        pointerId: e.pointerId,
+        startX: startX,
+        startY: startY,
+        cancelled: false,
+        isDragging: false,
+        longPressTimer: longPressTimer,
+        startPos: null,
+        lastPos: null
+      };
+
+      try {
+        dragSelectState.startPos = cm.coordsChar({ left: startX, top: startY }, 'window');
+        dragSelectState.lastPos = dragSelectState.startPos;
+      } catch (_e) {}
+
+      try { cmEl.setPointerCapture(e.pointerId); } catch (_e) {}
+    });
+
+    cmEl.addEventListener('pointermove', (e) => {
+      if (!dragSelectState || e.pointerId !== dragSelectState.pointerId) return;
+      if (dragSelectState.cancelled) return;
+
+      const dx = e.clientX - dragSelectState.startX;
+      const dy = e.clientY - dragSelectState.startY;
+      const dist = Math.hypot(dx, dy);
+
+      /* If moved beyond tolerance, start drag selection */
+      if (!dragSelectState.isDragging && dist > MOVE_TOLERANCE) {
+        dragSelectState.isDragging = true;
+        clearTimeout(dragSelectState.longPressTimer);
+
+        /* Cancel any pending long press menu open */
+        dragSelectState.cancelled = true;
+
+        /* Start selection from initial position */
+        if (dragSelectState.startPos) {
+          cm.setSelection(dragSelectState.startPos, dragSelectState.startPos);
         }
       }
-      function onEnd() {
-        if (cancelled) return;
-        cancelled = true;
-        clearTimeout(timer);
-        cleanup();
+
+      if (dragSelectState.isDragging) {
+        e.preventDefault();
+        let currentPos;
+        try {
+          currentPos = cm.coordsChar({ left: e.clientX, top: e.clientY }, 'window');
+        } catch (_e) { return; }
+
+        if (currentPos) {
+          cm.setSelection(dragSelectState.startPos, currentPos);
+          dragSelectState.lastPos = currentPos;
+        }
       }
-      function cleanup() {
-        document.removeEventListener('pointermove',   onMove);
-        document.removeEventListener('pointerup',     onEnd);
-        document.removeEventListener('pointercancel', onEnd);
-      }
-      document.addEventListener('pointermove',   onMove);
-      document.addEventListener('pointerup',     onEnd);
-      document.addEventListener('pointercancel', onEnd);
     });
+
+    function endDragSelect(e) {
+      if (!dragSelectState || e.pointerId !== dragSelectState.pointerId) return;
+
+      clearTimeout(dragSelectState.longPressTimer);
+
+      const wasDragging = dragSelectState.isDragging;
+      const state = dragSelectState;
+      dragSelectState = null;
+
+      try { cmEl.releasePointerCapture(e.pointerId); } catch (_e) {}
+
+      if (wasDragging) {
+        /* Selection completed via drag — don't open menu, just save selection */
+        const ed = window.dexEditor;
+        const cm = ed && ed.cm ? ed.cm : null;
+        if (cm && state.startPos && state.lastPos) {
+          const selText = cm.getSelection();
+          if (selText && selText.length > 0) {
+            savedSelection = {
+              from: cm.getCursor('from'),
+              to: cm.getCursor('to'),
+              text: selText
+            };
+          }
+        }
+      }
+    }
+
+    cmEl.addEventListener('pointerup', endDragSelect);
+    cmEl.addEventListener('pointercancel', endDragSelect);
+  }
+
+  /* ====== INITIALIZATION ====== */
+  function init() {
+    updateToolbarVisibility();
+    attachCursorClose();
+    attachMobileDragSelect();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attachLongPress, { once: true });
+    document.addEventListener('DOMContentLoaded', init, { once: true });
   } else {
-    attachLongPress();
+    init();
   }
+
+  /* Re-check visibility on navigation (for SPAs) */
+  window.addEventListener('popstate', updateToolbarVisibility);
+  window.addEventListener('hashchange', updateToolbarVisibility);
+
 })();
