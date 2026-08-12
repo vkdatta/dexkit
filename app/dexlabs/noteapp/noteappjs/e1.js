@@ -190,6 +190,11 @@
   cursorControls.id = 'dexCursorControls';
   cursorControls.innerHTML =
     '<div class="dex-cursor-row">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurSelect" aria-label="Toggle select mode">' +
+        '<span class="material-symbols-rounded">text_select_move_forward_character</span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="dex-cursor-row">' +
       '<button type="button" class="dex-cursor-btn" id="dexCurDblUp" aria-label="Double up">' +
         '<span class="material-symbols-rounded">' + ICONS.dbl_up + '</span>' +
       '</button>' +
@@ -239,6 +244,7 @@
   const curDblDown = document.getElementById('dexCurDblDown');
   const curDblLeft = document.getElementById('dexCurDblLeft');
   const curDblRight= document.getElementById('dexCurDblRight');
+  const selectBtn  = document.getElementById('dexCurSelect');
 
   /* ====== HOMEPAGE DETECTION ====== */
   function isHomepage() {
@@ -599,14 +605,14 @@
     const cm = ed && ed.cm ? ed.cm : null;
     if (cm) {
       cursorAnchor = cm.getCursor();
-      cursorSelectMode = false;
-      cm.focus();
+      // Do NOT call cm.focus() – it opens the keyboard on mobile
     }
   }
   function closeCursorControls() {
     cursorControls.classList.remove('open');
     cursorSelectMode = false;
     cursorAnchor = null;
+    selectBtn.classList.remove('select-mode');
   }
   function toggleCursorControls() {
     cursorControlsOpen() ? closeCursorControls() : openCursorControls();
@@ -668,32 +674,35 @@
     }
   });
 
-  /* ====== CURSOR MOVEMENT ====== */
+  /* ====== CURSOR MOVEMENT (FIXED) ====== */
   function moveCursor(dir, multiplier) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
 
-    cm.focus();
+    // Do NOT focus – keyboard would pop up on mobile
 
-    const unit = (dir === 'up' || dir === 'down') ? 'line' : 'char';
+    const isVertical = (dir === 'up' || dir === 'down');
     const amount = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
 
     if (cursorSelectMode) {
       if (!cursorAnchor) cursorAnchor = cm.getCursor('from');
-      const head = cm.getCursor('to');
-      let newHead = head;
+      let head = cm.getCursor('to');
       for (let i = 0; i < multiplier; i++) {
-        newHead = cm.findPosH(newHead, amount > 0 ? 1 : -1, unit);
+        head = isVertical
+          ? cm.findPosV(head, amount > 0 ? 1 : -1, 'line')
+          : cm.findPosH(head, amount > 0 ? 1 : -1, 'char');
       }
-      cm.setSelection(cursorAnchor, newHead);
+      cm.setSelection(cursorAnchor, head);
     } else {
-      let newCur = cm.getCursor();
+      let cur = cm.getCursor();
       for (let i = 0; i < multiplier; i++) {
-        newCur = cm.findPosH(newCur, amount > 0 ? 1 : -1, unit);
+        cur = isVertical
+          ? cm.findPosV(cur, amount > 0 ? 1 : -1, 'line')
+          : cm.findPosH(cur, amount > 0 ? 1 : -1, 'char');
       }
-      cm.setCursor(newCur);
-      cursorAnchor = newCur;
+      cm.setCursor(cur);
+      cursorAnchor = cur;
     }
   }
 
@@ -705,6 +714,19 @@
   curDblDown.addEventListener('click',  () => moveCursor('down',  10));
   curDblLeft.addEventListener('click',  () => moveCursor('left',  10));
   curDblRight.addEventListener('click', () => moveCursor('right', 10));
+
+  /* ====== SELECT MODE TOGGLE ====== */
+  selectBtn.addEventListener('click', () => {
+    cursorSelectMode = !cursorSelectMode;
+    selectBtn.classList.toggle('select-mode', cursorSelectMode);
+    if (cursorSelectMode) {
+      const ed = window.dexEditor;
+      const cm = ed && ed.cm ? ed.cm : null;
+      if (cm) {
+        cursorAnchor = cm.getCursor('from');
+      }
+    }
+  });
 
   /* ====== CURSOR MOVE -> CLOSE MENU ====== */
   function attachCursorClose() {
