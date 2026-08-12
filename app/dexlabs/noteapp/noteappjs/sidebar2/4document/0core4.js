@@ -1,4 +1,4 @@
-import { handleRename, handleRenameSubmit } from "./rename.js";
+import { handleRename, handleRenameSubmit } from "./rename1.js";
 import { handleDownload, handleDownloadSubmit } from "./download.js";
 import { handleOpenFile } from "./open1.js";
 import { toggleFullscreen } from "./fullscreen.js";

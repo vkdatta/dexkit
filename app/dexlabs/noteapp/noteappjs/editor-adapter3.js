@@ -104,7 +104,18 @@
       tabSize: 4,
       indentWithTabs: false,
       autofocus: false,
-      inputStyle: 'contenteditable', // better IME on mobile
+      // inputStyle: 'textarea' is CM5's default. We previously set
+      // 'contenteditable' thinking it'd help mobile IME — it caused three bugs
+      // that all trace to browser contenteditable quirks on mobile:
+      //   (a) Enter produced <p>/<div> paragraph splits instead of \n, so the
+      //       cursor visually jumped from line-2 to line-4.
+      //   (b) Tapping to place the cursor snapped back to the previous position
+      //       ~1ms later because contenteditable re-focuses the range.
+      //   (c) Paste dropped text at the end of the document because the browser
+      //       handled the paste event before CM could rewrite the selection.
+      // 'textarea' input capture uses a hidden textarea inside CM — battle-
+      // tested against a decade of mobile browser quirks.
+      inputStyle: 'textarea',
       spellcheck: false,
       autocorrect: false,
       autocapitalize: false,

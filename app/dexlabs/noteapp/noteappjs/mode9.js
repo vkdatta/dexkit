@@ -535,14 +535,18 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Options-view (Upload / Paste / Clear / Swap) — setup3.js writes to the
-  // shadow textareas, which by themselves aren't the source of truth. Wrap
-  // each function so the change also flows back into the underlying notes
-  // and, if the edited pane is currently active, into #noteTextarea.
+  // Options-view (Upload / Paste / Clear / Swap) hooks.
+  //
+  // setup3.js already calls `diffCommitPane(type)` after each op and
+  // `diffSwapBindings()` inside `diffSwapTexts()` — these were originally
+  // exported by the deleted d8.js. Now we define them here as the canonical
+  // hooks. When they exist, setup3's operations flow through to the
+  // underlying notes automatically — no polling + wrapping needed.
   // ---------------------------------------------------------------------------
   function commitShadowToNote(type) {
     if (!state.enabled) return;
-    const shadow = type === 'raw' ? diffElements.raw : diffElements.morph;
+    const shadow = type === 'raw' ? (typeof diffElements !== 'undefined' && diffElements.raw)
+                                  : (typeof diffElements !== 'undefined' && diffElements.morph);
     if (!shadow) return;
     const nid = type === 'raw' ? state.rawNoteId : state.morphNoteId;
     if (!nid) return;
@@ -554,52 +558,40 @@
     n._dirty = true;
     if (typeof saveNotes === 'function') try { saveNotes(); } catch (e) {}
     if (typeof populateNoteList === 'function') try { populateNoteList(); } catch (e) {}
-    // If this pane is the active editor, mirror into #noteTextarea. Use the
-    // undo manager if available so the change lands in the note's undo stack.
+    // If this pane is the active editor, mirror into the CM editor (via the
+    // facade) so the user sees the change immediately.
     if (state.activePane === type) {
-      const nt = $('noteTextarea');
-      if (nt) {
-        if (typeof window.rebindUndoForNote === 'function') window.rebindUndoForNote(n.id, n.content);
-        else nt.value = n.content;
+      if (window.dexEditor && typeof window.dexEditor.loadHistoryFor === 'function') {
+        try { window.dexEditor.loadHistoryFor(n.id, n.content); } catch (e) {}
+      } else if (window.dexEditor && typeof window.dexEditor.setValue === 'function') {
+        try { window.dexEditor.setValue(n.content); } catch (e) {}
       }
     }
   }
 
-  function wrap(fnName, after) {
-    const orig = window[fnName];
-    if (typeof orig !== 'function' || orig.__dexWrapped) return;
-    const wrapped = function () { const r = orig.apply(this, arguments); try { after.apply(null, arguments); } catch (e) {} return r; };
-    wrapped.__dexWrapped = true;
-    window[fnName] = wrapped;
-  }
+  // Expose the hooks setup3.js is already looking for.
+  window.diffCommitPane = function (type) { commitShadowToNote(type); };
 
-  function wireSetupWrappers() {
-    // setup3.js loads asynchronously; poll briefly, then wrap.
-    let tries = 0;
-    (function attempt() {
-      if (typeof window.diffHandleFile === 'function' &&
-          typeof window.diffPasteText  === 'function' &&
-          typeof window.diffClearText  === 'function' &&
-          typeof window.diffSwapTexts  === 'function') {
-        wrap('diffHandleFile', (_input, type) => commitShadowToNote(type));
-        wrap('diffPasteText',  (type)         => commitShadowToNote(type));
-        wrap('diffClearText',  (type)         => commitShadowToNote(type));
-        wrap('diffSwapTexts',  ()             => {
-          // Swap the two panes' bindings AND commit both shadows.
-          const tmp = state.rawNoteId;
-          state.rawNoteId = state.morphNoteId;
-          state.morphNoteId = tmp;
-          lsSet(LS.RAW_ID, state.rawNoteId || '');
-          lsSet(LS.MORPH_ID, state.morphNoteId || '');
-          commitShadowToNote('raw');
-          commitShadowToNote('morph');
-        });
-        return;
-      }
-      if (tries++ > 100) return;
-      setTimeout(attempt, 60);
-    })();
-  }
+  window.diffSwapBindings = function () {
+    const tmp = state.rawNoteId;
+    state.rawNoteId = state.morphNoteId;
+    state.morphNoteId = tmp;
+    lsSet(LS.RAW_ID, state.rawNoteId || '');
+    lsSet(LS.MORPH_ID, state.morphNoteId || '');
+    // The shadow values were already swapped by setup3. Persist both into
+    // the (now-swapped) notes.
+    commitShadowToNote('raw');
+    commitShadowToNote('morph');
+    // If a pane is currently active in the editor, reload it against the
+    // newly-bound note.
+    const activeId = state.activePane === 'raw' ? state.rawNoteId : state.morphNoteId;
+    if (activeId && typeof openNote === 'function') try { openNote(activeId); } catch (e) {}
+    paintBottomBar();
+  };
+
+  // Legacy no-op — setup3.js still calls this via `if (typeof diffSwapBindings…)`
+  // pattern; kept for anyone who inspects window for it.
+  function wireSetupWrappers() { /* no-op — hooks above replace the polling wrap */ }
 
   function init() {
     wireEditor();
