@@ -4,6 +4,7 @@
   window.__dexToolbar2Loaded = true;
 
   const LS_KEY = 'dexToolbarPos';
+  const CURSOR_KEY = 'dexCursorPos';
   const TRIGGER_SIZE = 40;
   const DRAG_THRESHOLD = 8;
   const EDGE_MARGIN = 8;
@@ -13,7 +14,11 @@
     down: 'expand_more', up: 'expand_less',
     left: 'chevron_left', right: 'chevron_right',
     copy: 'content_copy', paste: 'content_paste',
-    close: 'close'
+    close: 'close',
+    dbl_up: 'keyboard_double_arrow_up',
+    dbl_down: 'keyboard_double_arrow_down',
+    dbl_left: 'keyboard_double_arrow_left',
+    dbl_right: 'keyboard_double_arrow_right'
   };
 
   const style = document.createElement('style');
@@ -95,21 +100,26 @@
       display: none;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       background: var(--matte, #181C1F);
       border: 1px solid var(--border, rgba(255,255,255,0.10));
       border-radius: 14px;
-      padding: 6px;
+      padding: 5px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none;
+      cursor: grab;
     }
     #dexCursorControls.open { display: flex; }
+    #dexCursorControls.dragging {
+      cursor: grabbing;
+      opacity: 0.9;
+    }
     #dexCursorControls .dex-cursor-row {
       display: flex;
-      gap: 4px;
+      gap: 2px;
       align-items: center;
     }
     #dexCursorControls .dex-cursor-btn {
@@ -180,24 +190,37 @@
   cursorControls.id = 'dexCursorControls';
   cursorControls.innerHTML =
     '<div class="dex-cursor-row">' +
-      '<button type="button" class="dex-cursor-btn" id="dexCurUp" aria-label="Cursor up">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurDblUp" aria-label="Double up">' +
+        '<span class="material-symbols-rounded">' + ICONS.dbl_up + '</span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="dex-cursor-row">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurUp" aria-label="Up">' +
         '<span class="material-symbols-rounded">' + ICONS.up + '</span>' +
       '</button>' +
     '</div>' +
     '<div class="dex-cursor-row">' +
-      '<button type="button" class="dex-cursor-btn" id="dexCurLeft" aria-label="Cursor left">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurDblLeft" aria-label="Double left">' +
+        '<span class="material-symbols-rounded">' + ICONS.dbl_left + '</span>' +
+      '</button>' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurLeft" aria-label="Left">' +
         '<span class="material-symbols-rounded">' + ICONS.left + '</span>' +
       '</button>' +
-      '<button type="button" class="dex-cursor-btn" id="dexCurSelect" aria-label="Toggle select mode">' +
-        '<span class="material-symbols-rounded">text_select_move_forward_character</span>' +
-      '</button>' +
-      '<button type="button" class="dex-cursor-btn" id="dexCurRight" aria-label="Cursor right">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurRight" aria-label="Right">' +
         '<span class="material-symbols-rounded">' + ICONS.right + '</span>' +
+      '</button>' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurDblRight" aria-label="Double right">' +
+        '<span class="material-symbols-rounded">' + ICONS.dbl_right + '</span>' +
       '</button>' +
     '</div>' +
     '<div class="dex-cursor-row">' +
-      '<button type="button" class="dex-cursor-btn" id="dexCurDown" aria-label="Cursor down">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurDown" aria-label="Down">' +
         '<span class="material-symbols-rounded">' + ICONS.down + '</span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="dex-cursor-row">' +
+      '<button type="button" class="dex-cursor-btn" id="dexCurDblDown" aria-label="Double down">' +
+        '<span class="material-symbols-rounded">' + ICONS.dbl_down + '</span>' +
       '</button>' +
     '</div>';
   document.body.appendChild(cursorControls);
@@ -208,11 +231,14 @@
   const cursorEl = document.getElementById('dexTbCursor');
   const closeEl = document.getElementById('dexTbClose');
 
-  const curUp    = document.getElementById('dexCurUp');
-  const curDown  = document.getElementById('dexCurDown');
-  const curLeft  = document.getElementById('dexCurLeft');
-  const curRight = document.getElementById('dexCurRight');
-  const curSelect = document.getElementById('dexCurSelect');
+  const curUp      = document.getElementById('dexCurUp');
+  const curDown    = document.getElementById('dexCurDown');
+  const curLeft    = document.getElementById('dexCurLeft');
+  const curRight   = document.getElementById('dexCurRight');
+  const curDblUp   = document.getElementById('dexCurDblUp');
+  const curDblDown = document.getElementById('dexCurDblDown');
+  const curDblLeft = document.getElementById('dexCurDblLeft');
+  const curDblRight= document.getElementById('dexCurDblRight');
 
   /* ====== HOMEPAGE DETECTION ====== */
   function isHomepage() {
@@ -528,25 +554,42 @@
 
   function cursorControlsOpen() { return cursorControls.classList.contains('open'); }
 
-  function positionCursorControls() {
-    const vw = window.innerWidth, vh = window.innerHeight;
+  function loadCursorPos() {
+    try {
+      const raw = localStorage.getItem(CURSOR_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.left === 'number' && typeof p.top === 'number') return p;
+    } catch (e) {}
+    return null;
+  }
+  function saveCursorPos(left, top) {
+    try { localStorage.setItem(CURSOR_KEY, JSON.stringify({ left, top })); } catch (e) {}
+  }
+  function clampCursor(left, top) {
     const cw = cursorControls.offsetWidth || 130;
-    const ch = cursorControls.offsetHeight || 140;
+    const ch = cursorControls.offsetHeight || 200;
+    const maxLeft = window.innerWidth  - cw - EDGE_MARGIN;
+    const maxTop  = window.innerHeight - ch - EDGE_MARGIN;
+    return {
+      left: Math.max(EDGE_MARGIN, Math.min(maxLeft, left)),
+      top:  Math.max(EDGE_MARGIN, Math.min(maxTop,  top))
+    };
+  }
+  function defaultCursorPos() {
+    return clampCursor(
+      window.innerWidth  - 150,
+      Math.round(window.innerHeight * 0.55)
+    );
+  }
+  function applyCursorPos(pos) {
+    cursorControls.style.left = pos.left + 'px';
+    cursorControls.style.top  = pos.top  + 'px';
+  }
 
-    const bx = btn.offsetLeft, by = btn.offsetTop;
-    const dir = btn.dataset.dir || 'down';
-    let left, top;
-
-    if (dir === 'left')  { left = bx - cw - MENU_GAP; top = by; }
-    else if (dir === 'right') { left = bx + TRIGGER_SIZE + MENU_GAP; top = by; }
-    else if (dir === 'up')    { left = bx; top = by - ch - MENU_GAP; }
-    else                       { left = bx; top = by + TRIGGER_SIZE + MENU_GAP; }
-
-    left = Math.max(EDGE_MARGIN, Math.min(vw - cw - EDGE_MARGIN, left));
-    top  = Math.max(EDGE_MARGIN, Math.min(vh - ch - EDGE_MARGIN, top));
-
-    cursorControls.style.left = left + 'px';
-    cursorControls.style.top  = top  + 'px';
+  function positionCursorControls() {
+    const pos = loadCursorPos() || defaultCursorPos();
+    applyCursorPos(clampCursor(pos.left, pos.top));
   }
 
   function openCursorControls() {
@@ -557,7 +600,6 @@
     if (cm) {
       cursorAnchor = cm.getCursor();
       cursorSelectMode = false;
-      curSelect.classList.remove('select-mode');
       cm.focus();
     }
   }
@@ -565,7 +607,6 @@
     cursorControls.classList.remove('open');
     cursorSelectMode = false;
     cursorAnchor = null;
-    if (curSelect) curSelect.classList.remove('select-mode');
   }
   function toggleCursorControls() {
     cursorControlsOpen() ? closeCursorControls() : openCursorControls();
@@ -576,64 +617,94 @@
     openCursorControls();
   });
 
-  function moveCursor(dir) {
+  /* ====== CURSOR DRAG ====== */
+  let cursorDrag = null;
+
+  cursorControls.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.dex-cursor-btn')) return; /* Don't drag when clicking buttons */
+    cursorDrag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: cursorControls.offsetLeft,
+      startTop:  cursorControls.offsetTop,
+      moved: false
+    };
+    try { cursorControls.setPointerCapture(e.pointerId); } catch (_e) {}
+  });
+
+  cursorControls.addEventListener('pointermove', (e) => {
+    if (!cursorDrag || e.pointerId !== cursorDrag.pointerId) return;
+    const dx = e.clientX - cursorDrag.startX;
+    const dy = e.clientY - cursorDrag.startY;
+    if (!cursorDrag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!cursorDrag.moved) {
+      cursorDrag.moved = true;
+      cursorControls.classList.add('dragging');
+    }
+    const next = clampCursor(cursorDrag.startLeft + dx, cursorDrag.startTop + dy);
+    applyCursorPos(next);
+  });
+
+  function endCursorDrag(e) {
+    if (!cursorDrag || e.pointerId !== cursorDrag.pointerId) return;
+    const wasDrag = cursorDrag.moved;
+    try { cursorControls.releasePointerCapture(cursorDrag.pointerId); } catch (_e) {}
+    cursorDrag = null;
+    cursorControls.classList.remove('dragging');
+    if (wasDrag) {
+      const pos = { left: cursorControls.offsetLeft, top: cursorControls.offsetTop };
+      saveCursorPos(pos.left, pos.top);
+    }
+  }
+  cursorControls.addEventListener('pointerup',     endCursorDrag);
+  cursorControls.addEventListener('pointercancel', endCursorDrag);
+
+  window.addEventListener('resize', () => {
+    if (cursorControlsOpen()) {
+      const clamped = clampCursor(cursorControls.offsetLeft, cursorControls.offsetTop);
+      applyCursorPos(clamped);
+      saveCursorPos(clamped.left, clamped.top);
+    }
+  });
+
+  /* ====== CURSOR MOVEMENT ====== */
+  function moveCursor(dir, multiplier) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
 
     cm.focus();
 
+    const unit = (dir === 'up' || dir === 'down') ? 'line' : 'char';
+    const amount = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
+
     if (cursorSelectMode) {
-      /* Selection mode: extend selection from anchor */
       if (!cursorAnchor) cursorAnchor = cm.getCursor('from');
       const head = cm.getCursor('to');
-      let newHead;
-      switch (dir) {
-        case 'up':    newHead = cm.findPosH(head, -1, 'line'); break;
-        case 'down':  newHead = cm.findPosH(head,  1, 'line'); break;
-        case 'left':  newHead = cm.findPosH(head, -1, 'char'); break;
-        case 'right': newHead = cm.findPosH(head,  1, 'char'); break;
+      let newHead = head;
+      for (let i = 0; i < multiplier; i++) {
+        newHead = cm.findPosH(newHead, amount > 0 ? 1 : -1, unit);
       }
       cm.setSelection(cursorAnchor, newHead);
     } else {
-      /* Normal mode: move cursor */
-      const cur = cm.getCursor();
-      let newCur;
-      switch (dir) {
-        case 'up':    newCur = cm.findPosH(cur, -1, 'line'); break;
-        case 'down':  newCur = cm.findPosH(cur,  1, 'line'); break;
-        case 'left':  newCur = cm.findPosH(cur, -1, 'char'); break;
-        case 'right': newCur = cm.findPosH(cur,  1, 'char'); break;
+      let newCur = cm.getCursor();
+      for (let i = 0; i < multiplier; i++) {
+        newCur = cm.findPosH(newCur, amount > 0 ? 1 : -1, unit);
       }
       cm.setCursor(newCur);
       cursorAnchor = newCur;
     }
   }
 
-  curUp.addEventListener('click',    () => moveCursor('up'));
-  curDown.addEventListener('click',  () => moveCursor('down'));
-  curLeft.addEventListener('click',  () => moveCursor('left'));
-  curRight.addEventListener('click', () => moveCursor('right'));
-
-  curSelect.addEventListener('click', () => {
-    cursorSelectMode = !cursorSelectMode;
-    const ed = window.dexEditor;
-    const cm = ed && ed.cm ? ed.cm : null;
-    if (cursorSelectMode) {
-      curSelect.classList.add('select-mode');
-      if (cm) {
-        const cur = cm.getCursor();
-        cursorAnchor = { line: cur.line, ch: cur.ch };
-        cm.setSelection(cursorAnchor, cursorAnchor);
-      }
-      notify('Select mode ON');
-    } else {
-      curSelect.classList.remove('select-mode');
-      cursorAnchor = null;
-      notify('Select mode OFF');
-    }
-    if (cm) cm.focus();
-  });
+  curUp.addEventListener('click',    () => moveCursor('up',    1));
+  curDown.addEventListener('click',  () => moveCursor('down',  1));
+  curLeft.addEventListener('click',  () => moveCursor('left',  1));
+  curRight.addEventListener('click', () => moveCursor('right', 1));
+  curDblUp.addEventListener('click',    () => moveCursor('up',    10));
+  curDblDown.addEventListener('click',  () => moveCursor('down',  10));
+  curDblLeft.addEventListener('click',  () => moveCursor('left',  10));
+  curDblRight.addEventListener('click', () => moveCursor('right', 10));
 
   /* ====== CURSOR MOVE -> CLOSE MENU ====== */
   function attachCursorClose() {
