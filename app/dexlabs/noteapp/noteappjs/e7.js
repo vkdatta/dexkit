@@ -442,7 +442,7 @@
     captureSelection();
     positionMenu();
     menu.classList.add('open');
-    clearSelectionTimeout(); // cancel auto-open timer
+    clearSelectionTimeout();
   }
   function closeMenu() {
     menu.classList.remove('open');
@@ -630,24 +630,33 @@
     saveCursorPos(clamped.left, clamped.top);
   });
 
-  /* ====== CURSOR MOVEMENT ====== */
+  /* ====== CURSOR MOVEMENT (fixed for left/up) ====== */
   function moveCursor(dir, multiplier) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
 
-    const from = cm.getCursor('from');   // anchor point
-    let head = cm.getCursor('to');       // current head
+    let from = cm.getCursor('from');
+    let to   = cm.getCursor('to');
     const isVertical = (dir === 'up' || dir === 'down');
-    const step = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
 
-    for (let i = 0; i < Math.abs(step); i++) {
-      const delta = step > 0 ? 1 : -1;
-      head = isVertical
-        ? cm.findPosV(head, delta, 'line')
-        : cm.findPosH(head, delta, 'char');
+    if (dir === 'left' || dir === 'up') {
+      // Move anchor (from) left/up
+      for (let i = 0; i < multiplier; i++) {
+        from = isVertical
+          ? cm.findPosV(from, -1, 'line')
+          : cm.findPosH(from, -1, 'char');
+      }
+      cm.setSelection(from, to);
+    } else {
+      // Move head (to) right/down
+      for (let i = 0; i < multiplier; i++) {
+        to = isVertical
+          ? cm.findPosV(to, 1, 'line')
+          : cm.findPosH(to, 1, 'char');
+      }
+      cm.setSelection(from, to);
     }
-    cm.setSelection(from, head);
   }
 
   curUp.addEventListener('click',    () => moveCursor('up',    1));
@@ -681,7 +690,7 @@
           openMenu();
         }
         selectionTimeout = null;
-      }, 5000);   // 5 seconds delay
+      }, 5000);   // 5 seconds
     }
   }
 
@@ -700,7 +709,7 @@
     });
   }
 
-  /* ====== LONG-TAP – SELECT FROM CURRENT CURSOR TO TAPPED POSITION ====== */
+  /* ====== LONG-TAP – SELECT FROM CURRENT ANCHOR TO TAPPED POSITION ====== */
   function fireLongPress(clientX, clientY) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
@@ -728,7 +737,7 @@
       to:   cm.getCursor('to'),
       text: cm.getSelection()
     };
-    // Do NOT open the menu here – let the 5‑second inactivity timer handle it.
+    // Menu will open after 5s of inactivity – not immediately.
   }
 
   /* ====== DRAG-TO-SELECT FOR MOBILE/TABLET ====== */
