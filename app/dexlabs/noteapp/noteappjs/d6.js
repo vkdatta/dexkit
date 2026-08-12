@@ -197,15 +197,14 @@
     selectLabel.textContent = selectMode ? 'Select on' : 'Select';
   });
 
-  // Arrow button handler
+  // Arrow button handler – now with proper suppression
   function handleArrow(dir) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm;
     if (!cm) return;
 
-    // Suppress auto-close during this operation
-    window._dexSuppressAutoClose = true;
-    setTimeout(() => { window._dexSuppressAutoClose = false; }, 100);
+    // Suppress cursorActivity auto‑close during this operation
+    window._dexArrowActive = true;
 
     const cursor = cm.getCursor();
     let anchor = cm.getCursor('from'); // start of selection or cursor
@@ -257,6 +256,9 @@
 
     // Reposition menu to stay near selection/cursor
     if (menuOpen()) positionMenu();
+
+    // Release suppression after a short delay to catch any async cursorActivity
+    setTimeout(() => { window._dexArrowActive = false; }, 100);
   }
 
   // Attach arrow listeners
@@ -513,7 +515,7 @@
   window.dexToggleToolbar = toggleMenu;
 
   // ----------------------------------------
-  //  Editor listeners: auto-open on selection, close on cursor move (with suppress flag)
+  //  Editor listeners: auto-open on selection, close on cursor move (with suppression)
   // ----------------------------------------
   function attachEditorListeners() {
     const cm = window.dexEditor && window.dexEditor.cm;
@@ -527,8 +529,8 @@
     }
 
     const handler = function() {
-      // If suppressed, skip auto-close
-      if (window._dexSuppressAutoClose) return;
+      // Skip if an arrow operation is active
+      if (window._dexArrowActive) return;
 
       if (!menuOpen()) {
         const sel = cm.getSelection();
