@@ -420,8 +420,6 @@
   });
 
   pasteEl.addEventListener('click', async () => {
-    const ed = window.dexEditor;
-    if (!ed) { notify('Editor not ready'); return; }
     let text = '';
     try {
       text = await navigator.clipboard.readText();
@@ -429,20 +427,56 @@
       notify('Paste blocked — allow clipboard permission');
       return;
     }
-    if (!text) return;
-    restoreSelection();               // put the cursor / selection back
-    try {
-      if (ed.replaceSelection) ed.replaceSelection(text);
-      else if (ed.insertAt && ed.getSelection) {
-        const s = ed.getSelection();
-        ed.insertAt(s ? s.start : 0, text);
-      }
-      if (ed.focus) ed.focus();
-      notify('Pasted');
-    } catch (_e) {
-      notify('Paste failed');
+    if (!text) { notify('Clipboard is empty'); return; }
+
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { notify('Editor not ready'); return; }
+
+    // Insertion range: prefer the range we captured when the menu opened
+    // (before any focus shift), fall back to the current cursor, then to
+    // the start of the doc. NEVER call cm.focus() before the mutation —
+    // on mobile that crosses the user-gesture boundary after the awaited
+    // clipboard read and can leave the selection in a stale/collapsed
+    // state that swallows replaceSelection silently.
+    let from, to;
+    if (savedSelection && isPosValid(cm, savedSelection.from) && isPosValid(cm, savedSelection.to)) {
+      from = savedSelection.from;
+      to   = savedSelection.to;
+    } else {
+      const c = cm.getCursor();
+      from = c; to = c;
     }
+
+    // Atomic doc mutation. cm.replaceRange doesn't care about focus or
+    // the currently rendered selection — it edits the document model
+    // directly. That's what "Pasted" should mean.
+    cm.operation(() => {
+      cm.replaceRange(text, from, to);
+      const startIdx = cm.indexFromPos(from);
+      const endPos   = cm.posFromIndex(startIdx + text.length);
+      cm.setSelection(endPos, endPos);
+    });
+
+    // Refresh savedSelection to the post-paste caret so a chained action
+    // (e.g., paste twice, or paste then copy) lands where you'd expect.
+    const startIdx = cm.indexFromPos(from);
+    const endPos   = cm.posFromIndex(startIdx + text.length);
+    savedSelection = { from: endPos, to: endPos, text: '' };
+
+    notify('Pasted ' + text.length + ' character' + (text.length === 1 ? '' : 's'));
   });
+
+  // Position validity check — a saved selection from before a doc edit
+  // could point beyond the current line count / line length. Guard against
+  // that so a stale saved range never crashes cm.replaceRange.
+  function isPosValid(cm, pos) {
+    if (!pos || typeof pos.line !== 'number' || typeof pos.ch !== 'number') return false;
+    const lc = cm.lineCount();
+    if (pos.line < 0 || pos.line >= lc) return false;
+    const lineLen = cm.getLine(pos.line).length;
+    return pos.ch >= 0 && pos.ch <= lineLen;
+  }
 
   closeEl.addEventListener('click', closeMenu);
 
