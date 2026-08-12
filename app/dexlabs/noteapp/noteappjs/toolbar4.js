@@ -112,10 +112,22 @@
       margin: 4px 6px;
     }
 
-    /* Suppress ONLY the native long-press callout popup on the editor.
-       This does NOT prevent selection — long-press still selects the word,
-       tap-and-drag still extends selection. */
+    /* Custom selection takeover — we do our own long-press selection via
+       cm.setSelection (which paints into CM's own .CodeMirror-selected
+       overlay). The browser's native selection AND its callout toolbar are
+       both suppressed by disabling user-select on the CM lines and disabling
+       the callout on the wrapper. */
     .CodeMirror { -webkit-touch-callout: none; }
+    .CodeMirror-line,
+    .CodeMirror-line *,
+    .CodeMirror pre.CodeMirror-line,
+    .CodeMirror pre.CodeMirror-line-like {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      -webkit-touch-callout: none !important;
+    }
   `;
   document.head.appendChild(style);
 
@@ -480,6 +492,108 @@
 
   closeEl.addEventListener('click', closeMenu);
 
-  // Explicitly DO NOT bind any handler on `.CodeMirror` for contextmenu /
-  // touchstart / touchend / selectionchange. Native selection stays intact.
+  // ═══════════════════════════════════════════════════════════════════════
+  // Custom long-press selection.
+  //
+  // Native mobile selection is off (via user-select:none on CM lines), so we
+  // provide our own: hold a finger on the editor for LONG_PRESS_MS, and we
+  // (a) figure out which character was under the finger, (b) find the word
+  // bounds, (c) select that word via cm.setSelection (which draws into CM's
+  // own overlay), and (d) auto-open the menu right next to the selection.
+  //
+  // Short taps aren't intercepted — the pointerdown callback just starts a
+  // timer; anything under LONG_PRESS_MS or with movement > MOVE_TOLERANCE
+  // cancels, letting CM's own tap handling place the cursor normally.
+  // ═══════════════════════════════════════════════════════════════════════
+  const LONG_PRESS_MS  = 500;   // change to 2000 if you want the 2-second hold you described
+  const MOVE_TOLERANCE = 10;    // px finger drift allowed before cancel
+
+  function wordBoundsAt(cm, pos) {
+    const line = cm.getLine(pos.line) || '';
+    const isWord = (c) => c && /[\w$@#-]/.test(c);   // liberal: hyphens, $, @, #
+    let s = pos.ch, e = pos.ch;
+    while (s > 0 && isWord(line[s - 1])) s--;
+    while (e < line.length && isWord(line[e])) e++;
+    if (s === e) {
+      // Not on a word char — select the single char under the finger, or
+      // if we're at end-of-line, just place a caret.
+      if (e < line.length) e = s + 1;
+    }
+    return { from: { line: pos.line, ch: s }, to: { line: pos.line, ch: e } };
+  }
+
+  function fireLongPress(clientX, clientY) {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+    let pos;
+    try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
+    catch (_e) { return; }
+    if (!pos) return;
+    const bounds = wordBoundsAt(cm, pos);
+    try {
+      cm.setSelection(bounds.from, bounds.to);
+    } catch (_e) { return; }
+    // Prime savedSelection immediately so a Copy tap right after has the
+    // exact range without going back through captureSelection().
+    savedSelection = {
+      from: bounds.from,
+      to:   bounds.to,
+      text: cm.getRange(bounds.from, bounds.to)
+    };
+    // Open menu positioned against the fresh selection.
+    openMenu();
+  }
+
+  function attachLongPress() {
+    const cmEl = document.querySelector('.CodeMirror');
+    if (!cmEl) { setTimeout(attachLongPress, 200); return; }
+    if (cmEl.__dexLongPressBound) return;
+    cmEl.__dexLongPressBound = true;
+
+    cmEl.addEventListener('pointerdown', (e) => {
+      // Only for touch — mouse users have right-click via contextmenu (which
+      // browsers still fire; CM handles it internally).
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      const startX = e.clientX, startY = e.clientY;
+      let cancelled = false;
+
+      const timer = setTimeout(() => {
+        if (cancelled) return;
+        cleanup();
+        fireLongPress(startX, startY);
+      }, LONG_PRESS_MS);
+
+      function onMove(ev) {
+        if (cancelled) return;
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
+          cancelled = true;
+          clearTimeout(timer);
+          cleanup();
+        }
+      }
+      function onEnd() {
+        if (cancelled) return;
+        cancelled = true;
+        clearTimeout(timer);
+        cleanup();
+      }
+      function cleanup() {
+        document.removeEventListener('pointermove',   onMove);
+        document.removeEventListener('pointerup',     onEnd);
+        document.removeEventListener('pointercancel', onEnd);
+      }
+      document.addEventListener('pointermove',   onMove);
+      document.addEventListener('pointerup',     onEnd);
+      document.addEventListener('pointercancel', onEnd);
+    });
+  }
+
+  // .CodeMirror may not exist yet when this script loads; retry until it does.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachLongPress, { once: true });
+  } else {
+    attachLongPress();
+  }
 })();
