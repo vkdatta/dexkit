@@ -630,29 +630,24 @@
     saveCursorPos(clamped.left, clamped.top);
   });
 
-  /* ====== CURSOR MOVEMENT (selection starts from caret) ====== */
-  let cursorAnchor = null;
-
+  /* ====== CURSOR MOVEMENT ====== */
   function moveCursor(dir, multiplier) {
     const ed = window.dexEditor;
     const cm = ed && ed.cm ? ed.cm : null;
     if (!cm) return;
 
-    // If there is no selection, set anchor to current cursor (start new selection)
-    if (!cm.getSelection()) {
-      cursorAnchor = cm.getCursor('from');
-    } else if (!cursorAnchor) {
-      cursorAnchor = cm.getCursor('from');
-    }
-
+    const from = cm.getCursor('from');   // anchor point
+    let head = cm.getCursor('to');       // current head
     const isVertical = (dir === 'up' || dir === 'down');
-    const amount = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
+    const step = (dir === 'up' || dir === 'left') ? -multiplier : multiplier;
 
-    let head = cm.getCursor('to');
-    head = isVertical
-      ? cm.findPosV(head, amount, 'line')
-      : cm.findPosH(head, amount, 'char');
-    cm.setSelection(cursorAnchor, head);
+    for (let i = 0; i < Math.abs(step); i++) {
+      const delta = step > 0 ? 1 : -1;
+      head = isVertical
+        ? cm.findPosV(head, delta, 'line')
+        : cm.findPosH(head, delta, 'char');
+    }
+    cm.setSelection(from, head);
   }
 
   curUp.addEventListener('click',    () => moveCursor('up',    1));
@@ -664,7 +659,7 @@
   curDblLeft.addEventListener('click',  () => moveCursor('left',  10));
   curDblRight.addEventListener('click', () => moveCursor('right', 10));
 
-  /* ====== AUTO-OPEN MENU AFTER 2 SECONDS OF INACTIVITY ====== */
+  /* ====== AUTO-OPEN MENU AFTER 5 SECONDS OF INACTIVITY ====== */
   let selectionTimeout = null;
 
   function clearSelectionTimeout() {
@@ -682,12 +677,11 @@
     const sel = cm.getSelection();
     if (sel && sel.length > 0 && !menuOpen()) {
       selectionTimeout = setTimeout(() => {
-        // Only open if selection still exists and menu is closed
         if (cm.getSelection() && !menuOpen()) {
           openMenu();
         }
         selectionTimeout = null;
-      }, 5000);
+      }, 5000);   // 5 seconds delay
     }
   }
 
@@ -699,69 +693,47 @@
     cm.__dexCursorActivityBound = true;
 
     cm.on('cursorActivity', () => {
-      // Close menu if selection is cleared
       if (menuOpen() && !cm.getSelection()) {
         closeMenu();
       }
-      // Schedule auto-open if selection exists
       scheduleMenuOpen();
     });
+  }
+
+  /* ====== LONG-TAP – SELECT FROM CURRENT CURSOR TO TAPPED POSITION ====== */
+  function fireLongPress(clientX, clientY) {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) return;
+
+    let pos;
+    try {
+      pos = cm.coordsChar({ left: clientX, top: clientY }, 'window');
+    } catch (_e) {
+      return;
+    }
+    if (!pos) return;
+
+    const from = cm.getCursor('from');
+    const to   = pos;
+
+    try {
+      cm.setSelection(from, to);
+    } catch (_e) {
+      return;
+    }
+
+    savedSelection = {
+      from: cm.getCursor('from'),
+      to:   cm.getCursor('to'),
+      text: cm.getSelection()
+    };
+    // Do NOT open the menu here – let the 5‑second inactivity timer handle it.
   }
 
   /* ====== DRAG-TO-SELECT FOR MOBILE/TABLET ====== */
   const LONG_PRESS_MS  = 500;
   const MOVE_TOLERANCE = 10;
-
-  function wordBoundsAt(cm, pos) {
-    const line = cm.getLine(pos.line) || '';
-    const isWord = (c) => c && /[\w$@#-]/.test(c);
-    let s = pos.ch, e = pos.ch;
-    while (s > 0 && isWord(line[s - 1])) s--;
-    while (e < line.length && isWord(line[e])) e++;
-    if (s === e) {
-      if (e < line.length) e = s + 1;
-    }
-    return { from: { line: pos.line, ch: s }, to: { line: pos.line, ch: e } };
-  }
-
-  function fireLongPress(clientX, clientY) {
-    const ed = window.dexEditor;
-    const cm = ed && ed.cm ? ed.cm : null;
-    if (!cm) return;
-    let pos;
-    try { pos = cm.coordsChar({ left: clientX, top: clientY }, 'window'); }
-    catch (_e) { return; }
-    if (!pos) return;
-    // Select the entire line / paragraph for huge selection
-    const line = pos.line;
-    const lineLen = cm.getLine(line).length;
-    const from = { line: line, ch: 0 };
-    const to = { line: line, ch: lineLen };
-    // If line is empty, try to select surrounding non-empty block
-    let selFrom = from, selTo = to;
-    if (lineLen === 0) {
-      // Find start of block (previous non-empty lines)
-      let startLine = line;
-      while (startLine > 0 && cm.getLine(startLine - 1).length === 0) startLine--;
-      while (startLine > 0 && cm.getLine(startLine - 1).length > 0) startLine--;
-      // Find end of block
-      let endLine = line;
-      const totalLines = cm.lineCount();
-      while (endLine < totalLines - 1 && cm.getLine(endLine + 1).length === 0) endLine++;
-      while (endLine < totalLines - 1 && cm.getLine(endLine + 1).length > 0) endLine++;
-      selFrom = { line: startLine, ch: 0 };
-      selTo = { line: endLine, ch: cm.getLine(endLine).length };
-    }
-    try {
-      cm.setSelection(selFrom, selTo);
-    } catch (_e) { return; }
-    savedSelection = {
-      from: selFrom,
-      to:   selTo,
-      text: cm.getRange(selFrom, selTo)
-    };
-    openMenu();
-  }
 
   function attachMobileDragSelect() {
     const cmEl = document.querySelector('.CodeMirror');
@@ -857,7 +829,6 @@
               to: cm.getCursor('to'),
               text: selText
             };
-            // Schedule auto-open after drag ends
             scheduleMenuOpen();
           }
         }
