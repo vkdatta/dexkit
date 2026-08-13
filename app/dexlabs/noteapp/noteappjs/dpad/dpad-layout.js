@@ -167,7 +167,7 @@ if (window.__dexToolbar2Loaded) {
     if (isHomepage()) {
       if (ctx.closeMenu) ctx.closeMenu();
       cursorControls.style.display = 'none';
-    } else if (!cursorControls.classList.contains('dpad-hidden')) {
+    } else {
       cursorControls.style.display = 'flex';
       updateCenterHandle();
     }
@@ -254,7 +254,6 @@ if (window.__dexToolbar2Loaded) {
       top:  cursorControls.offsetTop  + CENTER_SHIFT
     };
     cursorControls.classList.add('dpad-collapsed');
-    cursorControls.classList.remove('dpad-hidden');
     clearInactivityTimer();
     if (ctx.menuOpen && ctx.menuOpen()) ctx.closeMenu();
     const clamped = clampCursor(shifted.left, shifted.top);
@@ -263,10 +262,6 @@ if (window.__dexToolbar2Loaded) {
   }
 
   function expandDpad() {
-    if (cursorControls.classList.contains('dpad-hidden')) {
-      cursorControls.classList.remove('dpad-hidden');
-      cursorControls.style.display = 'flex';
-    }
     if (ctx.dpadState === 'expanded') { resetInactivityTimer(); return; }
     ctx.dpadState = 'expanded';
     // Shift container left/up by CENTER_SHIFT so the visible center circle
@@ -284,19 +279,20 @@ if (window.__dexToolbar2Loaded) {
     resetInactivityTimer();
   }
 
-  /* Hide the D-Pad entirely — called by the "Close D-Pad" menu item.
-     A page reload (or dexShowDpad()) will bring it back. */
+  /* "Close D-Pad" — collapse back to the initial state (just the small
+     green-glow dragger). Does NOT remove the widget: user can still see
+     and tap the dragger to bring the full D-Pad back. */
   function hideDpad() {
     if (ctx.menuOpen && ctx.menuOpen()) ctx.closeMenu();
-    ctx.dpadState = 'hidden';
-    cursorControls.classList.add('dpad-hidden');
-    cursorControls.classList.add('dpad-collapsed'); // reset visual state for next show
-    clearInactivityTimer();
+    collapseDpad();
   }
+  // Kept for API symmetry / any external callers.
   function showDpad() {
-    cursorControls.classList.remove('dpad-hidden');
     cursorControls.style.display = 'flex';
-    ctx.dpadState = 'collapsed';
+    if (ctx.dpadState !== 'expanded') {
+      ctx.dpadState = 'collapsed';
+      cursorControls.classList.add('dpad-collapsed');
+    }
     const clamped = clampCursor(cursorControls.offsetLeft, cursorControls.offsetTop);
     applyCursorPos(clamped);
   }

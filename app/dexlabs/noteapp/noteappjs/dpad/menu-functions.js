@@ -128,11 +128,13 @@
   /* ====== CLOSE MENU ====== */
   closeEl.addEventListener('click', closeMenu);
 
-  /* ====== CLOSE D-PAD ====== */
+  /* ====== CLOSE D-PAD ======
+     Collapses back to the initial state (just the small green-glow dragger).
+     Double-tap the dragger to bring the full D-Pad back. */
   closeDpadEl.addEventListener('click', () => {
     closeMenu();
     hideDpad();
-    notify('D-Pad hidden — call dexShowDpad() to bring it back');
+    notify('D-Pad closed — double-tap the dragger to reopen');
   });
 
   /* ====== CURSOR ACTIVITY BINDING ====== */

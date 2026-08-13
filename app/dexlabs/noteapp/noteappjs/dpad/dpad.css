@@ -129,11 +129,6 @@
   transform: scale(1.02);
 }
 
-/* HIDDEN state — "Close D-Pad" fully hides the widget */
-#dexCursorControls.dpad-hidden {
-  display: none !important;
-}
-
 /* All children (buttons, center) sit above the ::before inner disc */
 #dexCursorControls > * { position: relative; z-index: 1; }
 
@@ -162,7 +157,7 @@
     inset 0 0 12px rgba(0, 212, 170, 0.12),
     0 0 20px rgba(0, 212, 170, 0.10);
 }
-#dexCursorControls:not(.dpad-collapsed):not(.dpad-hidden)::before {
+#dexCursorControls:not(.dpad-collapsed)::before {
   opacity: 1;
   transform: scale(1);
 }
@@ -409,7 +404,7 @@
   from { opacity: 0; transform: scale(0.5); }
   to   { opacity: 1; transform: scale(1); }
 }
-#dexCursorControls:not(.dpad-collapsed):not(.dpad-hidden) .dex-cursor-btn {
+#dexCursorControls:not(.dpad-collapsed) .dex-cursor-btn {
   animation: dexDpadBtnIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
