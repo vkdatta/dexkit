@@ -32,6 +32,26 @@ export function createSettingsManager() {
   }
   function lsSet(k, v) { if (v) localStorage.setItem(k, '1'); else localStorage.removeItem(k); }
   function fire(name, detail) { try { window.dispatchEvent(new CustomEvent(name, { detail })); } catch (e) {} }
+
+  /* ─── Theme wiring ───────────────────────────────────────────────
+     Applies the light/dark theme by toggling body[data-theme="light"],
+     which is what main_v1.css keys its light palette off of.
+     Called on init (to restore last choice) and on every toggle. */
+  function applyTheme(theme) {
+    const body = document.body;
+    if (!body) return;
+    if (theme === 'light') body.setAttribute('data-theme', 'light');
+    else body.removeAttribute('data-theme');
+  }
+  // Apply on init so a page load respects the persisted choice without a refresh loop.
+  applyTheme(localStorage.getItem(LS.THEME) === 'light' ? 'light' : 'dark');
+  // Also react to the same event we fire ourselves — lets external code
+  // change the theme by dispatching dexSettingsChanged { key:'appTheme', value:'light'|'dark' }.
+  window.addEventListener('dexSettingsChanged', (e) => {
+    if (!e || !e.detail || e.detail.key !== LS.THEME) return;
+    applyTheme(e.detail.value === 'light' ? 'light' : 'dark');
+  });
+
   function ensureSettingsStyles() {
     if (document.getElementById('settings-overlay-styles')) return;
     const link = document.createElement('link');
@@ -177,6 +197,7 @@ export function createSettingsManager() {
       const next = cur === 'light' ? 'dark' : 'light';
       if (next === 'dark') localStorage.removeItem(LS.THEME);
       else localStorage.setItem(LS.THEME, 'light');
+      applyTheme(next);                 // <-- actually flip body[data-theme]
       fire('dexSettingsChanged', { key: LS.THEME, value: next });
     } else {
       const cur = lsBool(LS[key]);

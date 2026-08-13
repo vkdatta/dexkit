@@ -240,16 +240,17 @@
   --editor-gutter-light:       var(--c-white);
   --editor-gutter-border-light:var(--c-alpha-black-08);
 
-  /* Non-colour tokens that were originally declared inside diffusion_v7.css
-     :root — kept here so all shared design tokens live in one file. */
+  /* Numeric non-colour tokens preserved from old CSS */
+  --transition-speed:          200ms;
+  --topbar-height:             56px;
   --diff-topbar-height:        70px;
   --diff-topbar-gap:           2vh;
   --diff-topbar-total:         calc(var(--diff-topbar-height) + var(--diff-topbar-gap) + 16px);
-  /* NOTE: --transition-speed, --topbar-height, --category-box-width, --focus-ring,
-     --z-modal, --gap, --radius are deliberately NOT declared here. In the
-     original codebase they were set by JS at runtime (or by media queries) —
-     declaring them at :root would force fixed values and break auto-sized
-     UI (e.g. it made the sidebar2 product card grow to a hard 400px). */
+  --category-box-width:        400px;
+  --focus-ring:                2px;
+  --z-modal:                   9000;
+  --gap:                       12px;
+  --radius:                    12px;
 }
 
 /* ============================================================================
