@@ -1,9 +1,9 @@
-import { handleRename, handleRenameSubmit } from "./rename1.js";
-import { handleDownload, handleDownloadSubmit } from "./download.js";
-import { handleOpenFile } from "./open1.js";
-import { toggleFullscreen } from "./fullscreen.js";
-import { increaseFontSize, decreaseFontSize } from "./fontsize2.js";
-import { createDebugTool } from "./debug.js";
+import { handleRename, handleRenameSubmit } from "./rename_v1.js";
+import { handleDownload, handleDownloadSubmit } from "./download_v1.js";
+import { handleOpenFile } from "./open_v1.js";
+import { toggleFullscreen } from "./fullscreen_v1.js";
+import { increaseFontSize, decreaseFontSize } from "./fontsize_v1.js";
+import { createDebugTool } from "./debug_v1.js";
 
 window.handleRename = handleRename;
 window.handleRenameSubmit = handleRenameSubmit;

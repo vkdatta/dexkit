@@ -11,37 +11,13 @@ export function createDebugTool() {
     activeTab: 'console'
   };
 
-  const style = document.createElement('style');
-  style.id = 'debug-overlay-styles';
-  style.textContent = `
-    #debugoverlay { position:fixed; top:0; left:0; right:0; height:100dvh; background:rgba(0,0,0,0.96); color:#e0e0e0; z-index:99999; display:flex; flex-direction:column; font-family: source code pro; -webkit-font-smoothing:antialiased; box-sizing:border-box; }
-    #debugheader { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #222; background:#050505; font-size:13px; }
-    #debugtitle { font-weight:600; font-size:13px; color:#fff; }
-    #debugtoolbar { display:flex; gap:10px; align-items:center; }
-    #debugclose { background:none; border:1px solid #444; color:#fff; padding:6px 10px; cursor:pointer; font-size:13px; }
-    #debugtabs { display:flex; gap:6px; padding:8px 14px; border-bottom:1px solid #222; background:#080808; }
-    .debugtab { background:none; border:1px solid #444; color:#999; padding:5px 12px; cursor:pointer; font-size:12px; border-radius:3px; }
-    .debugtab.active { color:#fff; border-color:#8ab4f8; background:rgba(138,180,248,0.1); }
-    #debugconsole, #debugnetwork { flex:1; overflow:auto; padding:10px; font-size:12px; line-height:1.45; word-break:break-word; }
-    .debugentry { padding:4px 0; white-space:pre-wrap; }
-    .debugtime { color:#777; margin-right:8px; }
-    .debuglog { color:#8ab4f8; }
-    .debuginfo { color:#A1F39E; }
-    .debugwarn { color:#fbbc04; }
-    .debugerror { color:#f28b82; }
-    .netentry { display:flex; flex-wrap:wrap; column-gap:8px; row-gap:2px; padding:6px 0; border-bottom:1px solid #151515; align-items:center; font-size:11.5px; }
-    .netmethod { color:#c58af9; flex-shrink:0; order:1; }
-    .netstatus { flex-shrink:0; order:2; }
-    .netstatus.ok { color:#A1F39E; }
-    .netstatus.bad { color:#f28b82; }
-    .netstatus.na { color:#666; }
-    .nettype { color:#fbbc04; flex-shrink:0; order:3; }
-    .neturl { order:5; flex:1 1 100%; width:100%; color:#e0e0e0; overflow-wrap:anywhere; margin-top:2px; }
-    .netmeta { color:#777; flex-shrink:0; order:4; white-space:nowrap; margin-left:auto; }
-    #debugfooter { padding:8px 12px; border-top:1px solid #222; background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent); font-size:12px; color:#999; display:flex; justify-content:space-between; align-items:center; }
-    #debugactions button { background:none; border:1px solid #444; color:#fff; padding:4px 8px; cursor:pointer; font-size:12px; }
-  `;
-  document.head.appendChild(style);
+  if (!document.getElementById('terminal-styles')) {
+    const link = document.createElement('link');
+    link.id = 'terminal-styles';
+    link.rel = 'stylesheet';
+    link.href = 'terminal.css';
+    document.head.appendChild(link);
+  }
 
   const overlay = document.createElement('div');
   overlay.id = 'debugoverlay';
@@ -50,7 +26,7 @@ export function createDebugTool() {
     <div id="debugheader" role="region" aria-label="Developer console header">
       <div id="debugtitle">Developer Console (read-only)</div>
       <div id="debugtoolbar">
-        <div id="debugmeta" style="color:#999;font-size:12px">logs: 0 · net: 0</div>
+        <div id="debugmeta">logs: 0 · net: 0</div>
         <button id="debugclose" title="Close debugger">Close</button>
       </div>
     </div>
@@ -59,7 +35,7 @@ export function createDebugTool() {
       <button class="debugtab" id="tabnetwork">Network</button>
     </div>
     <div id="debugconsole" role="log" aria-live="polite" aria-relevant="additions"></div>
-    <div id="debugnetwork" role="log" aria-live="polite" aria-relevant="additions" style="display:none"></div>
+    <div id="debugnetwork" role="log" aria-live="polite" aria-relevant="additions"></div>
     <div id="debugfooter">
       <div id="debugretention">Retention: 30 minutes (rolling)</div>
       <div id="debugactions">

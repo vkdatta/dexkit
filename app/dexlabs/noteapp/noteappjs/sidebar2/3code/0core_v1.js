@@ -1,11 +1,11 @@
-import { MD5 } from "./md5.js";
-import { SHA256 } from "./sha256.js";
-import { cipher } from "./cipher.js";
-import { handleHTML, handleHTMLSubmit, toggleTTTOtherSeparator, handleTextToTableOptionsSubmit } from "./html7.js";
-import { optimisecss, minifycss } from "./css.js";
-import { optimisejs, minifyjs } from "./js-n.js";
-import { handleLatex } from "./latex-n4.js";
-import { fetchUrlToCurrentNote, openFetchModal, handleFetchSubmit } from "./fetch.js";
+import { MD5 } from "./md5_v1.js";
+import { SHA256 } from "./sha256_v1.js";
+import { cipher } from "./cipher_v1.js";
+import { handleHTML, handleHTMLSubmit, toggleTTTOtherSeparator, handleTextToTableOptionsSubmit } from "./html_v1.js";
+import { optimisecss, minifycss } from "./css_v1.js";
+import { optimisejs, minifyjs } from "./js_v1.js";
+import { handleLatex } from "./latex_v1.js";
+import { fetchUrlToCurrentNote, openFetchModal, handleFetchSubmit } from "./fetch_v1.js";
 
 window.MD5 = MD5;
 window.SHA256 = SHA256;

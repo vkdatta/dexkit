@@ -41,6 +41,14 @@ export function createSettingsManager() {
     document.head.appendChild(link);
   }
   ensureSettingsStyles();
+  if (!document.getElementById('terminal-styles')) {
+    const link = document.createElement('link');
+    link.id = 'terminal-styles';
+    link.rel = 'stylesheet';
+    link.href = 'terminal.css';
+    document.head.appendChild(link);
+  }
+
   const overlay = document.createElement('div');
   overlay.id = 'settingsoverlay';
   overlay.style.display = 'none';
@@ -195,10 +203,10 @@ export function createSettingsManager() {
       return `<button class="theme-pick${active ? ' theme-pick-active' : ''}" onclick="__selectCmTheme('${esc(t)}')">${t}</button>`;
     }).join('');
     const bodyHtml = `
-      <div style="display:flex;flex-direction:column;max-height:60vh;overflow:auto;padding-right:4px;">
+      <div>
         <div class="theme-group-title">Dark</div>
         ${buildRows(DARK_THEMES)}
-        <div class="theme-group-title" style="margin-top:12px;">Light</div>
+        <div class="theme-group-title">Light</div>
         ${buildRows(LIGHT_THEMES)}
       </div>
     `;
