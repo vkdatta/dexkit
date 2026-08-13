@@ -18,7 +18,7 @@ export function createDebugTool() {
     <div id="debugheader" role="region" aria-label="Developer console header">
       <div id="debugtitle">Developer Console (read-only)</div>
       <div id="debugtoolbar">
-        <div id="debugmeta">logs: 0 · net: 0</div>
+        <div id="debugmeta" style="color:#999;font-size:12px">logs: 0 · net: 0</div>
         <button id="debugclose" title="Close debugger">Close</button>
       </div>
     </div>
@@ -27,7 +27,7 @@ export function createDebugTool() {
       <button class="debugtab" id="tabnetwork">Network</button>
     </div>
     <div id="debugconsole" role="log" aria-live="polite" aria-relevant="additions"></div>
-    <div id="debugnetwork" role="log" aria-live="polite" aria-relevant="additions"></div>
+    <div id="debugnetwork" role="log" aria-live="polite" aria-relevant="additions" style="display:none"></div>
     <div id="debugfooter">
       <div id="debugretention">Retention: 30 minutes (rolling)</div>
       <div id="debugactions">
