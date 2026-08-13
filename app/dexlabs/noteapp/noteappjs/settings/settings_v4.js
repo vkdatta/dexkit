@@ -34,14 +34,20 @@ export function createSettingsManager() {
   function fire(name, detail) { try { window.dispatchEvent(new CustomEvent(name, { detail })); } catch (e) {} }
 
   /* ─── Theme wiring ───────────────────────────────────────────────
-     Applies the light/dark theme by toggling body[data-theme="light"],
-     which is what main_v1.css keys its light palette off of.
+     Applies the light/dark theme by toggling html[data-theme="light"],
+     which is what main_v2.css keys its light palette off of.
+     Also syncs html[data-cm-tone] so editor backgrounds flip automatically.
      Called on init (to restore last choice) and on every toggle. */
   function applyTheme(theme) {
-    const body = document.body;
-    if (!body) return;
-    if (theme === 'light') body.setAttribute('data-theme', 'light');
-    else body.removeAttribute('data-theme');
+    const html = document.documentElement;
+    if (!html) return;
+    if (theme === 'light') {
+      html.setAttribute('data-theme', 'light');
+      html.setAttribute('data-cm-tone', 'light');
+    } else {
+      html.removeAttribute('data-theme');
+      html.setAttribute('data-cm-tone', 'dark');
+    }
   }
   // Apply on init so a page load respects the persisted choice without a refresh loop.
   applyTheme(localStorage.getItem(LS.THEME) === 'light' ? 'light' : 'dark');
@@ -197,7 +203,7 @@ export function createSettingsManager() {
       const next = cur === 'light' ? 'dark' : 'light';
       if (next === 'dark') localStorage.removeItem(LS.THEME);
       else localStorage.setItem(LS.THEME, 'light');
-      applyTheme(next);                 // <-- actually flip body[data-theme]
+      applyTheme(next);                 // <-- actually flip html[data-theme] + html[data-cm-tone]
       fire('dexSettingsChanged', { key: LS.THEME, value: next });
     } else {
       const cur = lsBool(LS[key]);

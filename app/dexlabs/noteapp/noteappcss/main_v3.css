@@ -7,7 +7,7 @@
 
    How themes work:
      :root                        -> DARK theme  (default)
-     body[data-theme="light"]     -> LIGHT theme (overrides every var)
+     html[data-theme="light"]     -> LIGHT theme (overrides every var)
 
    Rules:
      - Each unique colour value appears exactly once in this file.
@@ -250,14 +250,16 @@
      original codebase they were set by JS at runtime (or by media queries) —
      declaring them at :root would force fixed values and break auto-sized
      UI (e.g. it made the sidebar2 product card grow to a hard 400px). */
+  
+  color: var(--color);
 }
 
 /* ============================================================================
-   LIGHT THEME — opt-in via body[data-theme="light"].
+   LIGHT THEME — opt-in via html[data-theme="light"].
    Every palette variable and every semantic alias is redefined below. All
    per-module CSS keeps working; only the values behind var(--*) change.
    ============================================================================ */
-body[data-theme="light"] {
+html[data-theme="light"] {
   /* Anchors stay meaningful */
   --c-black:                   #ffffff;   /* was #000 — flipped so "black" reads as page bg */
   --c-white:                   #1a1a1e;   /* was #fff — flipped so "white" reads as page text (kept unique from surface-ee) */
@@ -446,18 +448,7 @@ body[data-theme="light"] {
   color: var(--color);
 }
 
-/* Force common text colour on elements known to hardcode structure — no more
-   hard-coded whites elsewhere, so this list is intentionally short. */
-body[data-theme="light"] .topbar,
-body[data-theme="light"] .topbar *,
-body[data-theme="light"] .sidebar,
-body[data-theme="light"] .sidebar *,
-body[data-theme="light"] .secondary-sidebar,
-body[data-theme="light"] .secondary-sidebar *,
-body[data-theme="light"] .homepage,
-body[data-theme="light"] .homepage * { color: var(--color); }
-
-body[data-theme="light"] .homepage-button {
+html[data-theme="light"] .homepage-button {
   background: var(--matte);
   color: var(--color);
   border: 1px solid var(--border);
@@ -722,14 +713,14 @@ body.diff-fullscreen .diff-lines-container { height: 100%; overflow: auto; }
    Light tone  -> app light backdrop
    Syntax colours (keywords / strings / etc.) still come from the picked theme.
    ============================================================================ */
-:root[data-cm-tone="dark"]  .CodeMirror         { background: var(--editor-bg-dark) !important; }
-:root[data-cm-tone="dark"]  .CodeMirror-gutters { background: var(--editor-gutter-dark) !important; border-right-color: var(--editor-gutter-border-dark) !important; }
-:root[data-cm-tone="light"] .CodeMirror         { background: var(--editor-bg-light) !important; }
-:root[data-cm-tone="light"] .CodeMirror-gutters { background: var(--editor-gutter-light) !important; border-right-color: var(--editor-gutter-border-light) !important; }
+html[data-cm-tone="dark"]  .CodeMirror         { background: var(--editor-bg-dark) !important; }
+html[data-cm-tone="dark"]  .CodeMirror-gutters { background: var(--editor-gutter-dark) !important; border-right-color: var(--editor-gutter-border-dark) !important; }
+html[data-cm-tone="light"] .CodeMirror         { background: var(--editor-bg-light) !important; }
+html[data-cm-tone="light"] .CodeMirror-gutters { background: var(--editor-gutter-light) !important; border-right-color: var(--editor-gutter-border-light) !important; }
 
 /* Default before any tone is set — treat as dark. */
-:root:not([data-cm-tone]) .CodeMirror         { background: var(--editor-bg-dark); }
-:root:not([data-cm-tone]) .CodeMirror-gutters { background: var(--editor-gutter-dark); }
+html:not([data-cm-tone]) .CodeMirror         { background: var(--editor-bg-dark); }
+html:not([data-cm-tone]) .CodeMirror-gutters { background: var(--editor-gutter-dark); }
 
 .cm-s-dracula .CodeMirror-linenumber { color: var(--c-surface-55b); }
 .cm-s-dracula .CodeMirror-activeline-background { background: var(--c-alpha-white-03); }
