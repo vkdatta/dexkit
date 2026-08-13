@@ -9,11 +9,11 @@
      3. dpad-functions.js  — direction buttons + joystick center drag
      4. menu-functions.js  — menu item handlers, cursor activity, init
 
-   Load with:  <script type="module" src="dpad-module.js"></script>
+   Load with:  <script type="module" src="dpad-module_v2.js"></script>
    The stylesheet (dpad.css) must be linked separately from index.html.
    ================================================================ */
 
-import './dpad-layout.js';
-import './menu-layout.js';
-import './dpad-functions.js';
-import './menu-functions.js';
+import './dpad-layout_v2.js';
+import './menu-layout_v2.js';
+import './dpad-functions_v2.js';
+import './menu-functions_v2.js';
