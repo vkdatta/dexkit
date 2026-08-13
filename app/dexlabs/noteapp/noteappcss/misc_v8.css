@@ -1,0 +1,20 @@
+/* All colours resolve through vars declared in main_v1.css. */
+
+.notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: var(--c-white);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--c-alpha-black-15);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity var(--transition-speed), transform var(--transition-speed);
+}
+.notification.show {
+  opacity: 1;
+  transform: translateY(0);
+}

@@ -1,0 +1,79 @@
+/* All colours resolve through vars declared in main_v1.css. */
+
+.fp-toggle-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.fp-toggle-btn {
+  flex: 1; padding: 8px 12px;
+  border: 1px solid var(--c-alpha-white-10);
+  background: var(--c-alpha-white-05);
+  backdrop-filter: blur(10px);
+  color: var(--c-surface-aa);
+  border-radius: 8px; cursor: pointer;
+  transition: all 0.2s;
+}
+.fp-toggle-btn.active {
+  background: var(--c-alpha-black-40);
+  backdrop-filter: blur(12px);
+  border-color: var(--c-alpha-white-25);
+  color: var(--c-white);
+  box-shadow: 0 4px 20px var(--c-alpha-black-50);
+}
+.fp-section { display: none; }
+.fp-section.active { display: block; }
+.fp-search-wrap { position: relative; margin-bottom: 10px; }
+.fp-search-input {
+  width: 100%; box-sizing: border-box; padding: 7px 12px;
+  background: var(--c-surface-1e);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--c-surface-ee);
+  outline: none;
+  font-family: inherit; font-size: 13px;
+}
+.fp-search-input:focus { border-color: var(--c-alpha-blue-55); }
+.fp-list {
+  max-height: 310px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.fp-card {
+  cursor: pointer;
+  border: 1px solid var(--c-alpha-white-06);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--c-alpha-white-03);
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.fp-card:hover {
+  border-color: var(--c-alpha-white-15);
+  transform: translateY(-1px);
+  background: var(--c-alpha-white-05);
+}
+.fp-card.selected {
+  background: var(--c-alpha-black-50);
+  backdrop-filter: blur(10px);
+  border-color: var(--c-alpha-white-20);
+  box-shadow: 0 4px 24px var(--c-alpha-black-40);
+}
+.fp-card-title { color: var(--c-surface-ee); }
+.fp-card-badge {
+  font-size: 0.8em;
+  color: var(--blueink);
+  background: var(--c-alpha-blue-08);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--c-alpha-blue-18);
+  letter-spacing: 0.5px;
+}
+.fp-actions {
+  display: flex; gap: 8px; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--c-alpha-white-05);
+}
+.fp-actions button { flex: 1; }
+.fp-empty {
+  color: var(--blueink);
+  text-align: center;
+  padding: 16px 0;
+  opacity: 0.6;
+  font-size: 13px;
+}
+@media (max-width: 480px) { .fp-list { max-height: 230px; } }
