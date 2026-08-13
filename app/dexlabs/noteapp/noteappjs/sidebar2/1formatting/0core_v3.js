@@ -24,8 +24,8 @@ import {
   reverseWords,
   capitalizeWords,
   capitalizeSentences
-} from "./formatting_v2.js";
-import { registerFont, openFontPickerModal } from "./fontpicker_v2.js";
+} from "./formatting_v3.js";
+import { registerFont, openFontPickerModal } from "./fontpicker_v3.js";
 
 window.registerFont = registerFont;
 window.openFontPickerModal = openFontPickerModal;
