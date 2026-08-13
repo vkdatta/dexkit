@@ -11,14 +11,6 @@ export function createDebugTool() {
     activeTab: 'console'
   };
 
-  if (!document.getElementById('terminal-styles')) {
-    const link = document.createElement('link');
-    link.id = 'terminal-styles';
-    link.rel = 'stylesheet';
-    link.href = 'terminal.css';
-    document.head.appendChild(link);
-  }
-
   const overlay = document.createElement('div');
   overlay.id = 'debugoverlay';
   overlay.style.display = 'none';
