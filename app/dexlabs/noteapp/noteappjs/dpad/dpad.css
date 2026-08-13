@@ -1,0 +1,453 @@
+/* ================================================================
+   D-PAD 2100 — Gaming Aesthetic Stylesheet
+   Load this file from index.html; the JS no longer injects styles.
+   ================================================================ */
+
+/* ====== BASE ====== */
+/* Old standalone toolbar button is retired — D-Pad center circle now serves this role */
+#dexToolbarBtn { display: none !important; }
+#dexToolbarBtn_LEGACY {
+  position: fixed;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #181C1F;
+  color: #E8ECF0;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab;
+  z-index: 9997;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  font-family: 'classy', sans-serif;
+  padding: 0;
+  transition: box-shadow 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+}
+#dexToolbarBtn:hover {
+  border-color: rgba(0, 212, 170, 0.4);
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.15), 0 8px 32px rgba(0,0,0,0.55);
+}
+#dexToolbarBtn:active { cursor: grabbing; transform: scale(0.94); }
+#dexToolbarBtn > * { pointer-events: none; }
+#dexToolbarBtn .material-symbols-rounded { font-size: 24px; }
+#dexToolbarBtn.dragging {
+  box-shadow: 0 12px 36px rgba(0,0,0,0.7);
+  opacity: 0.85;
+  border-color: #00D4AA;
+}
+
+/* ====== MENU ====== */
+#dexToolbarMenu {
+  position: fixed;
+  background: #181C1F;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 6px;
+  z-index: 9998;
+  display: none;
+  flex-direction: column;
+  min-width: 180px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  font-family: 'classy', sans-serif;
+  -webkit-touch-callout: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+#dexToolbarMenu.open { display: flex; animation: dexMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes dexMenuIn {
+  from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.dex-tb-item {
+  background: transparent;
+  border: none;
+  color: #E8ECF0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  width: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  transition: background 0.12s ease, color 0.12s ease;
+  position: relative;
+  overflow: hidden;
+}
+.dex-tb-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.4s ease;
+}
+.dex-tb-item:hover::before { transform: translateX(100%); }
+.dex-tb-item:hover, .dex-tb-item:active {
+  background: #252B30;
+  color: #00D4AA;
+}
+/* Danger variant for "Close D-Pad" */
+.dex-tb-item.dex-tb-danger:hover,
+.dex-tb-item.dex-tb-danger:active {
+  color: #FF4757;
+  background: rgba(255, 71, 87, 0.08);
+}
+.dex-tb-item > * { pointer-events: none; }
+.dex-tb-item .material-symbols-rounded { font-size: 20px; }
+.dex-tb-sep {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 4px 8px;
+}
+
+/* ====== D-PAD 2100 — Compass + Center Dragger ====== */
+#dexCursorControls {
+  position: fixed;
+  z-index: 9996;
+  width: 165px;
+  height: 165px;
+  border-radius: 50%;
+  background: transparent;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  padding: 0;
+  transition: transform 0.15s ease, width 0.25s ease, height 0.25s ease;
+}
+#dexCursorControls.dragging {
+  cursor: grabbing;
+  transform: scale(1.02);
+}
+
+/* HIDDEN state — "Close D-Pad" fully hides the widget */
+#dexCursorControls.dpad-hidden {
+  display: none !important;
+}
+
+/* All children (buttons, center) sit above the ::before inner disc */
+#dexCursorControls > * { position: relative; z-index: 1; }
+
+/* ====== EXPANDED-STATE BOUNDARY RING ("half-moon" drag boundary) ======
+   Shows the user the circular area the D-Pad occupies so they can drag it
+   to a new spot without guessing where its edges are. Rendered as a soft
+   dashed ring with a stronger crescent on the top-right (half-moon effect).
+   Only visible when the D-Pad is expanded (not collapsed, not hidden). */
+#dexCursorControls::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(0, 212, 170, 0.35);
+  background:
+    radial-gradient(circle at 75% 25%,
+      rgba(0, 212, 170, 0.18) 0%,
+      rgba(0, 212, 170, 0.06) 35%,
+      transparent 55%);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 0;
+  box-shadow:
+    inset 0 0 12px rgba(0, 212, 170, 0.12),
+    0 0 20px rgba(0, 212, 170, 0.10);
+}
+#dexCursorControls:not(.dpad-collapsed):not(.dpad-hidden)::before {
+  opacity: 1;
+  transform: scale(1);
+}
+/* When user is actively dragging the whole D-Pad, brighten the boundary */
+#dexCursorControls.dragging::before {
+  border-color: rgba(0, 212, 170, 0.7);
+  box-shadow:
+    inset 0 0 18px rgba(0, 212, 170, 0.25),
+    0 0 28px rgba(0, 212, 170, 0.35);
+}
+
+/* ====== COMPASS DIRECTION BUTTONS — 2100 Octagonal ====== */
+#dexCursorControls .dex-cursor-btn {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+  background: rgba(30, 30, 32, 0.95);
+  border: none;
+  color: #E0E0E0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.08);
+}
+#dexCursorControls .dex-cursor-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent);
+  pointer-events: none;
+}
+#dexCursorControls .dex-cursor-btn:hover {
+  background: #404040;
+  color: #FFFFFF;
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 8px rgba(128, 128, 128, 0.5));
+}
+#dexCursorControls .dex-cursor-btn:active,
+#dexCursorControls .dex-cursor-btn.holding {
+  background: #606060;
+  color: #FFFFFF;
+  transform: scale(0.92);
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+}
+#dexCursorControls .dex-cursor-btn .material-symbols-rounded {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Compass positions — 8 points around center. */
+#dexCursorControls .cmp-n  { left: 69.5px; top: 28px;    }
+#dexCursorControls .cmp-ne { left: 98px;   top: 39px;    }
+#dexCursorControls .cmp-e  { left: 111px;  top: 69.5px;  }
+#dexCursorControls .cmp-se { left: 98px;   top: 100px;   }
+#dexCursorControls .cmp-s  { left: 69.5px; top: 111px;   }
+#dexCursorControls .cmp-sw { left: 41px;   top: 100px;   }
+#dexCursorControls .cmp-w  { left: 28px;   top: 69.5px;  }
+#dexCursorControls .cmp-nw { left: 41px;   top: 39px;    }
+
+/* ====== CENTER CORE DRAGGER — 2100 Minimal Grey ====== */
+#dexCursorControls .dex-center-drag {
+  position: absolute;
+  left: 68.5px;
+  top:  68.5px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #2A2A2E 0%, #121214 100%);
+  border: 1.5px solid #404040;
+  color: #E0E0E0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.6),
+              inset 0 0 5px rgba(255, 255, 255, 0.1);
+  transition: transform 0.15s ease,
+              border-color 0.15s ease,
+              box-shadow 0.15s ease,
+              left 0.25s ease,
+              top 0.25s ease;
+}
+#dexCursorControls .dex-center-drag:hover {
+  border-color: #808080;
+  box-shadow: 0 0 12px rgba(128, 128, 128, 0.4),
+              inset 0 0 6px rgba(255, 255, 255, 0.2);
+  transform: scale(1.12);
+}
+#dexCursorControls .dex-center-drag.dragging {
+  cursor: grabbing;
+  border-color: #00FF88;
+  transform: scale(1.2);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.7),
+              inset 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+/* Direction indicator ring on center dragger — 2100 directional glow */
+#dexCursorControls .dex-center-drag::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  pointer-events: none;
+}
+#dexCursorControls .dex-center-drag.dragging-right::after {
+  border-right-color: #00FF88;
+  box-shadow: 4px 0 10px rgba(0, 255, 136, 0.5);
+}
+#dexCursorControls .dex-center-drag.dragging-left::after {
+  border-left-color: #00FF88;
+  box-shadow: -4px 0 10px rgba(0, 255, 136, 0.5);
+}
+#dexCursorControls .dex-center-drag.dragging-up::after {
+  border-top-color: #00FF88;
+  box-shadow: 0 -4px 10px rgba(0, 255, 136, 0.5);
+}
+#dexCursorControls .dex-center-drag.dragging-down::after {
+  border-bottom-color: #00FF88;
+  box-shadow: 0 4px 10px rgba(0, 255, 136, 0.5);
+}
+
+/* Old free-floating center handle is retired */
+#dexCenterHandle { display: none !important; }
+
+/* ====== SELECTION MAGNIFIER / PREVIEW ====== */
+#dexSelectionPreview {
+  position: fixed;
+  z-index: 9994;
+  background: #181C1F;
+  border: 1px solid rgba(0, 212, 170, 0.4);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-family: 'classy', monospace;
+  font-size: 12px;
+  color: #00D4AA;
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.15), 0 8px 32px rgba(0,0,0,0.55);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+#dexSelectionPreview.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+#dexSelectionPreview .dex-preview-count {
+  color: #8A9199;
+  font-size: 10px;
+  margin-left: 6px;
+}
+
+/* ====== PARTICLE TRAIL CANVAS ====== */
+#dexParticleCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 9993;
+  pointer-events: none;
+}
+
+/* ====== CODEMIRROR 5 SELECTION COLORS ====== */
+.CodeMirror-selected { background: #606060 !important; }
+.CodeMirror-focused .CodeMirror-selected { background: #606060 !important; }
+.CodeMirror-line ::selection,
+.CodeMirror-line > span ::selection,
+.CodeMirror-line > span > span ::selection { background: #606060 !important; color: #000000 !important; }
+.CodeMirror-line ::-moz-selection,
+.CodeMirror-line > span ::-moz-selection,
+.CodeMirror-line > span > span ::-moz-selection { background: #606060 !important; color: #000000 !important; }
+.CodeMirror .CodeMirror-selectedtext { color: #000000 !important; }
+
+/* ====== COLLAPSED D-PAD STATE ======
+   FIX: previously the container stayed 165x165 even when only the tiny
+   center circle was visible, so it captured pointer events (and appeared
+   to "occupy space") over an area 5.5x larger than the visible circle.
+   Now we shrink the container to fit the center dragger. */
+#dexCursorControls.dpad-collapsed {
+  width: 40px;
+  height: 40px;
+}
+#dexCursorControls.dpad-collapsed .dex-center-drag {
+  /* Re-center inside the shrunken container (40 - 28) / 2 = 6 */
+  left: 6px;
+  top: 6px;
+}
+#dexCursorControls.dpad-collapsed .dex-cursor-btn {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.25s ease !important;
+}
+
+/* Green glow in HIDDEN/COLLAPSED state — always identifiable in dark mode.
+   The center dragger keeps a persistent teal halo so users can spot it. */
+#dexCursorControls.dpad-collapsed .dex-center-drag {
+  opacity: 0.85;
+  cursor: grab;
+  border-color: rgba(0, 212, 170, 0.55);
+  box-shadow:
+    0 0 14px rgba(0, 212, 170, 0.55),
+    0 0 28px rgba(0, 212, 170, 0.25),
+    inset 0 0 6px rgba(0, 255, 136, 0.20);
+  transition: opacity 0.25s ease, transform 0.25s ease,
+              border-color 0.15s ease, box-shadow 0.15s ease,
+              left 0.25s ease, top 0.25s ease;
+}
+#dexCursorControls.dpad-collapsed .dex-center-drag:hover {
+  opacity: 1;
+  transform: scale(1.18) !important;
+  border-color: #00D4AA;
+  box-shadow:
+    0 0 20px rgba(0, 212, 170, 0.75),
+    0 0 40px rgba(0, 212, 170, 0.35),
+    inset 0 0 8px rgba(0, 255, 136, 0.30);
+}
+#dexCursorControls.dpad-collapsed .dex-center-drag.dragging {
+  opacity: 1;
+  cursor: grabbing;
+}
+
+/* Expand animation when D-Pad opens */
+@keyframes dexDpadBtnIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+#dexCursorControls:not(.dpad-collapsed):not(.dpad-hidden) .dex-cursor-btn {
+  animation: dexDpadBtnIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Persistent green pulse on the center circle while collapsed —
+   makes it easy to locate the D-Pad in a dark editor. */
+@keyframes dexCenterGreenPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 14px rgba(0, 212, 170, 0.55),
+      0 0 28px rgba(0, 212, 170, 0.25),
+      inset 0 0 6px rgba(0, 255, 136, 0.20);
+  }
+  50% {
+    box-shadow:
+      0 0 22px rgba(0, 212, 170, 0.85),
+      0 0 44px rgba(0, 212, 170, 0.40),
+      inset 0 0 10px rgba(0, 255, 136, 0.35);
+  }
+}
+#dexCursorControls.dpad-collapsed .dex-center-drag {
+  animation: dexCenterGreenPulse 2.4s ease-in-out infinite;
+}
+#dexCursorControls.dpad-collapsed .dex-center-drag:hover,
+#dexCursorControls.dpad-collapsed .dex-center-drag.dragging {
+  animation: none;
+}
+
+/* ====== SNAP INDICATOR ====== */
+#dexSnapIndicator {
+  position: fixed;
+  z-index: 9992;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #00D4AA;
+  box-shadow: 0 0 8px rgba(0, 212, 170, 0.35), 0 0 16px rgba(0, 212, 170, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+#dexSnapIndicator.visible { opacity: 1; }
