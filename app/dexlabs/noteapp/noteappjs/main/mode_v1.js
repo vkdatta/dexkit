@@ -596,7 +596,6 @@
   function init() {
     wireEditor();
     ensureBottomBarWired();
-    wireLineNumberGutter();
     wireSyncScroll();
     wireSetupWrappers();
     ensureBottomBarWired();

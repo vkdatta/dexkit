@@ -1,0 +1,19 @@
+   .fp-toggle-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .fp-toggle-btn { flex: 1; padding: 8px 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); color: #aaa; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .fp-toggle-btn.active { background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); border-color: rgba(255,255,255,0.25); color: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    .fp-section { display: none; }
+    .fp-section.active { display: block; }
+    .fp-search-wrap { position: relative; margin-bottom: 10px; }
+    .fp-search-input { width: 100%; box-sizing: border-box; padding: 7px 12px; background: #1e2124; border: 1px solid var(--border); border-radius: 20px; color: #eeeeee; outline: none; font-family: inherit; font-size: 13px; }
+    .fp-search-input:focus { border-color: rgba(100, 116, 255, 0.55); }
+    .fp-list { max-height: 310px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .fp-card { cursor: pointer; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 14px; background: rgba(255,255,255,0.03); transition: all 0.2s; display: flex; align-items: center; justify-content: space-between; }
+    .fp-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-1px); background: rgba(255,255,255,0.05); }
+    .fp-card.selected { background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); border-color: rgba(255,255,255,0.2); box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+    .fp-card-title { color: #eee; }
+    .fp-card-badge { font-size: 0.8em; color: var(--blueink); background: rgba(100, 116, 255, 0.08); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(100, 116, 255, 0.18); letter-spacing: 0.5px; }
+    .fp-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .fp-actions button { flex: 1; }
+    .fp-empty { color: var(--blueink); text-align: center; padding: 16px 0; opacity: 0.6; font-size: 13px; }
+    @media (max-width: 480px) { .fp-list { max-height: 230px; } }
+ 
