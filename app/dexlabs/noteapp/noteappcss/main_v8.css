@@ -198,19 +198,6 @@
   --c-alpha-placeholder:       rgba(230,238,248,0.32);
 
   /* --------------------------------------------------------------------------
-     STABLE EDITOR SURFACE COLORS
-     --------------------------------------------------------------------------
-     These four variables are intentionally NOT overridden by the light theme.
-     Editor backgrounds and gutter text must remain physically dark or light
-     based on the selected CodeMirror theme (data-cm-tone), independent of the
-     app theme (data-theme). They reference the :root palette values that
-     correspond to the desired physical colors. */
-  --cm-surface-void:           var(--c-black);       /* physical #000000 */
-  --cm-surface-paper:          var(--c-surface-ca);  /* physical #cacaca */
-  --cm-text-on-void:           var(--c-surface-ca);  /* physical #cacaca */
-  --cm-text-on-paper:          var(--c-black);       /* physical #000000 */
-
-  /* --------------------------------------------------------------------------
      SEMANTIC ALIASES — every legacy name in the codebase is mapped here.
      Per-module CSS uses these; only this file knows about hexes.
      -------------------------------------------------------------------------- */
@@ -245,8 +232,12 @@
   --added-bg:                  var(--c-alpha-green-added-14);
   --added-text:                var(--c-accent-green-added);
 
-  /* Editor / CodeMirror background enforcement — now use stable vars above */
+  /* Editor / CodeMirror background enforcement */
+  --editor-bg-dark:            var(--c-black);
+  --editor-gutter-dark:        var(--c-surface-27);
   --editor-gutter-border-dark: var(--c-alpha-white-06);
+  --editor-bg-light:           var(--c-surface-ca);
+  --editor-gutter-light:       var(--c-white);
   --editor-gutter-border-light:var(--c-alpha-black-08);
 
   /* Non-colour tokens that were originally declared inside diffusion_v7.css
@@ -259,7 +250,7 @@
      original codebase they were set by JS at runtime (or by media queries) —
      declaring them at :root would force fixed values and break auto-sized
      UI (e.g. it made the sidebar2 product card grow to a hard 400px). */
-
+  
   color: var(--color);
 }
 
@@ -267,11 +258,6 @@
    LIGHT THEME — opt-in via html[data-theme="light"].
    Every palette variable and every semantic alias is redefined below. All
    per-module CSS keeps working; only the values behind var(--*) change.
-
-   NOTE: --cm-surface-void, --cm-surface-paper, --cm-text-on-void, and
-   --cm-text-on-paper are INTENTIONALLY NOT overridden here. They remain
-   stable so that CodeMirror editor backgrounds stay physically dark/light
-   based on the selected syntax theme, regardless of app theme.
    ============================================================================ */
 html[data-theme="light"] {
   /* Anchors stay meaningful */
@@ -462,6 +448,8 @@ html[data-theme="light"] {
   /* Override editor backgrounds for light theme — palette is inverted so
      --c-surface-ca and --c-white resolve to dark colours. Point at the
      light end of the inverted ramp instead. */
+  --editor-bg-light:           var(--c-surface-050);
+  --editor-gutter-light:       var(--c-surface-080);
   --editor-gutter-border-light: var(--c-alpha-black-08);
 
   color: var(--color);
@@ -733,55 +721,38 @@ body.diff-fullscreen .diff-lines-container { height: 100%; overflow: auto; }
    CM5 themes use selectors like .cm-s-dracula.CodeMirror { background: #282a36 }
    which have specificity (0,2,0). We boost ours by targeting the element
    when it carries BOTH the cm-s-* theme class AND the .CodeMirror class.
-
-   NOTE: We use --cm-surface-void, --cm-surface-paper, --cm-text-on-void,
-   and --cm-text-on-paper which are STABLE variables (not flipped by the
-   light theme override) so that editor backgrounds stay physically correct
-   based on the selected CodeMirror theme regardless of app theme.
    ============================================================================ */
 
-/* Dark tone — physical black backdrop. Syntax colours still come from picked theme. */
+/* Dark tone — app dark backdrop. Syntax colours still come from picked theme. */
 html[data-cm-tone="dark"] [class*="cm-s-"].CodeMirror,
 html[data-cm-tone="dark"] .CodeMirror {
-  background: var(--cm-surface-void) !important;
+  background: var(--editor-bg-dark) !important;
 }
 html[data-cm-tone="dark"] [class*="cm-s-"] .CodeMirror-gutters,
 html[data-cm-tone="dark"] .CodeMirror-gutters {
-  background: var(--cm-surface-void) !important;
+  background: var(--editor-gutter-dark) !important;
   border-right-color: var(--editor-gutter-border-dark) !important;
 }
-html[data-cm-tone="dark"] [class*="cm-s-"] .CodeMirror-linenumber,
-html[data-cm-tone="dark"] .CodeMirror-linenumber {
-  color: var(--cm-text-on-void) !important;
-}
 
-/* Light tone — physical #cacaca backdrop. */
+/* Light tone — app light backdrop. */
 html[data-cm-tone="light"] [class*="cm-s-"].CodeMirror,
 html[data-cm-tone="light"] .CodeMirror {
-  background: var(--cm-surface-paper) !important;
+  background: var(--editor-bg-light) !important;
 }
 html[data-cm-tone="light"] [class*="cm-s-"] .CodeMirror-gutters,
 html[data-cm-tone="light"] .CodeMirror-gutters {
-  background: var(--cm-surface-paper) !important;
+  background: var(--editor-gutter-light) !important;
   border-right-color: var(--editor-gutter-border-light) !important;
-}
-html[data-cm-tone="light"] [class*="cm-s-"] .CodeMirror-linenumber,
-html[data-cm-tone="light"] .CodeMirror-linenumber {
-  color: var(--cm-text-on-paper) !important;
 }
 
 /* Default before any tone is set — treat as dark. */
 html:not([data-cm-tone]) [class*="cm-s-"].CodeMirror,
 html:not([data-cm-tone]) .CodeMirror {
-  background: var(--cm-surface-void);
+  background: var(--editor-bg-dark);
 }
 html:not([data-cm-tone]) [class*="cm-s-"] .CodeMirror-gutters,
 html:not([data-cm-tone]) .CodeMirror-gutters {
-  background: var(--cm-surface-void);
-}
-html:not([data-cm-tone]) [class*="cm-s-"] .CodeMirror-linenumber,
-html:not([data-cm-tone]) .CodeMirror-linenumber {
-  color: var(--cm-text-on-void);
+  background: var(--editor-gutter-dark);
 }
 
 .cm-s-dracula .CodeMirror-linenumber { color: var(--c-surface-55b); }
