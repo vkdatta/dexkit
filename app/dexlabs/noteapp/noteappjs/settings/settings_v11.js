@@ -61,15 +61,26 @@ export function createSettingsManager() {
     return lsRead(LS.THEME) === 'light' ? 'light' : 'dark';
   }
 
+  // Return the themes available for the current app theme.
+  function themesForAppTheme(theme) {
+    return theme === 'light' ? LIGHT_THEMES : DARK_THEMES;
+  }
+
+  /* currentCmTheme() — validates stored theme against the APP THEME's
+     available list, not just ALL_THEMES. This prevents a stored dark theme
+     from being returned when the app is in light mode (and vice versa).  */
   function currentCmTheme() {
+    const appTheme = currentAppTheme();
+    const available = themesForAppTheme(appTheme);
     const explicit = lsRead(LS.CMTHEME);
-    if (explicit && ALL_THEMES.has(explicit)) return explicit;
-    return (currentAppTheme() === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
+    // Only use explicit if it belongs to the current app theme's set.
+    if (explicit && available.includes(explicit)) return explicit;
+    return (appTheme === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
   }
 
   // Return only the themes that match the current app theme.
   function availableThemesForCurrentAppTheme() {
-    return currentAppTheme() === 'light' ? LIGHT_THEMES : DARK_THEMES;
+    return themesForAppTheme(currentAppTheme());
   }
 
   // Return the default theme for the current app theme.
@@ -179,20 +190,17 @@ export function createSettingsManager() {
   function reconcileCmThemeWithAppTheme() {
     const appTheme = currentAppTheme();
     const cmTheme = currentCmTheme();
-    const isLightTheme = LIGHT_THEMES.includes(cmTheme);
-    const isDarkTheme = DARK_THEMES.includes(cmTheme);
+    const available = themesForAppTheme(appTheme);
     const html = document.documentElement;
 
-    if (appTheme === 'light' && isDarkTheme) {
-      lsWrite(LS.CMTHEME, DEFAULT_CM_LIGHT);
-      applyCmThemeToEditor(DEFAULT_CM_LIGHT);
-      if (html) html.setAttribute('data-cm-tone', 'light');
-      fire('dexSettingsChanged', { key: LS.CMTHEME, value: DEFAULT_CM_LIGHT });
-    } else if (appTheme === 'dark' && isLightTheme) {
-      lsWrite(LS.CMTHEME, DEFAULT_CM_DARK);
-      applyCmThemeToEditor(DEFAULT_CM_DARK);
-      if (html) html.setAttribute('data-cm-tone', 'dark');
-      fire('dexSettingsChanged', { key: LS.CMTHEME, value: DEFAULT_CM_DARK });
+    // If current CM theme is not in the available set for this app theme,
+    // switch to the default and update storage.
+    if (!available.includes(cmTheme)) {
+      const fallback = appTheme === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK;
+      lsWrite(LS.CMTHEME, fallback);
+      applyCmThemeToEditor(fallback);
+      if (html) html.setAttribute('data-cm-tone', appTheme);
+      fire('dexSettingsChanged', { key: LS.CMTHEME, value: fallback });
     }
   }
 
@@ -203,6 +211,8 @@ export function createSettingsManager() {
     applyLineNumbersToEditor(lsBool(LS.LINENUM));
     applyWrapToEditor(lsBool(LS.WRAP));
     applyPrismToEditor(lsBool(LS.PRISM));
+    // Reconcile first: ensures stored CM theme matches current app theme.
+    reconcileCmThemeWithAppTheme();
     const cmTheme = currentCmTheme();
     applyCmThemeToEditor(cmTheme);
     if (lsBool(LS.DIFFUSION)) {
