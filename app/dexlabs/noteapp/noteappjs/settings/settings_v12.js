@@ -61,20 +61,20 @@ export function createSettingsManager() {
     return lsRead(LS.THEME) === 'light' ? 'light' : 'dark';
   }
 
-  // Return the themes available for the current app theme.
+  // Return the themes available for a given app theme.
   function themesForAppTheme(theme) {
     return theme === 'light' ? LIGHT_THEMES : DARK_THEMES;
   }
 
   /* currentCmTheme() — validates stored theme against the APP THEME's
-     available list, not just ALL_THEMES. This prevents a stored dark theme
-     from being returned when the app is in light mode (and vice versa).  */
+     available list. If the stored theme belongs to a different app theme
+     (e.g. dracula stored while app is light), returns the default for
+     the current app theme instead.  */
   function currentCmTheme() {
     const appTheme = currentAppTheme();
     const available = themesForAppTheme(appTheme);
-    const explicit = lsRead(LS.CMTHEME);
-    // Only use explicit if it belongs to the current app theme's set.
-    if (explicit && available.includes(explicit)) return explicit;
+    const stored = lsRead(LS.CMTHEME);
+    if (stored && available.includes(stored)) return stored;
     return (appTheme === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
   }
 
@@ -112,7 +112,6 @@ export function createSettingsManager() {
     const k = e.detail.key;
     if (k === LS.THEME) {
       applyTheme(e.detail.value === 'light' ? 'light' : 'dark');
-      // When app theme changes, ensure CM theme matches the available set.
       reconcileCmThemeWithAppTheme();
       paint();
     }
@@ -162,10 +161,30 @@ export function createSettingsManager() {
     document.body.classList.toggle('prism-off', !on);
   }
 
+  /* applyCmThemeToEditor — applies a CM theme to the live editor.
+     Includes verification and retry to handle race conditions where
+     the editor may not be fully ready or the theme swap fails.  */
   function applyCmThemeToEditor(name) {
     if (!name) return;
-    if (window.dexEditor && typeof window.dexEditor.setTheme === 'function') {
-      try { window.dexEditor.setTheme(name); } catch (e) {}
+    if (!window.dexEditor || typeof window.dexEditor.setTheme !== 'function') return;
+
+    try {
+      window.dexEditor.setTheme(name);
+    } catch (e) {
+      console.error('[settings] setTheme failed:', e);
+    }
+
+    // Verify the theme was actually applied; retry directly on CM if not.
+    if (window.dexEditor.cm) {
+      const actual = window.dexEditor.cm.getOption('theme');
+      if (actual !== name) {
+        console.warn('[settings] Theme mismatch after setTheme, retrying:', actual, '→', name);
+        try {
+          window.dexEditor.cm.setOption('theme', name);
+        } catch (e2) {
+          console.error('[settings] Direct cm.setOption(theme) failed:', e2);
+        }
+      }
     }
   }
 
@@ -182,20 +201,23 @@ export function createSettingsManager() {
   }
 
   /* ─── Reconcile CM theme with app theme ──────────────────────────
-     If the user switches app light/dark and the current CM theme is
-     from the "wrong" list (e.g. a dark theme while app is light),
-     auto-switch to the default for the new app theme.
+     If the stored CM theme belongs to the "wrong" app theme
+     (e.g. dracula stored while app is light), switch to the default
+     for the current app theme and update storage + data-cm-tone.
 
-     This also syncs data-cm-tone to match the new default.  */
+     This compares the STORED theme (not the resolved fallback) against
+     the current app theme's available list.  */
   function reconcileCmThemeWithAppTheme() {
     const appTheme = currentAppTheme();
-    const cmTheme = currentCmTheme();
     const available = themesForAppTheme(appTheme);
+    const stored = lsRead(LS.CMTHEME);
     const html = document.documentElement;
 
-    // If current CM theme is not in the available set for this app theme,
-    // switch to the default and update storage.
-    if (!available.includes(cmTheme)) {
+    // If no stored theme, nothing to reconcile (fallback will be used naturally).
+    if (!stored) return;
+
+    // If stored theme doesn't belong to current app theme's set, switch.
+    if (!available.includes(stored)) {
       const fallback = appTheme === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK;
       lsWrite(LS.CMTHEME, fallback);
       applyCmThemeToEditor(fallback);
@@ -211,10 +233,21 @@ export function createSettingsManager() {
     applyLineNumbersToEditor(lsBool(LS.LINENUM));
     applyWrapToEditor(lsBool(LS.WRAP));
     applyPrismToEditor(lsBool(LS.PRISM));
-    // Reconcile first: ensures stored CM theme matches current app theme.
-    reconcileCmThemeWithAppTheme();
+
+    // Always apply the resolved CM theme directly (don't go through reconcile).
     const cmTheme = currentCmTheme();
     applyCmThemeToEditor(cmTheme);
+
+    // Delayed retry: handles race where editor wasn't fully ready.
+    setTimeout(() => {
+      if (!window.dexEditor || !window.dexEditor.cm) return;
+      const actual = window.dexEditor.cm.getOption('theme');
+      if (actual !== cmTheme) {
+        console.warn('[settings] Delayed theme reapply:', actual, '→', cmTheme);
+        applyCmThemeToEditor(cmTheme);
+      }
+    }, 150);
+
     if (lsBool(LS.DIFFUSION)) {
       applyDiffusionToApp(true);
     }
@@ -379,12 +412,9 @@ export function createSettingsManager() {
 
     const cur = overlay.querySelector('#cmThemeCurrent');
     if (cur) {
-      let displayed = currentCmTheme();
-      if (window.dexEditor && window.dexEditor.cm) {
-        const actualTheme = window.dexEditor.cm.getOption('theme');
-        if (actualTheme) displayed = actualTheme;
-      }
-      cur.textContent = displayed;
+      // Show the resolved theme (what SHOULD be active), not the raw CM option.
+      // The CM option might be temporarily stale during transitions.
+      cur.textContent = currentCmTheme();
     }
   }
 
