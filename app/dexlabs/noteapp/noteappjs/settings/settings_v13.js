@@ -56,50 +56,16 @@ export function createSettingsManager() {
     }
   }
 
-  /* ─── Theme helpers ────────────────────────────────────────────── */
-  function currentAppTheme() {
-    return lsRead(LS.THEME) === 'light' ? 'light' : 'dark';
-  }
-
-  // Return the themes available for a given app theme.
-  function themesForAppTheme(theme) {
-    return theme === 'light' ? LIGHT_THEMES : DARK_THEMES;
-  }
-
-  /* currentCmTheme() — validates stored theme against the APP THEME's
-     available list. If the stored theme belongs to a different app theme
-     (e.g. dracula stored while app is light), returns the default for
-     the current app theme instead.  */
-  function currentCmTheme() {
-    const appTheme = currentAppTheme();
-    const available = themesForAppTheme(appTheme);
-    const stored = lsRead(LS.CMTHEME);
-    if (stored && available.includes(stored)) return stored;
-    return (appTheme === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
-  }
-
-  // Return only the themes that match the current app theme.
-  function availableThemesForCurrentAppTheme() {
-    return themesForAppTheme(currentAppTheme());
-  }
-
-  // Return the default theme for the current app theme.
-  function defaultThemeForCurrentAppTheme() {
-    return currentAppTheme() === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK;
-  }
-
-  /* ─── App theme wiring ───────────────────────────────────────────
-     applyTheme ONLY touches data-theme (app-wide light/dark).
-     It NEVER touches data-cm-tone — that is managed by the CM theme
-     selection path (applyCmToneAttr in editor_v1.js) and by
-     reconcileCmThemeWithAppTheme when falling back to defaults.  */
+  /* ─── Theme wiring ─────────────────────────────────────────────── */
   function applyTheme(theme) {
     const html = document.documentElement;
     if (!html) return;
     if (theme === 'light') {
       html.setAttribute('data-theme', 'light');
+      html.setAttribute('data-cm-tone', 'light');
     } else {
       html.removeAttribute('data-theme');
+      html.setAttribute('data-cm-tone', 'dark');
     }
   }
 
@@ -111,9 +77,18 @@ export function createSettingsManager() {
     if (!e || !e.detail) return;
     const k = e.detail.key;
     if (k === LS.THEME) {
-      applyTheme(e.detail.value === 'light' ? 'light' : 'dark');
-      reconcileCmThemeWithAppTheme();
-      paint();
+      const next = e.detail.value === 'light' ? 'light' : 'dark';
+      applyTheme(next);
+      const cmExplicit = lsRead(LS.CMTHEME);
+      const validSet = (next === 'light') ? LIGHT_THEMES : DARK_THEMES;
+      // If explicit theme doesn't match new tone, auto-switch to default
+      if (cmExplicit && !validSet.includes(cmExplicit)) {
+        const followTheme = (next === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
+        lsWrite(LS.CMTHEME, followTheme);
+        applyCmThemeToEditor(followTheme);
+        fire('dexSettingsChanged', { key: LS.CMTHEME, value: followTheme });
+      }
+      paint(); // <-- FIX #12: external theme changes now repaint the UI
     }
     if (k === LS.LINENUM) {
       applyLineNumbersToEditor(!!e.detail.value);
@@ -161,30 +136,10 @@ export function createSettingsManager() {
     document.body.classList.toggle('prism-off', !on);
   }
 
-  /* applyCmThemeToEditor — applies a CM theme to the live editor.
-     Includes verification and retry to handle race conditions where
-     the editor may not be fully ready or the theme swap fails.  */
   function applyCmThemeToEditor(name) {
     if (!name) return;
-    if (!window.dexEditor || typeof window.dexEditor.setTheme !== 'function') return;
-
-    try {
-      window.dexEditor.setTheme(name);
-    } catch (e) {
-      console.error('[settings] setTheme failed:', e);
-    }
-
-    // Verify the theme was actually applied; retry directly on CM if not.
-    if (window.dexEditor.cm) {
-      const actual = window.dexEditor.cm.getOption('theme');
-      if (actual !== name) {
-        console.warn('[settings] Theme mismatch after setTheme, retrying:', actual, '→', name);
-        try {
-          window.dexEditor.cm.setOption('theme', name);
-        } catch (e2) {
-          console.error('[settings] Direct cm.setOption(theme) failed:', e2);
-        }
-      }
+    if (window.dexEditor && typeof window.dexEditor.setTheme === 'function') {
+      try { window.dexEditor.setTheme(name); } catch (e) {}
     }
   }
 
@@ -200,32 +155,6 @@ export function createSettingsManager() {
     }
   }
 
-  /* ─── Reconcile CM theme with app theme ──────────────────────────
-     If the stored CM theme belongs to the "wrong" app theme
-     (e.g. dracula stored while app is light), switch to the default
-     for the current app theme and update storage + data-cm-tone.
-
-     This compares the STORED theme (not the resolved fallback) against
-     the current app theme's available list.  */
-  function reconcileCmThemeWithAppTheme() {
-    const appTheme = currentAppTheme();
-    const available = themesForAppTheme(appTheme);
-    const stored = lsRead(LS.CMTHEME);
-    const html = document.documentElement;
-
-    // If no stored theme, nothing to reconcile (fallback will be used naturally).
-    if (!stored) return;
-
-    // If stored theme doesn't belong to current app theme's set, switch.
-    if (!available.includes(stored)) {
-      const fallback = appTheme === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK;
-      lsWrite(LS.CMTHEME, fallback);
-      applyCmThemeToEditor(fallback);
-      if (html) html.setAttribute('data-cm-tone', appTheme);
-      fire('dexSettingsChanged', { key: LS.CMTHEME, value: fallback });
-    }
-  }
-
   /* ─── Bulk restore: apply all persisted settings to live editor ──
      Called once at init (if editor already mounted) and again on
      dexEditorReady in case editor mounted later than this manager.  */
@@ -233,21 +162,8 @@ export function createSettingsManager() {
     applyLineNumbersToEditor(lsBool(LS.LINENUM));
     applyWrapToEditor(lsBool(LS.WRAP));
     applyPrismToEditor(lsBool(LS.PRISM));
-
-    // Always apply the resolved CM theme directly (don't go through reconcile).
     const cmTheme = currentCmTheme();
     applyCmThemeToEditor(cmTheme);
-
-    // Delayed retry: handles race where editor wasn't fully ready.
-    setTimeout(() => {
-      if (!window.dexEditor || !window.dexEditor.cm) return;
-      const actual = window.dexEditor.cm.getOption('theme');
-      if (actual !== cmTheme) {
-        console.warn('[settings] Delayed theme reapply:', actual, '→', cmTheme);
-        applyCmThemeToEditor(cmTheme);
-      }
-    }, 150);
-
     if (lsBool(LS.DIFFUSION)) {
       applyDiffusionToApp(true);
     }
@@ -297,7 +213,7 @@ export function createSettingsManager() {
           <div class="settings-item" data-key="CMTHEME" id="cmThemeRow">
             <div class="settings-item-text">
               <div class="settings-item-label">Editor theme</div>
-              <div class="settings-item-desc">CodeMirror colour scheme. Editor background stays uniform.</div>
+              <div class="settings-item-desc">CodeMirror colour scheme. Editor background stays uniform (#000 for dark themes, #cacaca for light).</div>
             </div>
             <div class="settings-row-value" id="cmThemeCurrent">dracula</div>
             <div class="settings-row-chevron">›</div>
@@ -355,6 +271,7 @@ export function createSettingsManager() {
   `;
   if (document.body) document.body.appendChild(overlay);
   else {
+    // Defer append until DOM ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => { if (document.body) document.body.appendChild(overlay); });
     }
@@ -385,6 +302,19 @@ export function createSettingsManager() {
   }
   document.addEventListener('keydown', onKeydown);
 
+  function currentAppTheme() {
+    return lsRead(LS.THEME) === 'light' ? 'light' : 'dark';
+  }
+
+  function currentCmTheme() {
+    const explicit = lsRead(LS.CMTHEME);
+    const tone = currentAppTheme(); // 'light' or 'dark'
+    const validSet = (tone === 'light') ? LIGHT_THEMES : DARK_THEMES;
+    // Validate: if stored theme is unknown OR doesn't match current tone, fall back to default.
+    if (explicit && ALL_THEMES.has(explicit) && validSet.includes(explicit)) return explicit;
+    return (tone === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
+  }
+
   /* ─── paint() ────────────────────────────────────────────────────
      Syncs the settings UI to reflect ACTUAL runtime state where
      possible, falling back to persisted state.  */
@@ -412,24 +342,31 @@ export function createSettingsManager() {
 
     const cur = overlay.querySelector('#cmThemeCurrent');
     if (cur) {
-      // Show the resolved theme (what SHOULD be active), not the raw CM option.
-      // The CM option might be temporarily stale during transitions.
-      cur.textContent = currentCmTheme();
+      let displayed = currentCmTheme();
+      if (window.dexEditor && window.dexEditor.cm) {
+        const actualTheme = window.dexEditor.cm.getOption('theme');
+        if (actualTheme) displayed = actualTheme;
+      }
+      cur.textContent = displayed;
     }
   }
 
-  /* ─── Theme picker: scoped event delegation, FILTERED by app theme ─
-     Only themes matching the current app theme are shown.  */
-  function makeThemePickerHtml(current) {
+  /* ─── Theme picker: scoped event delegation instead of global fn ─
+     FIX #3, #4: No more window.__selectCmTheme global. We use a
+     one-time delegated listener inside the modal body.  */
+  function makeThemePickerHtml(current, tone) {
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const themes = availableThemesForCurrentAppTheme();
     const buildRows = (arr) => arr.map(t => {
       const active = (t === current);
       return `<button class="theme-pick${active ? ' theme-pick-active' : ''}" data-theme="${esc(t)}">${esc(t)}</button>`;
     }).join('');
+    // Only show themes matching the current app tone
+    const themesToShow = (tone === 'light') ? LIGHT_THEMES : DARK_THEMES;
+    const groupTitle = (tone === 'light') ? 'Light' : 'Dark';
     return `
       <div id="theme-picker-container">
-        ${buildRows(themes)}
+        <div class="theme-group-title">${groupTitle}</div>
+        ${buildRows(themesToShow)}
       </div>
     `;
   }
@@ -440,12 +377,16 @@ export function createSettingsManager() {
       return;
     }
     const cur = currentCmTheme();
-    const bodyHtml = makeThemePickerHtml(cur);
+    const tone = currentAppTheme(); // 'light' or 'dark'
+    const bodyHtml = makeThemePickerHtml(cur, tone);
 
     const prevDisplay = overlay.style.display;
     overlay.style.display = 'none';
     let r = null;
 
+    // We need to intercept button clicks inside the modal. showModal likely
+    // renders bodyHtml into its own container. We attach a one-time capture
+    // listener to document to catch theme-pick clicks, then clean it up.
     function onThemePick(e) {
       const btn = e.target.closest('.theme-pick');
       if (!btn) return;
@@ -467,12 +408,15 @@ export function createSettingsManager() {
       });
     } finally {
       document.removeEventListener('click', onThemePick, true);
+      // Only restore display if no external code changed it while modal was open.
+      // We compare against the captured prevDisplay to avoid race overwrites.
       if (overlay.style.display === 'none') {
         overlay.style.display = prevDisplay;
       }
     }
     if (!r || r.action !== 'submit' || !r.theme) return;
 
+    // Validate the returned theme against our known list.
     const chosen = String(r.theme).trim();
     if (!ALL_THEMES.has(chosen)) {
       console.warn('[settings] Ignoring unknown theme:', chosen);
@@ -504,6 +448,8 @@ export function createSettingsManager() {
     if (key === 'DIFFUSION') {
       const cur = lsBool(LS.DIFFUSION);
       const next = !cur;
+      // FIX #2: Only persist AFTER confirming the runtime operation can proceed.
+      // We attempt the transition first, then persist on success.
       if (next) {
         if (typeof window.enterDiffusionMode !== 'function') {
           console.warn('[settings] enterDiffusionMode not available');
@@ -534,7 +480,15 @@ export function createSettingsManager() {
       if (next === 'dark') lsWrite(LS.THEME, null);
       else lsWrite(LS.THEME, 'light');
       applyTheme(next);
-      // reconcileCmThemeWithAppTheme() is called by the event listener above
+      const cmExplicit = lsRead(LS.CMTHEME);
+      const validSet = (next === 'light') ? LIGHT_THEMES : DARK_THEMES;
+      // If no explicit theme OR explicit theme doesn't match new tone, switch to default
+      if (!cmExplicit || !validSet.includes(cmExplicit)) {
+        const followTheme = (next === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK);
+        lsWrite(LS.CMTHEME, followTheme); // persist the auto-switch
+        applyCmThemeToEditor(followTheme);
+        fire('dexSettingsChanged', { key: LS.CMTHEME, value: followTheme });
+      }
       fire('dexSettingsChanged', { key: LS.THEME, value: next });
 
     } else if (key === 'LINENUM') {
@@ -563,15 +517,19 @@ export function createSettingsManager() {
   }
   overlay.addEventListener('click', onOverlayClick);
 
-  /* ─── Destroy / cleanup lifecycle ──────────────────────────────── */
+  /* ─── Destroy / cleanup lifecycle ────────────────────────────────
+     FIX #6, #7: Provides a way to fully unmount the manager.  */
   function destroy() {
+    // Remove overlay from DOM
     if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    // Remove event listeners
     window.removeEventListener('dexSettingsChanged', onDexSettingsChanged);
     window.removeEventListener('dexEditorReady', restoreAllSettingsToEditor);
     document.removeEventListener('keydown', onKeydown);
     overlay.removeEventListener('click', onOverlayClick);
     tabListeners.forEach(({ el, fn }) => el.removeEventListener('click', fn));
     closeBtn.removeEventListener('click', onCloseClick);
+    // Clear global flags so a new manager CAN be created
     window.settingsInitialized = false;
     window.__settingsManagerAPI = null;
   }
@@ -581,12 +539,12 @@ export function createSettingsManager() {
     hide: () => { overlay.style.display = 'none'; },
     show: () => { overlay.style.display = 'flex'; paint(); },
     destroy,
-    paint,
-    restoreAllSettingsToEditor
+    paint,          // expose so external code can force-sync UI
+    restoreAllSettingsToEditor  // expose for manual re-sync
   };
   window.__settingsManagerAPI = api;
 
-  // Mark as initialized only after everything succeeded.
+  // FIX #8: Only mark as initialized after everything succeeded.
   window.settingsInitialized = true;
 
   return function openSettingsManager() {
