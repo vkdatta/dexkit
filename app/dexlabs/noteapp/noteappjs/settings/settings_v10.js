@@ -77,16 +77,18 @@ export function createSettingsManager() {
     return currentAppTheme() === 'light' ? DEFAULT_CM_LIGHT : DEFAULT_CM_DARK;
   }
 
-  /* ─── Theme wiring ─────────────────────────────────────────────── */
+  /* ─── App theme wiring ───────────────────────────────────────────
+     applyTheme ONLY touches data-theme (app-wide light/dark).
+     It NEVER touches data-cm-tone — that is managed by the CM theme
+     selection path (applyCmToneAttr in editor_v1.js) and by
+     reconcileCmThemeWithAppTheme when falling back to defaults.  */
   function applyTheme(theme) {
     const html = document.documentElement;
     if (!html) return;
     if (theme === 'light') {
       html.setAttribute('data-theme', 'light');
-      html.setAttribute('data-cm-tone', 'light');
     } else {
       html.removeAttribute('data-theme');
-      html.setAttribute('data-cm-tone', 'dark');
     }
   }
 
@@ -171,21 +173,25 @@ export function createSettingsManager() {
   /* ─── Reconcile CM theme with app theme ──────────────────────────
      If the user switches app light/dark and the current CM theme is
      from the "wrong" list (e.g. a dark theme while app is light),
-     auto-switch to the default for the new app theme.  */
+     auto-switch to the default for the new app theme.
+
+     This also syncs data-cm-tone to match the new default.  */
   function reconcileCmThemeWithAppTheme() {
     const appTheme = currentAppTheme();
     const cmTheme = currentCmTheme();
     const isLightTheme = LIGHT_THEMES.includes(cmTheme);
     const isDarkTheme = DARK_THEMES.includes(cmTheme);
+    const html = document.documentElement;
 
-    // If current CM theme doesn't match app theme, switch to default.
     if (appTheme === 'light' && isDarkTheme) {
       lsWrite(LS.CMTHEME, DEFAULT_CM_LIGHT);
       applyCmThemeToEditor(DEFAULT_CM_LIGHT);
+      if (html) html.setAttribute('data-cm-tone', 'light');
       fire('dexSettingsChanged', { key: LS.CMTHEME, value: DEFAULT_CM_LIGHT });
     } else if (appTheme === 'dark' && isLightTheme) {
       lsWrite(LS.CMTHEME, DEFAULT_CM_DARK);
       applyCmThemeToEditor(DEFAULT_CM_DARK);
+      if (html) html.setAttribute('data-cm-tone', 'dark');
       fire('dexSettingsChanged', { key: LS.CMTHEME, value: DEFAULT_CM_DARK });
     }
   }
