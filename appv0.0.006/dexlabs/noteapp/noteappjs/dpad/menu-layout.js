@@ -104,7 +104,8 @@
   function updateDiffEntryVisibility() {
     const trigger = menu.querySelector('[data-open-submenu="diff"]');
     if (!trigger) return;
-    trigger.style.display = document.body.classList.contains('mode-diffusion') ? '' : 'none';
+    const m = /^\/note\/[^/]+\/([a-z]+)/.exec(window.location.pathname);
+    trigger.style.display = (m && m[1] === 'diffusion') ? '' : 'none';
   }
   ctx.updateDiffEntryVisibility = updateDiffEntryVisibility;
 

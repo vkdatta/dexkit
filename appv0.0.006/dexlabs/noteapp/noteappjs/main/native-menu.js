@@ -34,8 +34,9 @@
   }
 
   function currentMode() {
-    if (document.body.classList.contains('mode-diffusion')) return 'diffusion';
-    if (document.body.classList.contains('mode-mermaid')) return 'mermaid';
+    const m = location.pathname.match(/^\/note\/[^/]+\/([a-z]+)/);
+    if (m && m[1] === 'diffusion') return 'diffusion';
+    if (m && m[1] === 'mermaid') return 'mermaid';
     return 'base';
   }
 

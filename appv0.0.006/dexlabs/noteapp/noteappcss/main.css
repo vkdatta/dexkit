@@ -370,7 +370,7 @@ button { font-family: classy; }
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
-body.mode-diffusion .diff-bottombar { display: flex; }
+body.mode-diffusion .diff-bottombar:not(.mermaid-bottombar) { display: flex; }
 .diff-bottombar .diff-topbar-section {
   display: flex; align-items: center; gap: 4px;
 }
