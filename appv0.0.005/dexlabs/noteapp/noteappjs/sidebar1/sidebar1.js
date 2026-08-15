@@ -254,8 +254,8 @@ function renderFolderNode(f) {
   if (!selectMode) {
     html += '<div class="dex-add" data-rename="1" title="Rename folder">' + IC.edit + "</div>";
     html += '<div class="dex-add" data-dl="1" title="Download folder">' + IC.download + "</div>";
-    html += '<div class="dex-add" data-enter="1" title="Open folder">' + IC.enter + "</div>";
   }
+  html += '<div class="dex-add" data-enter="1" title="Open folder">' + IC.enter + "</div>";
   row.innerHTML = html;
   row.onclick = (e) => {
     if (e.target.closest("[data-rename]")) { sidebarRename("folder", f.id); return; }
@@ -352,8 +352,6 @@ function populateNoteList() { renderSidebar(); }
 function navigateTo(id) {
   currentFolderId = id || null;
   localStorage.setItem("dexCurrentFolder", currentFolderId || "");
-  selectMode = false;
-  selected.clear();
   clearSearch();
   renderSidebar();
 }

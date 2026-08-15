@@ -366,15 +366,16 @@ body.mode-filemanager #sidebar1 {
   z-index: 10;
 }
 
-/* Reduce topbar to Home only on /filemanager. */
 body.mode-filemanager #topbar #undoBtn,
 body.mode-filemanager #topbar #redoBtn,
 body.mode-filemanager #topbar .topbar-button[onclick*="toggleFullscreen"],
 body.mode-filemanager #topbar #voldemortToggle,
-body.mode-filemanager #topbar #sidebar1Toggle,
 body.mode-filemanager #topbar #secondary-sidebar-button {
   display: none;
 }
+
+body.mode-filemanager.fm-sidebar-collapsed #sidebar1 { display: none; }
+body.mode-filemanager.fm-sidebar-collapsed .filemanager-app-sidebar { width: 100%; }
 
 @media (max-width: 640px) {
   .filemanager-app-sidebar { width: 72px; }
