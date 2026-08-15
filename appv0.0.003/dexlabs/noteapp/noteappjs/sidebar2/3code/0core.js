@@ -1,0 +1,26 @@
+import { MD5 } from "./md5.js";
+import { SHA256 } from "./sha256.js";
+import { cipher } from "./cipher.js";
+import { handleRemoveHtml, handleEscapeHtml, handleUnescapeHtml, handleTextToTable, toggleTTTOtherSeparator, handleTextToTableOptionsSubmit } from "./html.js";
+import { optimisecss, minifycss } from "./css.js";
+import { optimisejs, minifyjs } from "./js.js";
+import { handleLatex } from "./latex.js";
+import { fetchUrlToCurrentNote, openFetchModal, handleFetchSubmit } from "./fetch.js";
+
+window.MD5 = MD5;
+window.SHA256 = SHA256;
+window.cipher = cipher;
+window.handleRemoveHtml = handleRemoveHtml;
+window.handleEscapeHtml = handleEscapeHtml;
+window.handleUnescapeHtml = handleUnescapeHtml;
+window.handleTextToTable = handleTextToTable;
+window.toggleTTTOtherSeparator = toggleTTTOtherSeparator;
+window.handleTextToTableOptionsSubmit = handleTextToTableOptionsSubmit;
+window.optimisecss = optimisecss;
+window.minifycss = minifycss;
+window.optimisejs = optimisejs;
+window.minifyjs = minifyjs;
+window.handleLatex = handleLatex;
+window.fetchUrlToCurrentNote = fetchUrlToCurrentNote;
+window.openFetchModal = openFetchModal;
+window.handleFetchSubmit = handleFetchSubmit;
