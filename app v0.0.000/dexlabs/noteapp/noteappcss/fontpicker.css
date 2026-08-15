@@ -1,0 +1,77 @@
+.fp-toggle-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.fp-toggle-btn {
+  flex: 1; padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--c-white) 10%, transparent);
+  background: color-mix(in srgb, var(--c-white) 05%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--c-text-dim);
+  border-radius: 8px; cursor: pointer;
+  transition: all 0.2s;
+}
+.fp-toggle-btn.active {
+  background: color-mix(in srgb, var(--c-black) 40%, transparent);
+  backdrop-filter: blur(12px);
+  border-color: color-mix(in srgb, var(--c-white) 25%, transparent);
+  color: var(--c-white);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--c-black) 50%, transparent);
+}
+.fp-section { display: none; }
+.fp-section.active { display: block; }
+.fp-search-wrap { position: relative; margin-bottom: 10px; }
+.fp-search-input {
+  width: 100%; box-sizing: border-box; padding: 7px 12px;
+  background: var(--c-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--c-white);
+  outline: none;
+  font-family: inherit; font-size: 13px;
+}
+.fp-search-input:focus { border-color: color-mix(in srgb, var(--c-accent) 55%, transparent); }
+.fp-list {
+  max-height: 310px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.fp-card {
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--c-white) 06%, transparent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--c-white) 03%, transparent);
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.fp-card:hover {
+  border-color: color-mix(in srgb, var(--c-white) 15%, transparent);
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--c-white) 05%, transparent);
+}
+.fp-card.selected {
+  background: color-mix(in srgb, var(--c-black) 50%, transparent);
+  backdrop-filter: blur(10px);
+  border-color: color-mix(in srgb, var(--c-white) 20%, transparent);
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--c-black) 40%, transparent);
+}
+.fp-card-title { color: var(--c-white); }
+.fp-card-badge {
+  font-size: 0.8em;
+  color: var(--blueink);
+  background: color-mix(in srgb, var(--c-accent) 08%, transparent);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--c-accent) 18%, transparent);
+  letter-spacing: 0.5px;
+}
+.fp-actions {
+  display: flex; gap: 8px; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--c-white) 05%, transparent);
+}
+.fp-actions button { flex: 1; }
+.fp-empty {
+  color: var(--blueink);
+  text-align: center;
+  padding: 16px 0;
+  opacity: 0.6;
+  font-size: 13px;
+}
+@media (max-width: 480px) { .fp-list { max-height: 230px; } }

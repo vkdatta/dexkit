@@ -1,0 +1,75 @@
+#settingsoverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+#settingsheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-tabs, #debugtabs {
+  display: flex;
+  gap: 6px;
+}
+.settings-tab, .debugtab, #debugclose, #debugactions button, .theme-pick {
+  cursor: pointer;
+}
+.settings-tab-panel { display: none; }
+.settings-tab-panel.active { display: block; }
+.settings-item { display: flex; align-items: center; cursor: pointer; }
+.settings-item-text { flex: 1; }
+.settings-toggle, .settings-row-value, .settings-row-chevron { flex-shrink: 0; }
+.theme-pick { display: block; width: 100%; }
+.theme-group-title { font-weight: 600; }
+
+#debugoverlay {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+#debugheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#debugtoolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+#debugconsole, #debugnetwork {
+  flex: 1;
+  overflow: auto;
+  word-break: break-word;
+}
+.debugentry { white-space: pre-wrap; }
+.debugtime  { margin-right: 8px; }
+.netentry {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+}
+.netmethod, .netstatus, .nettype, .netmeta { flex-shrink: 0; }
+.netmethod { order: 1; }
+.netstatus { order: 2; }
+.nettype   { order: 3; }
+.netmeta   { order: 4; margin-left: auto; white-space: nowrap; }
+.neturl {
+  order: 5;
+  flex: 1 1 100%;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+#debugfooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
