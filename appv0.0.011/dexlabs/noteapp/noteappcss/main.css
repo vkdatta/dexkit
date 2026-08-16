@@ -1,18 +1,29 @@
 :root {
-  --c-black:      #000000;   
+  --c-black:      #000000;
   --c-white:      #ecdfc3;
   --c-panel:      #171717;
   --c-panel-2:    #181c1f;
   --c-panel-3:    #272727;
-  --c-text-dim:   color-mix(in srgb, var(--c-white) 65%, var(--c-black));
-  --c-text-faint: color-mix(in srgb, var(--c-white) 63%, var(--c-black));
+  /* Every foreground token below (text-dim/faint, the five semantic colors,
+     the folder-icon color) is picked so it hits >=10:1 contrast against the
+     WORST-CASE background it appears on — panel-3, the lightest of the dark
+     surfaces. That's a much stricter floor than WCAG AAA (7:1) and is why
+     "dim" and "faint" text collapse to effectively the same color: once a
+     color is pushed to the 10:1 floor there's no headroom left to dim it
+     any further without falling back under the line. Same logic pushes the
+     five accent/status colors to pale, low-saturation tints instead of
+     their original vivid mid-tones — a mid-tone color mathematically cannot
+     reach 10:1 against a mid-tone panel. */
+  --c-text-dim:   color-mix(in srgb, var(--c-white) 96%, var(--c-black));
+  --c-text-faint: color-mix(in srgb, var(--c-white) 96%, var(--c-black));
   --c-border:     color-mix(in srgb, var(--c-white) 10%, transparent);
   --c-border-soft:color-mix(in srgb, var(--c-white) 5%,  transparent);
-  --c-accent:     #9ab0ff;   
-  --c-green:      #4fae86;   
-  --c-blue:       #4a9dbf;   
-  --c-danger:     #ff6b6b;   
-  --c-warn:       #d9a441;   
+  --c-accent:     #c6d3ff;
+  --c-green:      #b4ddcb;
+  --c-blue:       #b9d9e6;
+  --c-danger:     #ffc6c6;
+  --c-warn:       #ecd19e;
+  --c-folder-icon:#e1c280;
 
 
   --primary:                   var(--c-black);
@@ -23,7 +34,7 @@
   --border:                    var(--c-border);
   --shadow:                    0 10px 30px color-mix(in srgb, var(--c-black) 55%, transparent);
   --modalinput:                var(--c-black);
-  --blueink:                   color-mix(in srgb, var(--c-blue) 55%, var(--c-black));
+  --blueink:                   var(--c-blue);
   --selection-color:           var(--c-border-soft);
   --selection-text:            var(--c-white);
 
@@ -50,7 +61,12 @@
   --editor-gutter-border-light:color-mix(in srgb, var(--c-black) 08%, transparent);
 
   --c-accent-green-vold-1:     var(--c-green);
-  --c-accent-green-vold-2:     color-mix(in srgb, var(--c-green) 70%, var(--c-black));
+  /* Was color-mix(c-green, c-black) — darkening it toward c-black used to
+     stay mid-tone-safe against the old vivid c-green, but c-green is now
+     itself an extreme tint/shade (see the >=10:1 note above), and mixing
+     toward c-black pulls it back toward mid-tone, which no longer
+     guarantees contrast against the toggle icon. Kept flat instead. */
+  --c-accent-green-vold-2:     var(--c-green);
 
   --diff-topbar-height:        70px;
   --diff-topbar-gap:           2vh;
@@ -60,23 +76,36 @@
 }
 
 html[data-theme="light"] {
-  --c-black:      #f7ecd6;   
-  --c-white:      #000000;   
+  --c-black:      #f7ecd6;
+  --c-white:      #000000;
   --c-panel:      #fffaf0;
   --c-panel-2:    #fbf3e2;
   --c-panel-3:    #f3e6c8;
-  --c-text-dim:   color-mix(in srgb, var(--c-white) 65%, var(--c-black));
-  --c-text-faint: color-mix(in srgb, var(--c-white) 57%, var(--c-black));
+  /* Same >=10:1-against-panel-3 floor as the dark palette above, mirrored:
+     dim/faint text collapses together, and the semantic colors become deep,
+     low-saturation shades instead of vivid mid-tones. Pushed a bit darker
+     than the panel-3 floor alone would require, because sidebar1.css tints
+     row backgrounds with these same colors at ~12-14% opacity (.dex-current,
+     .dex-pick-active) — an icon sitting on a low-opacity tint of its own
+     color is the tightest case, tighter than any flat panel. */
+  --c-text-dim:   color-mix(in srgb, var(--c-white) 80%, var(--c-black));
+  --c-text-faint: color-mix(in srgb, var(--c-white) 80%, var(--c-black));
   --c-border:     color-mix(in srgb, var(--c-white) 10%, transparent);
   --c-border-soft:color-mix(in srgb, var(--c-white) 5%,  transparent);
-  --c-accent:     #236f88;
-  --c-green:      #23755a;
-  --c-blue:       #236f88;
-  --c-danger:     #bc382a;
-  --c-warn:       #905b09;
+  --c-accent:     #0c262f;
+  --c-green:      #0c281f;
+  --c-blue:       #0c262f;
+  --c-danger:     #42140f;
+  --c-warn:       #321f03;
+  --c-folder-icon:#2f240b;
 
   --c-accent-green-vold-1:     var(--c-green);
-  --c-accent-green-vold-2:     color-mix(in srgb, var(--c-green) 70%, var(--c-black));
+  /* Was color-mix(c-green, c-black) — darkening it toward c-black used to
+     stay mid-tone-safe against the old vivid c-green, but c-green is now
+     itself an extreme tint/shade (see the >=10:1 note above), and mixing
+     toward c-black pulls it back toward mid-tone, which no longer
+     guarantees contrast against the toggle icon. Kept flat instead. */
+  --c-accent-green-vold-2:     var(--c-green);
 
   --selection-color:           color-mix(in srgb, var(--c-accent) 20%, transparent);
   --shadow:                    0 10px 30px color-mix(in srgb, var(--c-black) 10%, transparent);
@@ -488,8 +517,13 @@ html[data-cm-tone="dark"] .CodeMirror-linenumber,
 html:not([data-cm-tone]) .CodeMirror-linenumber {
   color: var(--c-text-faint) !important;
 }
+/* --editor-gutter-light is deliberately light-toned in BOTH app themes (a
+   light CodeMirror syntax theme needs a light gutter regardless of dark/light
+   app mode) — unlike --c-text-faint, which flips with the app theme. Using
+   text-faint here would pair near-white-on-near-white in dark app mode, so
+   this needs its own theme-invariant dark ink instead. */
 html[data-cm-tone="light"] .CodeMirror-linenumber {
-  color: var(--c-text-faint) !important;
+  color: #1a1a1a !important;
 }
 .cm-s-dracula .CodeMirror-activeline-background { background: color-mix(in srgb, var(--c-white) 03%, transparent); }
 

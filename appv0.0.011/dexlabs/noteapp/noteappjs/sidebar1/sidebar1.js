@@ -15,7 +15,7 @@ function toggleExpand(id) { if (expanded.has(id)) expanded.delete(id); else expa
 function normalizeFolderId(v) { return (v && v !== "null") ? v : null; }
 
 const IC = {
-  folder: '<svg fill="#d4a84b" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>',
+  folder: '<svg fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>',
   file: '<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
   plus: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>',
   select: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
@@ -255,7 +255,7 @@ function renderFolderNode(f) {
   let html = "";
   if (selectMode) html += '<div class="dex-check' + (isSel("f:" + f.id) ? " on" : "") + '">' + (isSel("f:" + f.id) ? IC.tick : "") + "</div>";
   else html += '<div class="dex-chev' + (isOpen ? " open" : "") + (pathFolderIds.has(f.id) ? " onpath" : "") + '" data-chev="1">' + IC.chev + "</div>";
-  html += '<div class="dex-ic">' + IC.folder + "</div>";
+  html += '<div class="dex-ic dex-ic-folder">' + IC.folder + "</div>";
   html += '<div class="dex-name folder">' + escapeHtml(f.name) + "</div>";
   html += '<div class="dex-badge">' + count + "</div>";
   if (!selectMode) {

@@ -93,7 +93,7 @@
   background: var(--diff-matte);
   border-right: 1px solid var(--diff-border);
   text-align: right;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   user-select: none;
   min-width: 50px;
 }

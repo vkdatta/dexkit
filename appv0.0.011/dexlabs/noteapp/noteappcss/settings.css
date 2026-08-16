@@ -59,12 +59,12 @@
 .settings-section { margin-bottom: 28px; }
 .settings-section-title {
   font-size: 11px; text-transform: uppercase; letter-spacing: 1.8px;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   margin-bottom: 12px; padding-left: 2px;
 }
 .settings-section-hint {
   font-size: 11.5px;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   margin: -6px 0 12px; padding-left: 2px;
 }
 
@@ -121,12 +121,12 @@
   font-family: 'Source Code Pro', monospace;
 }
 .settings-row-chevron {
-  color: var(--c-border);
+  color: var(--c-text-faint);
   font-size: 20px; line-height: 1; margin-left: 8px;
 }
 .settings-footnote {
   font-size: 11px;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   text-align: center; margin-top: 16px;
 }
 
@@ -144,7 +144,7 @@
 .theme-pick:hover { background: var(--matte); }
 .theme-pick-active {
   background: var(--c-blue);
-  color: var(--c-white);
+  color: var(--c-black);
   border-color: var(--c-blue);
 }
 .theme-group-title {
@@ -227,7 +227,7 @@
 .netstatus    { flex-shrink: 0; order: 2; }
 .netstatus.ok  { color: var(--c-green); }
 .netstatus.bad { color: var(--c-danger); }
-.netstatus.na  { color: var(--c-border); }
+.netstatus.na  { color: var(--c-text-faint); }
 .nettype {
   color: var(--c-warn);
   flex-shrink: 0; order: 3;

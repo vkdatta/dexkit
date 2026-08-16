@@ -85,7 +85,7 @@
 .find-replace-icon-button {
   background: transparent;
   border: none;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   cursor: pointer;
   padding: 6px 12px;
   display: inline-flex;
@@ -138,7 +138,7 @@
 }
 .find-replace-count-label {
   font-size: 11px;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   min-width: 40px;
   text-align: center;
   user-select: none;

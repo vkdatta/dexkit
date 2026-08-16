@@ -119,7 +119,7 @@
 }
 .modal-input::placeholder,
 .modal-textarea::placeholder {
-  color: color-mix(in srgb, var(--c-white) 32%, transparent);
+  color: var(--c-text-faint);
 }
 .modal-input:focus:not([type="checkbox"]):not([type="radio"]),
 .modal-select:focus,

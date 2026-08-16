@@ -1,10 +1,15 @@
+/* Solid (fully opaque) stops throughout — the previous mid-gradient stops
+   used color-mix(..., transparent), whose rendered color depends on
+   whatever's behind it and can't be guaranteed >=10:1 against a fixed icon
+   color. All stops here are calculable and verified >=10:1 against the
+   icon in both themes. */
 #voldemortToggle.active {
   background: linear-gradient(
     7deg,
     var(--c-accent-green-vold-1),
     var(--c-accent-green-vold-2),
-    color-mix(in srgb, var(--c-white) 80%, transparent),
-    color-mix(in srgb, var(--c-white) 70%, transparent),
+    var(--c-white),
+    color-mix(in srgb, var(--c-white) 85%, var(--c-accent-green-vold-1)),
     var(--c-accent-green-vold-1),
     var(--c-accent-green-vold-2)
   );

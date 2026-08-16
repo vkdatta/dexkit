@@ -132,7 +132,7 @@
   background: color-mix(in srgb, var(--c-white) 05%, transparent);
 }
 #sidebar1 .dex-sep {
-  color: var(--c-border);
+  color: var(--c-text-faint);
   font-size: 12px;
 }
 #sidebar1 .dex-tools { display: flex; gap: 6px; flex-shrink: 0; }
@@ -181,6 +181,11 @@
   color: var(--c-text-dim);
 }
 .dex-ic svg { width: 100%; height: 100%; }
+/* Folder icon was a hardcoded fill="#d4a84b" (9.5:1 on dark, 1.9:1 on
+   light — nearly invisible) regardless of theme. Now fill="currentColor"
+   in the SVG, themed here to a color computed for >=10:1 against the
+   sidebar's page background in both themes. */
+.dex-ic-folder { color: var(--c-folder-icon); }
 .dex-name {
   flex: 1; font-size: 13.5px;
   color: var(--c-text-dim);
@@ -222,7 +227,7 @@
 
 .dex-empty {
   padding: 16px 12px; text-align: center;
-  color: var(--c-border);
+  color: var(--c-text-faint);
   font-size: 12.5px;
 }
 #sidebar1 .dex-subhead {
@@ -238,7 +243,7 @@
   border-radius: 8px; padding: 8px 10px;
   font-family: inherit; font-size: 13px; outline: none;
 }
-#sidebar1 .dex-search::placeholder { color: var(--c-border); }
+#sidebar1 .dex-search::placeholder { color: var(--c-text-faint); }
 #sidebar1 .dex-search:focus { border-color: var(--c-accent); }
 
 #sidebar1 .dex-sort {
