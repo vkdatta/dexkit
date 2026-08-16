@@ -50,7 +50,16 @@ function waitForSidebar(timeout = 10000) {
 }
 
 async function init() {
-  await waitForSidebar();
+  if (!(await waitForSidebar())) {
+    // sidebar1.js (buildSidebar, populateNoteList, ...) is near the end of a
+    // long chain of sequential <script> loads and hasn't shown up within the
+    // timeout — most likely a cold first-visit with no HTTP cache yet.
+    // Calling into it now would throw and silently abort the rest of init(),
+    // including setupEventListeners() below, leaving every homepage button
+    // dead until a refresh (which warms the cache and finishes in time).
+    // Keep waiting instead of proceeding on a false promise.
+    return init();
+  }
   migrateNotesToCrypto();
   folders = loadFolders();
   notes = await loadNotes();
@@ -72,4 +81,12 @@ async function init() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => { init(); });
+document.addEventListener('DOMContentLoaded', () => {
+  init().catch((err) => {
+    // Defense in depth: if anything else in init() throws unexpectedly,
+    // still wire up the homepage/topbar buttons rather than leaving the
+    // whole site inert on first load.
+    console.error('App init failed', err);
+    try { setupEventListeners(); } catch (e) {}
+  });
+});

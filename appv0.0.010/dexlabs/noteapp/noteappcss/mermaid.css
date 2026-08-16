@@ -112,31 +112,13 @@ body.mode-mermaid .diff-bottombar.mermaid-bottombar { display: flex; }
 }
 #mermaidViewport .btn-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-/* Mermaid's header/active-file row live inside the same flex column as the
-   editor, so (unlike diffusion's text-area-wrapper) the empty state can't be
-   an inset:0 overlay without hiding the "Select file" button too — instead
-   it takes the textarea's place in normal flow while unbound. */
-#mermaidViewport .pane-empty-state {
-  position: static;
-  flex: 1;
-  display: none;
-  border-radius: 0 0 16px 16px;
-  background: var(--c-black);
-  min-height: 340px;
-}
-#mermaidViewport .pane-empty-state.show { display: flex; }
-#mermaidEditorWrapper.unbound .editor-textarea,
-#mermaidEditorWrapper.unbound .editor-footer { display: none; }
+/* Mermaid's code pane no longer lives inside #mermaidViewport at all — it's
+   the shared CodeMirror editor in .note-container (mode-mermaid header:
+   #mermaidPaneHeader / #mermaidCodeEmpty, styled alongside diffusion's
+   .diff-pane-header / .pane-empty-state in main.css). #mermaidViewport now
+   only handles the Flow (preview) and Tune (settings) fullscreen panels. */
+.pane-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-#mermaidViewport .mermaid-active-file-row {
-  padding: 6px 12px;
-  font-size: 0.76rem;
-  color: var(--c-text-faint);
-  background: var(--c-panel);
-  border-bottom: 1px solid color-mix(in srgb, var(--c-white) 6%, transparent);
-}
-
-#mermaidViewport .editor-wrapper,
 #mermaidViewport .preview-wrapper {
   flex: 1;
   position: relative;
@@ -150,34 +132,6 @@ body.mode-mermaid .diff-bottombar.mermaid-bottombar { display: flex; }
   overflow: hidden;
   box-shadow: 0 8px 40px color-mix(in srgb, var(--c-black) 50%, transparent);
   min-height: 420px;
-}
-
-#mermaidViewport .editor-textarea {
-  flex: 1;
-  width: 100%;
-  min-height: 340px;
-  padding: 20px 24px;
-  background: var(--c-black);
-  color: var(--c-white);
-  font-family: 'Source Code Pro', monospace;
-  font-size: 0.88rem;
-  line-height: 1.75;
-  border: none;
-  outline: none;
-  resize: vertical;
-  tab-size: 2;
-  border-radius: 0;
-}
-#mermaidViewport .editor-textarea::placeholder { color: var(--c-text-faint); opacity: 0.8; font-style: italic; }
-#mermaidViewport .editor-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 20px;
-  background: var(--c-panel-3);
-  font-size: 0.7rem;
-  color: var(--c-text-faint);
-  font-family: 'Source Code Pro', monospace;
 }
 
 #mermaidViewport .preview-container {
@@ -328,14 +282,10 @@ body.mode-mermaid .diff-bottombar.mermaid-bottombar { display: flex; }
 #mermaidViewport .font-gf-row .btn { flex-shrink: 0; }
 
 @media (max-width: 640px) {
-  #mermaidViewport .editor-textarea { min-height: 240px; font-size: 0.8rem; padding: 14px 16px; }
   #mermaidViewport .settings-grid { grid-template-columns: 1fr; }
   #mermaidViewport .settings-wrapper { padding: 18px 16px; }
   #mermaidViewport .preview-container { min-height: 300px; }
 }
-
-#mermaidViewport .editor-textarea::selection { background: var(--c-text-dim); color: var(--c-black); }
-#mermaidViewport .editor-textarea::-moz-selection { background: var(--c-text-dim); color: var(--c-black); }
 
 .cp-popover {
   position: fixed;

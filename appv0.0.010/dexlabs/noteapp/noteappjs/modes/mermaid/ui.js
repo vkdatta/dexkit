@@ -3,61 +3,39 @@ import { S, syncUI, readUI, resetState } from './state.js';
 import { renderDiagram, clearPreview, setPreviewBackground, markNeedsReinit } from './diagram.js';
 import { setLocalFont, setGoogleFont, resetFontSource } from './fonts.js';
 
-const panelEditor   = $('panel-editor');
+// The code pane is no longer part of this viewport — it's the shared
+// CodeMirror editor in .note-container (see modes/mermaid/mode.js). This
+// module only owns the two panels that still live in #mermaidViewport:
+// the rendered preview and the settings form.
 const panelPreview  = $('panel-preview');
 const panelSettings = $('panel-settings');
-const textarea      = $('mermaid-code');
-const lineCountEl   = $('line-count');
-const btnClear      = $('btn-clear');
-const btnSample     = $('btn-sample');
-const btnRender     = $('btn-render');
 const btnApply      = $('btn-apply-settings');
 const btnResetS     = $('btn-reset-settings');
 
 export const pickrInstances = {};
 
+// mode.js's Clear/Sample header buttons and its Ctrl+Enter shortcut need
+// the current code string and a way to blank the preview; both come from
+// this module since it owns the mermaid-specific pieces (SAMPLE, clearPreview).
+window.dexMermaidSample = SAMPLE;
+window.dexMermaidClearPreview = clearPreview;
 
-export function switchTab(name) {
-    [['editor',panelEditor],['preview',panelPreview],['settings',panelSettings]].forEach(([n,pnl]) => {
+export function switchTab(name, code) {
+    [['preview',panelPreview],['settings',panelSettings]].forEach(([n,pnl]) => {
         pnl.classList.toggle('active', n === name);
     });
-    if (name === 'preview') renderDiagram(textarea.value);
-    if (name === 'editor')  { setTimeout(() => textarea.focus(), 80); updateLineCount(); }
+    if (name === 'preview') {
+        renderDiagram(typeof code === 'string' ? code : (typeof window.dexMermaidCurrentCode === 'function' ? window.dexMermaidCurrentCode() : ''));
+    }
 }
 window.dexMermaidSwitchTab = switchTab;
-
-export function updateLineCount() {
-    lineCountEl.textContent = `Lines: ${textarea.value.split('\n').length}`;
-}
-window.dexMermaidUpdateLineCount = updateLineCount;
-
-btnRender.addEventListener('click', () => switchTab('preview'));
-
-btnClear.addEventListener('click', () => {
-    textarea.value = ''; updateLineCount(); textarea.focus();
-    clearPreview();
-});
-
-btnSample.addEventListener('click', () => {
-    textarea.value = SAMPLE; updateLineCount(); textarea.focus();
-});
-
-textarea.addEventListener('input', updateLineCount);
-textarea.addEventListener('keydown', e => {
-    if ((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); switchTab('preview'); return; }
-    if (e.key === 'Tab') {
-        e.preventDefault();
-        const start = textarea.selectionStart, end = textarea.selectionEnd;
-        textarea.value = textarea.value.slice(0, start) + '  ' + textarea.value.slice(end);
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
-        updateLineCount();
-    }
-});
 
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (popoverEl && popoverEl.classList.contains('open')) return;
-    if (panelPreview.classList.contains('active')) switchTab('editor');
+    if (panelPreview.classList.contains('active') && typeof window.dexMermaidBottomClick === 'function') {
+        window.dexMermaidBottomClick('code');
+    }
 });
 
 
@@ -79,7 +57,9 @@ btnResetS.addEventListener('click', () => {
     if (localFontStyle) localFontStyle.remove();
     const gfLink = document.getElementById('gf-font-link');
     if (gfLink) gfLink.remove();
-    if (panelPreview.classList.contains('active')) renderDiagram(textarea.value);
+    if (panelPreview.classList.contains('active') && typeof window.dexMermaidCurrentCode === 'function') {
+        renderDiagram(window.dexMermaidCurrentCode());
+    }
 });
 
 function setActiveFont(familyName, label) {

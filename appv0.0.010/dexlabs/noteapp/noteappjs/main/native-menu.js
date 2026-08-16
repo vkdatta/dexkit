@@ -58,7 +58,7 @@
   // FIX #8: instead of one shared pendingTimer, each surface owns its timer slot.
   // The menu controller tracks which surface is "active" so that a stale surface
   // cannot accidentally cancel a timer started by a different surface.
-  const surfaceTimers = { codemirror: null, diff: null, textarea: null, generic: null };
+  const surfaceTimers = { codemirror: null, diff: null, generic: null };
 
   function clearPendingFor(surface) {
     if (surfaceTimers[surface]) {
@@ -465,113 +465,6 @@
     });
   }
 
-  // ---- Plain-textarea surface (mermaid's #mermaid-code) ----
-
-  function textareaActions(ta, range) {
-    return [
-      { label: 'Copy', icon: IC.copy, run: async () => { notify((await clipboardWrite(range.text)) ? 'Copied' : 'Copy failed'); } },
-      { label: 'Cut', icon: IC.cut, run: async () => {
-          if (!(await clipboardWrite(range.text))) { notify('Cut failed'); return; }
-          ta.setRangeText('', range.start, range.end, 'end');
-          ta.dispatchEvent(new Event('input', { bubbles: true }));
-          notify('Cut');
-        } },
-      { label: 'Paste', icon: IC.paste, run: async () => {
-          const text = await clipboardRead();
-          // FIX #20/#21: treat undefined (permission denied), null (unavailable), and '' (valid) correctly.
-          if (text === undefined) { notify('Clipboard access denied'); return; }
-          if (text === null) { notify('Clipboard unavailable'); return; }
-          ta.setRangeText(text, range.start, range.end, 'end');
-          ta.dispatchEvent(new Event('input', { bubbles: true }));
-          notify('Pasted');
-        } },
-      { label: 'Select All', icon: IC.selectAll, run: () => { ta.focus(); ta.setSelectionRange(0, ta.value.length); } }
-    ];
-  }
-
-  function textareaCaretRect(ta, index) {
-    const style = getComputedStyle(ta);
-    const mirror = document.createElement('div');
-    ['boxSizing', 'width', 'fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'padding',
-     'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'textAlign'].forEach((p) => {
-      mirror.style[p] = style[p];
-    });
-    mirror.style.position = 'absolute';
-    mirror.style.visibility = 'hidden';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.wordWrap = 'break-word';
-    mirror.style.top = '0';
-    mirror.style.left = '-9999px';
-    mirror.style.height = 'auto';
-    mirror.textContent = ta.value.slice(0, index);
-    const marker = document.createElement('span');
-    marker.textContent = '​';
-    mirror.appendChild(marker);
-    document.body.appendChild(mirror);
-    const taRect = ta.getBoundingClientRect();
-    const markerRect = marker.getBoundingClientRect();
-    const mirrorRect = mirror.getBoundingClientRect();
-    const lineHeight = parseInt(style.lineHeight, 10) || 16;
-    const top = taRect.top + (markerRect.top - mirrorRect.top) - ta.scrollTop;
-    const left = taRect.left + (markerRect.left - mirrorRect.left) - ta.scrollLeft;
-    document.body.removeChild(mirror);
-    return { left, top, bottom: top + lineHeight };
-  }
-
-  function hookTextarea(id) {
-    let boundEl = null;
-    // FIX #18 (partial): keep a reference to the listeners per element so they
-    // can be removed when the element is replaced.
-    let boundListeners = null;
-
-    const makeOnSelChange = function (ta) {
-      return function onSelChange() {
-        if (ta.selectionStart === ta.selectionEnd) {
-          // FIX #2 / #7: only cancel this surface's own timer.
-          closeMenu('textarea');
-          return;
-        }
-        // FIX #1: scoped to textarea surface.
-        scheduleMenu('textarea', () => {
-          const s = ta.selectionStart, e = ta.selectionEnd;
-          if (s === e) return null;
-          const range = { start: s, end: e, text: ta.value.slice(s, e) };
-          const rect = textareaCaretRect(ta, e);
-          return { actions: textareaActions(ta, range), rect: { left: rect.left, top: rect.top, bottom: rect.bottom } };
-        });
-      };
-    };
-
-    // FIX #17: replace the infinite polling loop with a MutationObserver +
-    // an initial check. Falls back to a bounded retry if the observer isn't
-    // sufficient (e.g. element inserted before observer starts).
-    function attachTo(ta) {
-      if (ta === boundEl) return;
-
-      // Remove old listeners from the previous element.
-      if (boundEl && boundListeners) {
-        boundListeners.events.forEach((evt) => boundEl.removeEventListener(evt, boundListeners.handler));
-      }
-
-      boundEl = ta;
-      const handler = makeOnSelChange(ta);
-      const events = ['select', 'pointerup', 'keyup'];
-      events.forEach((evt) => ta.addEventListener(evt, handler));
-      boundListeners = { events, handler };
-    }
-
-    // Attempt immediate hook.
-    const initial = $(id);
-    if (initial) attachTo(initial);
-
-    // Watch for the element being added or replaced in the DOM.
-    const observer = new MutationObserver(() => {
-      const ta = $(id);
-      if (ta && ta !== boundEl) attachTo(ta);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-
   // ---- Generic surface (everything else: homepage, docs overlay, sidebar
   // labels, notifications, mermaid preview labels, etc.) ----
   //
@@ -588,7 +481,7 @@
   }
   function isDedicatedSurface(el) {
     if (!el || !el.closest) return false;
-    return !!el.closest('.CodeMirror, .diff-view, #mermaid-code, #dexNativeMenu');
+    return !!el.closest('.CodeMirror, .diff-view, #dexNativeMenu');
   }
 
   function genericActions(text) {
@@ -641,7 +534,6 @@
   function init() {
     hookCodeMirror();
     hookDiffView();
-    hookTextarea('mermaid-code');
     hookGenericText();
     suppressBrowserContextMenu();
   }

@@ -103,9 +103,9 @@ html[data-theme="light"] .homepage-button {
    site — every surface renders its own native menu (main/native-menu.js)
    instead. Genuine typed-input fields (search boxes, modal inputs, etc.) are
    exempted so users keep native OS copy/paste while actually typing, since
-   our custom menu doesn't support typing into them. The mermaid code
-   textarea and CodeMirror's internal input are re-suppressed — both are
-   already handled by native-menu.js's own surfaces. */
+   our custom menu doesn't support typing into them. CodeMirror's internal
+   input is re-suppressed — it's already handled by native-menu.js's own
+   CodeMirror surface (shared by base mode, diffusion, and mermaid). */
 html,
 body,
 * {
@@ -114,7 +114,6 @@ body,
 input, textarea, [contenteditable] {
   -webkit-touch-callout: default !important;
 }
-#mermaid-code,
 .CodeMirror,
 .CodeMirror textarea {
   -webkit-touch-callout: none !important;
