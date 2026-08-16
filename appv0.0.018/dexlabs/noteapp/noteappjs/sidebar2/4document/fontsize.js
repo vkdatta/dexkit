@@ -23,4 +23,8 @@ export const decreaseFontSize = () => {
   showNotification(`Font size decreased to ${fontSize}px`);
 };
 
-applyFontSize();
+// notes-state.js (a classic script) owns `fontSize` and may not have run yet
+// when this module evaluates — module scripts don't block on classic ones,
+// so this is a real race, not a hypothetical. Guard it like the rest of this
+// file already guards noteTextarea/noteBackdrop/findBackdrop.
+if (typeof fontSize !== "undefined") applyFontSize();

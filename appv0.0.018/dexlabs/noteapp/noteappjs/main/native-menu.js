@@ -3,12 +3,13 @@
   window.__dexNativeMenuLoaded = true;
 
   const MENU_DELAY_MS = 1000;
-  const IC = {
-    copy: 'content_copy', cut: 'content_cut', paste: 'content_paste',
-    selectAll: 'select_all', delete: 'delete', swap: 'swap_horiz',
-    bookmark: 'bookmark', swapSaved: 'content_paste',
-    save: 'save', closeDpad: 'close_fullscreen'
-  };
+  // IC here is the real global DexIcons proxy (window.IC, set by icons.js) —
+  // every IC.xxx call below (copy, cut, paste, selectAll, delete, swap,
+  // bookmark, swapSaved, save, closeDpad) is a valid key on it already,
+  // either directly or through DexIcons' own ALIASES table. A local IC
+  // object used to shadow it here, mapping each of those to a plain icon-name
+  // *string* instead of rendered SVG — renderMenu() was embedding that raw
+  // string as literal text inside the ic-icon span instead of an icon.
 
   function $(id) { return document.getElementById(id); }
 

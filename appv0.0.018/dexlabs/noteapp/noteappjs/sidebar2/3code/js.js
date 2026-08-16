@@ -175,7 +175,7 @@ export function compact(code) {
 }
 
 
-export const optimisejs = preserveSelection(async () => {
+export const optimisejs = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   try {
     const cleaned = compact(removeComments(noteTextarea.value || ""));
@@ -186,9 +186,9 @@ export const optimisejs = preserveSelection(async () => {
     console.error("optimisejs error:", err);
     showNotification("Failed to remove comments");
   }
-});
+})(...a);
 
-export const minifyjs = preserveSelection(async () => {
+export const minifyjs = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   const original = window.showNotification;
   window.showNotification = () => {};
@@ -206,4 +206,4 @@ export const minifyjs = preserveSelection(async () => {
     window.showNotification = original;
   }
   showNotification("Minified JS");
-});
+})(...a);

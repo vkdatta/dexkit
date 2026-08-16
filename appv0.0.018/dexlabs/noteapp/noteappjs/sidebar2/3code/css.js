@@ -1,4 +1,4 @@
-export const optimisecss = preserveSelection(async () => {
+export const optimisecss = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
 
   function extractStyleBlocks(text) {
@@ -368,9 +368,9 @@ export const optimisecss = preserveSelection(async () => {
     if (typeof showNotification === "function")
       showNotification("CSS optimization failed: " + (err && err.message ? err.message : String(err)));
   }
-});
+})(...a);
 
-export const minifycss = preserveSelection(async () => {
+export const minifycss = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   const originalShowNotification = window.showNotification;
   window.showNotification = () => {};

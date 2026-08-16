@@ -431,7 +431,7 @@ export const handlePasteNote = function () {
 };
 
 
-export const reverseText = preserveSelection(async () => {
+export const reverseText = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   let s = noteTextarea.selectionStart,
     e = noteTextarea.selectionEnd;
@@ -450,9 +450,9 @@ export const reverseText = preserveSelection(async () => {
     console.error("Error updating note metadata:", err);
     showNotification("Failed to update note metadata");
   }
-});
+})(...a);
 
-export const reverseWords = preserveSelection(async () => {
+export const reverseWords = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   const s = noteTextarea.selectionStart;
   const e = noteTextarea.selectionEnd;
@@ -466,9 +466,9 @@ export const reverseWords = preserveSelection(async () => {
   }
   updateNoteMetadata();
   showNotification("Words reversed!");
-});
+})(...a);
 
-export const capitalizeWords = preserveSelection(async () => {
+export const capitalizeWords = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   const s = noteTextarea.selectionStart;
   const e = noteTextarea.selectionEnd;
@@ -488,9 +488,9 @@ export const capitalizeWords = preserveSelection(async () => {
   }
   updateNoteMetadata();
   showNotification("Words capitalized!");
-});
+})(...a);
 
-export const capitalizeSentences = preserveSelection(async () => {
+export const capitalizeSentences = (...a) => preserveSelection(async () => {
   if (!currentNote || !noteTextarea) return;
   const s = noteTextarea.selectionStart;
   const e = noteTextarea.selectionEnd;
@@ -506,4 +506,4 @@ export const capitalizeSentences = preserveSelection(async () => {
   }
   updateNoteMetadata();
   showNotification("Sentences capitalized!");
-});
+})(...a);
