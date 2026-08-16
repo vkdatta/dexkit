@@ -6,7 +6,8 @@
   const IC = {
     copy: 'content_copy', cut: 'content_cut', paste: 'content_paste',
     selectAll: 'select_all', delete: 'delete', swap: 'swap_horiz',
-    bookmark: 'bookmark', swapSaved: 'content_paste'
+    bookmark: 'bookmark', swapSaved: 'content_paste',
+    save: 'save', closeDpad: 'close_fullscreen'
   };
 
   function $(id) { return document.getElementById(id); }
@@ -57,7 +58,7 @@
   // FIX #8: instead of one shared pendingTimer, each surface owns its timer slot.
   // The menu controller tracks which surface is "active" so that a stale surface
   // cannot accidentally cancel a timer started by a different surface.
-  const surfaceTimers = { codemirror: null, diff: null, textarea: null };
+  const surfaceTimers = { codemirror: null, diff: null, textarea: null, generic: null };
 
   function clearPendingFor(surface) {
     if (surfaceTimers[surface]) {
@@ -147,7 +148,8 @@
 
   // ---- CodeMirror surface (base-mode textarea, diffusion's raw/morph editing panes) ----
 
-  function codeMirrorActions(cm, range) {
+  function codeMirrorActions(cm, range, opts) {
+    const source = opts && opts.source;
     const actions = [
       { label: 'Copy', icon: IC.copy, run: async () => { notify((await clipboardWrite(range.text)) ? 'Copied' : 'Copy failed'); } },
       { label: 'Cut', icon: IC.cut, run: async () => {
@@ -172,14 +174,84 @@
           notify('Deleted');
         } }
     ];
+    // Everything the scrapped dpad "Diff" submenu offered (issue 6), so
+    // dropping that menu doesn't drop functionality.
     if (currentMode() === 'diffusion') {
       actions.push({ sep: true });
       actions.push({ label: 'Swap Raw ↔ Morph', icon: IC.swap, run: () => { if (typeof diffSwapTexts === 'function') diffSwapTexts(); } });
+      actions.push({ label: 'Save selection to pane', icon: IC.save, run: () => {
+          if (typeof diffCommitPane === 'function') { diffCommitPane(window.dexMode ? window.dexMode.activePane : 'raw'); notify('Saved'); }
+        } });
       actions.push({ label: 'Copy Raw', icon: IC.copy, run: () => { if (typeof diffCopyText === 'function') diffCopyText('raw'); } });
       actions.push({ label: 'Copy Morph', icon: IC.copy, run: () => { if (typeof diffCopyText === 'function') diffCopyText('morph'); } });
+      actions.push({ label: 'Paste to Raw', icon: IC.paste, run: () => { if (typeof diffPasteText === 'function') diffPasteText('raw'); } });
+      actions.push({ label: 'Paste to Morph', icon: IC.paste, run: () => { if (typeof diffPasteText === 'function') diffPasteText('morph'); } });
+      actions.push({ label: 'Clear Raw', icon: IC.delete, danger: true, run: () => { if (typeof diffClearText === 'function') diffClearText('raw'); } });
+      actions.push({ label: 'Clear Morph', icon: IC.delete, danger: true, run: () => { if (typeof diffClearText === 'function') diffClearText('morph'); } });
+    }
+    // The dpad's own "Close D-Pad" action only makes sense when the menu was
+    // opened from the dpad (double-tap), not from a real text selection.
+    if (source === 'dpad') {
+      actions.push({ sep: true });
+      actions.push({ label: 'Close D-Pad', icon: IC.closeDpad, danger: true, run: () => {
+          if (typeof window.dexHideDpad === 'function') window.dexHideDpad();
+        } });
     }
     return actions;
   }
+
+  // No-selection fallback for the dpad's menu button (issue 6) — the old
+  // dpad menu offered Paste/Select All even with nothing selected; native
+  // menu keeps that when opened from the dpad, anchored at the cursor.
+  function cursorActions(cm, source) {
+    const actions = [
+      { label: 'Paste', icon: IC.paste, run: async () => {
+          const text = await clipboardRead();
+          if (text === undefined) { notify('Clipboard access denied'); return; }
+          if (text === null) { notify('Clipboard unavailable'); return; }
+          const pos = cm.getCursor();
+          cm.operation(() => { cm.replaceRange(text, pos); });
+          notify('Pasted');
+        } },
+      { label: 'Select All', icon: IC.selectAll, run: () => {
+          const lastLine = cm.lineCount() - 1;
+          cm.setSelection({ line: 0, ch: 0 }, { line: lastLine, ch: cm.getLine(lastLine).length });
+        } }
+    ];
+    if (source === 'dpad') {
+      actions.push({ sep: true });
+      actions.push({ label: 'Close D-Pad', icon: IC.closeDpad, danger: true, run: () => {
+          if (typeof window.dexHideDpad === 'function') window.dexHideDpad();
+        } });
+    }
+    return actions;
+  }
+
+  // ---- Entry point for the dpad (issue 6) ----
+  // The dpad no longer builds its own menu — double-tapping its center
+  // handle now opens THIS menu for whatever is currently selected in
+  // CodeMirror (or, with nothing selected, a Paste/Select All menu anchored
+  // at the cursor), making native-menu the single, superior menu on the
+  // site, reachable either by a real text selection or by the dpad.
+  window.dexOpenMenuForSelection = function (source) {
+    const ed = window.dexEditor;
+    const cm = ed && ed.cm ? ed.cm : null;
+    if (!cm) { notify('Editor not ready'); return; }
+
+    if (!cm.somethingSelected()) {
+      const pos = cm.getCursor();
+      const coords = cm.charCoords(pos, 'window');
+      renderMenu(cursorActions(cm, source), { left: coords.right, top: coords.top, bottom: coords.bottom });
+      return;
+    }
+
+    const range = { from: cm.getCursor('from'), to: cm.getCursor('to'), text: cm.getSelection() };
+    const coords = cm.charCoords(range.to, 'window');
+    renderMenu(
+      codeMirrorActions(cm, range, { source }),
+      { left: coords.right, top: coords.top, bottom: coords.bottom }
+    );
+  };
 
   function hookCodeMirror() {
     const ed = window.dexEditor;
@@ -500,10 +572,78 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  // ---- Generic surface (everything else: homepage, docs overlay, sidebar
+  // labels, notifications, mermaid preview labels, etc.) ----
+  //
+  // Issue 7: native text selection previously only worked in CodeMirror
+  // (base/diffusion raw+morph) and the diff1/diff2 tables — everywhere else
+  // the browser's own selection toolbar took over. This surface is a
+  // catch-all: any selection landing outside the surfaces above (and outside
+  // real form fields, which keep native OS copy/paste since our menu can't
+  // type into them) gets the same native menu, but with Copy only — static
+  // site text can't be cut, pasted into, or deleted.
+  function isFormField(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('input, textarea, [contenteditable="true"], [contenteditable=""]');
+  }
+  function isDedicatedSurface(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('.CodeMirror, .diff-view, #mermaid-code, #dexNativeMenu');
+  }
+
+  function genericActions(text) {
+    return [
+      { label: 'Copy', icon: IC.copy, run: async () => { notify((await clipboardWrite(text)) ? 'Copied' : 'Copy failed'); } }
+    ];
+  }
+
+  function hookGenericText() {
+    document.addEventListener('selectionchange', () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { closeMenu('generic'); return; }
+
+      const range = sel.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === 3 ? container.parentElement : container;
+      if (isFormField(element) || isDedicatedSurface(element)) { closeMenu('generic'); return; }
+
+      const capturedText = sel.toString();
+      if (!capturedText) { closeMenu('generic'); return; }
+
+      scheduleMenu('generic', () => {
+        const currentSel = window.getSelection();
+        if (!currentSel || currentSel.isCollapsed || !currentSel.rangeCount) return null;
+        if (currentSel.toString() !== capturedText) return null;
+
+        const currentRange = currentSel.getRangeAt(0);
+        const currentContainer = currentRange.commonAncestorContainer;
+        const currentEl = currentContainer.nodeType === 3 ? currentContainer.parentElement : currentContainer;
+        if (isFormField(currentEl) || isDedicatedSurface(currentEl)) return null;
+
+        const rect = currentRange.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return null;
+
+        return { actions: genericActions(capturedText), rect: { left: rect.left, top: rect.top, bottom: rect.bottom } };
+      });
+    });
+  }
+
+  // Issue 7: suppress the browser's own right-click/long-press context menu
+  // everywhere except real form fields (search boxes, modal inputs) where
+  // users may still want the OS's native paste option.
+  function suppressBrowserContextMenu() {
+    document.addEventListener('contextmenu', (e) => {
+      if (isFormField(e.target) && !isDedicatedSurface(e.target)) return;
+      e.preventDefault();
+    });
+  }
+
   function init() {
     hookCodeMirror();
     hookDiffView();
     hookTextarea('mermaid-code');
+    hookGenericText();
+    suppressBrowserContextMenu();
   }
 
   if (document.readyState === 'loading') {

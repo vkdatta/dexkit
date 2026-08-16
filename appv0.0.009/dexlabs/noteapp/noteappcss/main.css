@@ -99,9 +99,24 @@ html[data-theme="light"] .homepage-button {
 .diff-editor,
 .diff-editor-gutter { font-size: var(--user-font-size, 14px) !important; }
 
+/* Issue 7: no browser-native selection toolbar/callout anywhere on the
+   site — every surface renders its own native menu (main/native-menu.js)
+   instead. Genuine typed-input fields (search boxes, modal inputs, etc.) are
+   exempted so users keep native OS copy/paste while actually typing, since
+   our custom menu doesn't support typing into them. The mermaid code
+   textarea and CodeMirror's internal input are re-suppressed — both are
+   already handled by native-menu.js's own surfaces. */
 html,
 body,
-.CodeMirror {
+* {
+  -webkit-touch-callout: none !important;
+}
+input, textarea, [contenteditable] {
+  -webkit-touch-callout: default !important;
+}
+#mermaid-code,
+.CodeMirror,
+.CodeMirror textarea {
   -webkit-touch-callout: none !important;
 }
 
@@ -483,6 +498,59 @@ html[data-cm-tone="light"] .CodeMirror-linenumber {
 #noteBackdrop { display: none !important; }
 
 .CodeMirror.ink-vanish, .CodeMirror.ink-appear { pointer-events: none; }
+
+/* Shared "select a file" empty state — used by diffusion's raw/morph panes
+   and mermaid's code pane whenever no note is bound to the active surface. */
+.pane-empty-state {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 24px;
+  background: var(--primary);
+}
+.pane-empty-state.show { display: flex; }
+#textAreaWrapper.pane-empty .CodeMirror { visibility: hidden; }
+.pane-empty-icon { font-size: 42px; color: var(--c-text-faint); opacity: 0.6; }
+.pane-empty-text { font-size: 14px; color: var(--c-text-faint); }
+
+/* Diffusion's raw/morph pane header — mirrors mermaid's panel-header, shown
+   above the shared note textarea only while diffusion mode is active. */
+.diff-pane-header {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--diff-matte);
+  border-bottom: 1px solid var(--diff-border);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.diff-pane-header.active { display: flex; }
+.diff-pane-header .header-label {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+  flex-shrink: 0;
+}
+.diff-pane-header .pane-header-file {
+  flex: 1;
+  color: var(--diff-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diff-pane-header .diff-btn-action {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
 
 .diff-pick-banner {
   position: sticky; top: 0; z-index: 5;

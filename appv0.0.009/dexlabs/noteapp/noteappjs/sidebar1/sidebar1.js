@@ -213,7 +213,8 @@ function renderFileRow(n) {
   item.className = "dex-item";
   const row = document.createElement("div");
   const cur = currentNote && String(currentNote.id) === String(n.id);
-  row.className = "dex-row" + (isSel("n:" + n.id) ? " sel" : "") + (cur ? " dex-current" : "");
+  const pickActive = window.__dexNotePick && String(window.__dexPickActiveNoteId) === String(n.id);
+  row.className = "dex-row" + (isSel("n:" + n.id) ? " sel" : "") + (cur ? " dex-current" : "") + (pickActive ? " dex-pick-active" : "");
   let html = "";
   if (selectMode) html += '<div class="dex-check' + (isSel("n:" + n.id) ? " on" : "") + '">' + (isSel("n:" + n.id) ? IC.tick : "") + "</div>";
   html += '<div class="dex-ic">' + IC.file + "</div>";
@@ -230,10 +231,15 @@ function renderFileRow(n) {
     if (selectMode) { toggleSel("n:" + n.id); return; }
     if (window.__dexNotePick) { window.__dexNotePick(n.id); return; }
     const isActive = currentNote && String(currentNote.id) === String(n.id);
-    if (isActive) { closeSidebar(); return; }   
+    const inFileManager = document.body.classList.contains("mode-filemanager");
+    // On /filemanager, sidebar1 IS the main content (docked, not a slide-in
+    // overlay) \u2014 closing it doesn't navigate anywhere, so clicking the
+    // already-active note must still open it. The close-shortcut only makes
+    // sense when sidebar1 is the slide-in variant floating over an open note.
+    if (isActive && !inFileManager) { closeSidebar(); return; }
     window.currentHighlightLanguage = "none";
     if (typeof window.immediatePlainRender === "function") window.immediatePlainRender();
-    showNoteApp(n.id);                          
+    showNoteApp(n.id);
   };
   item.appendChild(row);
   return item;

@@ -112,6 +112,22 @@ body.mode-mermaid .diff-bottombar.mermaid-bottombar { display: flex; }
 }
 #mermaidViewport .btn-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
+/* Mermaid's header/active-file row live inside the same flex column as the
+   editor, so (unlike diffusion's text-area-wrapper) the empty state can't be
+   an inset:0 overlay without hiding the "Select file" button too — instead
+   it takes the textarea's place in normal flow while unbound. */
+#mermaidViewport .pane-empty-state {
+  position: static;
+  flex: 1;
+  display: none;
+  border-radius: 0 0 16px 16px;
+  background: var(--c-black);
+  min-height: 340px;
+}
+#mermaidViewport .pane-empty-state.show { display: flex; }
+#mermaidEditorWrapper.unbound .editor-textarea,
+#mermaidEditorWrapper.unbound .editor-footer { display: none; }
+
 #mermaidViewport .mermaid-active-file-row {
   padding: 6px 12px;
   font-size: 0.76rem;
@@ -123,6 +139,7 @@ body.mode-mermaid .diff-bottombar.mermaid-bottombar { display: flex; }
 #mermaidViewport .editor-wrapper,
 #mermaidViewport .preview-wrapper {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--c-panel-2) 84%, transparent);

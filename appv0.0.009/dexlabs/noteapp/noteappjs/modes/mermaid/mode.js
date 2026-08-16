@@ -85,6 +85,21 @@
 
   window.dexMermaidBottomClick = function (target) { switchPane(target); };
 
+  // Issue 3: mermaid no longer supports "ad hoc" scratch typing — the code
+  // pane is only editable once a note is bound via the integrated file
+  // manager, mirroring diffusion's raw/morph empty state.
+  function paintEmptyState() {
+    const empty = $('mermaidPaneEmpty');
+    const wrap  = $('mermaidEditorWrapper');
+    const isEmpty = !state.boundNoteId;
+    if (empty) empty.classList.toggle('show', isEmpty);
+    if (wrap) wrap.classList.toggle('unbound', isEmpty);
+    ['btn-clear', 'btn-sample', 'btn-render'].forEach((id) => {
+      const el = $(id);
+      if (el) el.disabled = isEmpty;
+    });
+  }
+
   function showPickBanner() {
     hidePickBanner();
     const sb = $('sidebar1');
@@ -99,6 +114,8 @@
 
   function openPicker() {
     window.__dexNotePick = function (noteId) { bindPicked(noteId); };
+    // Issue 5c (shared with diffusion): highlight the currently-bound note.
+    window.__dexPickActiveNoteId = state.boundNoteId;
     const sb = $('sidebar1');
     if (sb) sb.classList.add('open');
     if (typeof renderSidebar === 'function') try { renderSidebar(); } catch (e) {}
@@ -110,6 +127,7 @@
   function bindPicked(noteId) {
     if (!state.enabled) return;
     window.__dexNotePick = null;
+    window.__dexPickActiveNoteId = null;
     hidePickBanner();
     const sb = $('sidebar1');
     if (sb) sb.classList.remove('open');
@@ -125,6 +143,7 @@
     }
     const label = $('mermaidActiveFileLabel');
     if (label) label.textContent = n.title || ('note ' + n.id);
+    paintEmptyState();
     if (typeof openNote === 'function') openNote(n.id);
     try { history.pushState({ page: 'note', noteId: n.id, mode: 'mermaid' }, '', '/note/' + n.id + '/mermaid'); } catch (e) {}
     switchPane('flow');
@@ -133,6 +152,7 @@
 
   window.dexMermaidCancelPick = function () {
     window.__dexNotePick = null;
+    window.__dexPickActiveNoteId = null;
     hidePickBanner();
     const sb = $('sidebar1');
     if (sb) sb.classList.remove('open');
@@ -163,15 +183,22 @@
       if (ta) { ta.value = n.content || ''; if (typeof window.dexMermaidUpdateLineCount === 'function') window.dexMermaidUpdateLineCount(); }
       const label = $('mermaidActiveFileLabel');
       if (label) label.textContent = n.title || ('note ' + n.id);
+    } else {
+      state.boundNoteId = null;
+      const ta = $('mermaid-code');
+      if (ta) ta.value = '';
     }
 
     state.activePane = 'code';
     applyFullscreenForPane('code');
     showViewport();
     paintBottomBar();
+    paintEmptyState();
     if (typeof window.dexMermaidSwitchTab === 'function') window.dexMermaidSwitchTab('editor');
 
-    if (typeof showNotification === 'function') showNotification('Mermaid Flow enabled — pick a file or type a diagram');
+    if (typeof showNotification === 'function') {
+      showNotification(state.boundNoteId ? 'Mermaid Flow enabled' : 'Mermaid Flow enabled — select a file to begin');
+    }
   }
 
   function exit() {
@@ -185,6 +212,7 @@
     const bb = $('mermaidBottombar');
     if (bb) bb.style.display = 'none';
     if (window.__dexNotePick) window.__dexNotePick = null;
+    window.__dexPickActiveNoteId = null;
     hidePickBanner();
     hideViewport();
 

@@ -150,6 +150,36 @@
     if (btn) btn.classList.add('active');
   }
 
+  // Raw/morph topbar + "no active selection" empty state (issues 4/5a). Only
+  // relevant while editing raw/morph directly — diff1/diff2/options have
+  // their own fullscreen views and hide this header entirely.
+  function paintPaneHeader() {
+    const header = $('diffPaneHeader');
+    const label  = $('diffPaneHeaderLabel');
+    const fileEl = $('diffPaneHeaderFile');
+    const empty  = $('diffPaneEmpty');
+    const wrap   = $('textAreaWrapper');
+    if (!header) return;
+
+    const showHeader = state.enabled && !state.activeDiffView;
+    header.classList.toggle('active', showHeader);
+    if (!showHeader) { if (empty) empty.classList.remove('show'); if (wrap) wrap.classList.remove('pane-empty'); return; }
+
+    const pane = state.activePane;
+    const targetId = pane === 'raw' ? state.rawNoteId : state.morphNoteId;
+    const n = targetId ? noteById(targetId) : null;
+    if (label) label.textContent = pane === 'raw' ? 'Raw' : 'Morph';
+    if (fileEl) fileEl.textContent = n ? (n.title || ('note ' + n.id)) : 'No active selection';
+
+    const isEmpty = !n;
+    if (empty) empty.classList.toggle('show', isEmpty);
+    if (wrap) wrap.classList.toggle('pane-empty', isEmpty);
+    if (window.dexEditor && window.dexEditor.cm) {
+      try { window.dexEditor.cm.setOption('readOnly', isEmpty); } catch (e) {}
+    }
+  }
+  window.dexDiffPickFile = function () { if (state.enabled && !state.activeDiffView) openPicker(state.activePane); };
+
   function switchPane(pane) {
     if (!state.enabled) return;
     if (pane !== 'raw' && pane !== 'morph') return;
@@ -162,9 +192,9 @@
 
     const targetId = pane === 'raw' ? state.rawNoteId : state.morphNoteId;
     if (!targetId) {
-      openPicker(pane);
       paintBottomBar();
       showEditor();
+      paintPaneHeader();
       return;
     }
 
@@ -172,9 +202,9 @@
     if (!n) {
       if (pane === 'raw') { state.rawNoteId = null; lsSet(LS.RAW_ID, ''); }
       else                { state.morphNoteId = null; lsSet(LS.MORPH_ID, ''); }
-      openPicker(pane);
       paintBottomBar();
       showEditor();
+      paintPaneHeader();
       return;
     }
 
@@ -186,6 +216,7 @@
 
     showEditor();
     paintBottomBar();
+    paintPaneHeader();
     scheduleDiffusion(true);
   }
   window.switchDiffusionPane = switchPane;
@@ -205,6 +236,9 @@
 
   function openPicker(pane) {
     window.__dexNotePick = function (noteId) { bindPicked(pane, noteId); };
+    // Issue 5c: sidebar1 highlights whichever note is currently bound to the
+    // pane being picked for, in addition to the "Pick a note" banner.
+    window.__dexPickActiveNoteId = pane === 'raw' ? state.rawNoteId : state.morphNoteId;
     const sb = $('sidebar1');
     if (sb) sb.classList.add('open');
     if (typeof renderSidebar === 'function') try { renderSidebar(); } catch (e) {}
@@ -215,6 +249,7 @@
   function bindPicked(pane, noteId) {
     if (!state.enabled) return;
     window.__dexNotePick = null;
+    window.__dexPickActiveNoteId = null;
     hidePickBanner();
     const sb = $('sidebar1');
     if (sb) sb.classList.remove('open');
@@ -230,12 +265,14 @@
     syncActiveShadowFromEditor();
     showEditor();
     paintBottomBar();
+    paintPaneHeader();
     scheduleDiffusion(true);
     if (typeof showNotification === 'function') showNotification((pane === 'raw' ? 'Raw' : 'Morph') + ' ← ' + (n.title || 'note'));
   }
 
   window.dexCancelPick = function () {
     window.__dexNotePick = null;
+    window.__dexPickActiveNoteId = null;
     hidePickBanner();
     const sb = $('sidebar1');
     if (sb) sb.classList.remove('open');
@@ -272,6 +309,7 @@
     syncActiveShadowFromEditor();
     showEditor();
     paintBottomBar();
+    paintPaneHeader();
     scheduleDiffusion(true);
 
     if (typeof showNotification === 'function') showNotification('Diffusion mode enabled — pick Morph to compare');
@@ -296,8 +334,18 @@
     const bb = $('diffBottombar');
     if (bb) bb.style.display = 'none';
     if (window.__dexNotePick) window.__dexNotePick = null;
+    window.__dexPickActiveNoteId = null;
     hidePickBanner();
     hideAllDiffViews();
+    const header = $('diffPaneHeader');
+    if (header) header.classList.remove('active');
+    const empty = $('diffPaneEmpty');
+    if (empty) empty.classList.remove('show');
+    const wrap = $('textAreaWrapper');
+    if (wrap) wrap.classList.remove('pane-empty');
+    if (window.dexEditor && window.dexEditor.cm) {
+      try { window.dexEditor.cm.setOption('readOnly', false); } catch (e) {}
+    }
     const nc = document.querySelector('.note-container');
     if (nc) nc.style.display = '';
 
@@ -337,13 +385,16 @@
   function handleBottomClick(target, btn) {
     if (!state.enabled) return;
     if (target === 'raw' || target === 'morph') {
-      const alreadyActive = !state.activeDiffView && state.activePane === target;
-      if (alreadyActive) { openPicker(target); return; }
+      // Issue 5: clicking the already-active Raw/Morph tab no longer
+      // auto-opens the integrated file manager. Switching the bound note now
+      // goes through the pane header's "Select file" button, the empty-state
+      // button, or sidebar1 (opened via the topbar toggle).
       switchPane(target);
       return;
     }
     showDiffView(target);
     paintBottomBar();
+    paintPaneHeader();
   }
 
   function applyLineNumberState(on) {
@@ -394,6 +445,7 @@
     const activeId = state.activePane === 'raw' ? state.rawNoteId : state.morphNoteId;
     if (activeId && typeof openNote === 'function') try { openNote(activeId); } catch (e) {}
     paintBottomBar();
+    paintPaneHeader();
   };
 
   function init() {
