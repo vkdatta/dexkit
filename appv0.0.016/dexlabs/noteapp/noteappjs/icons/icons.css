@@ -1,0 +1,27 @@
+/* DexIcons — theme-reactive tokens for the Plasma variant. Dark is the
+   default (no data-theme attribute); html[data-theme="light"] overrides.
+   These are plain CSS custom properties, so already-rendered Plasma icons
+   repaint instantly on theme toggle with no JS involved. Override either
+   variable (or pass `variants.plasma.colors` to DexIcons.configure) to use
+   a different look. */
+:root {
+  --dex-plasma-center: #ffffff;
+  --dex-plasma-edge: #ffffff;
+}
+html[data-theme="light"] {
+  --dex-plasma-center: #000000;
+  --dex-plasma-edge: #000000;
+}
+
+.ic-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+}
+.ic-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

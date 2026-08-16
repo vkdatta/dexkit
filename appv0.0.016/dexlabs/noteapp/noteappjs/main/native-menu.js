@@ -107,7 +107,7 @@
     actions.forEach((a, i) => {
       if (a.sep) { html += '<div class="dex-nm-sep"></div>'; return; }
       html += '<button type="button" class="dex-nm-item' + (a.danger ? ' dex-nm-danger' : '') + '" data-nm-idx="' + i + '">' +
-              '<span class="ic-icon" data-icon="' + (a.icon || '') + '"></span><span>' + a.label + '</span></button>';
+              '<span class="ic-icon">' + (a.icon || '') + '</span><span>' + a.label + '</span></button>';
     });
     menu.innerHTML = html;
     menu.querySelectorAll('[data-nm-idx]').forEach((btn) => {
