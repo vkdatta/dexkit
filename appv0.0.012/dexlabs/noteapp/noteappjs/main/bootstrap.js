@@ -81,7 +81,7 @@ async function init() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function runInit() {
   init().catch((err) => {
     // Defense in depth: if anything else in init() throws unexpectedly,
     // still wire up the homepage/topbar buttons rather than leaving the
@@ -89,4 +89,17 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('App init failed', err);
     try { setupEventListeners(); } catch (e) {}
   });
-});
+}
+
+// bootstrap.js loads last in a long chain of dynamically-injected <script>
+// tags (see the loadScript/loadModule calls in the main HTML). Dynamically
+// inserted scripts don't delay DOMContentLoaded, so on a fast/warm-cache
+// load that event can fire before this listener is even attached — leaving
+// init() (and therefore every click handler and the router) never called.
+// Every other module in this app guards against exactly this race; this one
+// has to as well.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', runInit, { once: true });
+} else {
+  runInit();
+}
