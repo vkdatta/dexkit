@@ -50,6 +50,7 @@ if (!window.IC) {
     tune: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h6M14 7h6M4 12h10M18 12h2M4 17h4M12 17h8"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
     bug_report: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="10" rx="4"/><path stroke-linecap="round" d="M9 8V6a3 3 0 016 0v2M6 11h12M6 15h12M4 9l3 2M20 9l-3 2M4 19l3-2M20 19l-3-2"/></svg>',
     cloud_upload: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 18a4 4 0 01-1-7.86A5.5 5.5 0 0117 9a4.5 4.5 0 011 8.9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 20v-7m0 0l-3 3m3-3l3 3"/></svg>',
+    person: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path stroke-linecap="round" d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>',
     hub: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path stroke-linecap="round" d="M12 7v5m0 0l-5.5 5M12 12l5.5 5"/></svg>',
     logout: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 8l-4 4 4 4M6 12h12"/></svg>',
     settings: '<svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 13a7.97 7.97 0 000-2l2.1-1.6-2-3.4-2.5 1a8 8 0 00-1.7-1L14.9 3h-4l-.4 2.6a8 8 0 00-1.7 1l-2.5-1-2 3.4L6 11a7.97 7.97 0 000 2l-2.1 1.6 2 3.4 2.5-1a8 8 0 001.7 1l.4 2.6h4l.4-2.6a8 8 0 001.7-1l2.5 1 2-3.4L19.4 13z"/></svg>',
@@ -277,6 +278,16 @@ if (!window.IC) {
     return out;
   }
 
+  // Every render call gets its own uid, even for repeat renders of the same
+  // icon name — the plasma variant turns this into an SVG gradient id, and
+  // an icon painted in more than one place on the page (e.g. "code" in both
+  // the mermaid bottombar and sidebar2, "folder_open" in both a hidden
+  // diffusion pane header and a visible sidebar2 row) would otherwise share
+  // that id. When the first DOM instance of a shared id sits inside a
+  // display:none ancestor, browsers can fail to resolve url(#id) for every
+  // other instance too, leaving them unpainted.
+  var renderUid = 0;
+
   function renderIcon(name) {
     var raw = ICONS_RAW[name];
     if (!raw) return '';
@@ -285,7 +296,7 @@ if (!window.IC) {
     var cfg = resolveConfig(name);
     var base = roundify(parsed);
     var weighted = applyWeight(base, axisMultiplier(cfg));
-    var svg = (FAMILIES[cfg.variant] || styleOg)(weighted, { uid: name, plasmaColors: cfg.plasmaColors });
+    var svg = (FAMILIES[cfg.variant] || styleOg)(weighted, { uid: name + '-' + (renderUid++), plasmaColors: cfg.plasmaColors });
     if (cfg.color && cfg.color !== 'currentColor') {
       svg = svg.replace('<svg ', '<svg style="color:' + String(cfg.color).replace(/"/g, '') + '" ');
     }

@@ -72,7 +72,7 @@ function renderUserAvatar() {
   if (!el) return;
   el.innerHTML = (currentUser && currentUser.picture)
     ? `<img src="${currentUser.picture}" alt="Profile picture" referrerpolicy="no-referrer" style="width:23px;height:23px;border-radius:50%;object-fit:cover;">`
-    : `<span class="material-symbols-rounded" style="font-size:18px;">person_heart</span>`;
+    : (window.dexIcon ? window.dexIcon('person') : '');
 }
 
 function updateAuthUI() {

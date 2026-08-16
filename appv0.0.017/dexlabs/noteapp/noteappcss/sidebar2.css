@@ -346,6 +346,9 @@
   margin-bottom: 8px;
   color: var(--c-text-dim);
 }
+/* Matches the 23px signed-in profile photo (see drive-sync.js
+   renderUserAvatar) so the placeholder doesn't jump size on sign-in. */
+.info-avatar .ic-icon { width: 23px; height: 23px; }
 .info-item {
   gap: 10px;
   width: fit-content;
