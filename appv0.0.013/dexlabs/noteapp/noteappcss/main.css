@@ -71,9 +71,29 @@
   --diff-topbar-height:        70px;
   --diff-topbar-gap:           2vh;
   --diff-topbar-total:         calc(var(--diff-topbar-height) + var(--diff-topbar-gap) + 16px);
-  
+
+  /* Single global standard, sourced from sidebar1/filemanager's "ic" icons
+     and its search-bar padding — every icon and every button (outside the
+     homepage and modals) reads these two tokens instead of picking its own
+     size/padding. */
+  --icon-size:                 18px;
+  --btn-padding:                8px 10px;
+
   color: var(--color);
 }
+
+/* The site's one icon system: inline SVGs painted via IC (noteappjs/icons/icons.js),
+   sized uniformly here instead of each context picking its own font-size. */
+.ic-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.ic-icon svg { width: 100%; height: 100%; display: block; }
 
 html[data-theme="light"] {
   --c-black:      #f7ecd6;
@@ -424,6 +444,8 @@ body.mode-diffusion .diff-bottombar:not(.mermaid-bottombar) { display: flex; }
   cursor: pointer;
   min-width: 56px;
   height: 56px;
+  padding: var(--btn-padding);
+  box-sizing: border-box;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -443,8 +465,8 @@ body.mode-diffusion .diff-bottombar:not(.mermaid-bottombar) { display: flex; }
   background: var(--diff-accent);
   color: var(--c-white);
 }
-.diff-bottombar .material-symbols-rounded { font-size: 22px; color: var(--c-text-faint); }
-.diff-bottombar .diff-topbar-button.active .material-symbols-rounded { color: var(--c-white); }
+.diff-bottombar .ic-icon { color: var(--c-text-faint); }
+.diff-bottombar .diff-topbar-button.active .ic-icon { color: var(--c-white); }
 @media (max-width: 600px) {
   .diff-bottombar { width: 95%; padding: 6px 10px; border-radius: 20px; }
   .diff-bottombar .diff-topbar-button { min-width: 0; flex: 1; padding: 4px; }
@@ -549,7 +571,9 @@ html[data-cm-tone="light"] .CodeMirror-linenumber {
 }
 .pane-empty-state.show { display: flex; }
 #textAreaWrapper.pane-empty .CodeMirror { visibility: hidden; }
-.pane-empty-icon { font-size: 42px; color: var(--c-text-faint); opacity: 0.6; }
+/* Deliberately larger than --icon-size: this is a decorative empty-state
+   graphic, not a UI/button icon, so it sits outside the icon-size unification. */
+.ic-icon.pane-empty-icon { width: 42px; height: 42px; color: var(--c-text-faint); opacity: 0.6; }
 .pane-empty-text { font-size: 14px; color: var(--c-text-faint); }
 
 /* Diffusion's raw/morph pane header — mirrors mermaid's panel-header, shown
@@ -580,7 +604,7 @@ html[data-cm-tone="light"] .CodeMirror-linenumber {
   white-space: nowrap;
 }
 .diff-pane-header .diff-btn-action {
-  padding: 8px 14px;
+  padding: var(--btn-padding);
   font-size: 12.5px;
   flex-shrink: 0;
 }
@@ -596,7 +620,7 @@ html[data-cm-tone="light"] .CodeMirror-linenumber {
 .diff-pick-banner b { color: var(--c-blue); }
 .diff-pick-banner button {
   background: var(--c-panel-2); border: 1px solid var(--c-panel-3); color: var(--c-text-dim);
-  border-radius: 7px; padding: 6px 12px; font-family: inherit;
+  border-radius: 7px; padding: var(--btn-padding); font-family: inherit;
   font-size: 12.5px; cursor: pointer;
 }
 .diff-settings-row input[type="checkbox"]{

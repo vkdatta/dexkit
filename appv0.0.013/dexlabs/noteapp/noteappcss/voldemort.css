@@ -16,7 +16,7 @@
 }
 #voldemortToggle.active i,
 #voldemortToggle.active span,
-#voldemortToggle.active .material-symbols-rounded {
+#voldemortToggle.active .ic-icon {
   color: var(--c-black) !important;
 }
 

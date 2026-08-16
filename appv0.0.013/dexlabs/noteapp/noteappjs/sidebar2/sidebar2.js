@@ -17,14 +17,14 @@
   sidebar.classList.add('open');
   sidebar.setAttribute('aria-hidden', 'false');
   hamburger.setAttribute('aria-expanded', 'true');
-  hamburger.innerHTML = '<i class="material-symbols-rounded">close</i>';
+  hamburger.innerHTML = '<i class="ic-icon" data-icon="close"></i>';
 }
 
 function closeSidebar() {
   sidebar.classList.remove('open');
   sidebar.setAttribute('aria-hidden', 'true');
   hamburger.setAttribute('aria-expanded', 'false');
-  hamburger.innerHTML = '<i class="material-symbols-rounded">view_cozy</i>';
+  hamburger.innerHTML = '<i class="ic-icon" data-icon="view_cozy"></i>';
 }
 
   hamburger.addEventListener('click', (e) => {
@@ -91,23 +91,23 @@ function closeSidebar() {
       left.className = 'secondary-sidebar-left';
       
       const i = document.createElement('span');
-      i.className = 'material-symbols-rounded';
-      i.textContent = icon;
-      
+      i.className = 'ic-icon';
+      i.setAttribute('data-icon', icon);
+
       const l = document.createElement('span');
       l.className = 'secondary-sidebar-label';
       l.textContent = text;
-      
+
       left.append(i, l);
       header.append(left);
-      
+
       if (isCollapse) {
         group.classList.add('has-line');
         group.style.setProperty('--vline-left', vlineLeft);
-        
+
         const ch = document.createElement('span');
-        ch.className = 'material-symbols-rounded secondary-sidebar-chevron';
-        ch.textContent = 'expand_more';
+        ch.className = 'ic-icon secondary-sidebar-chevron';
+        ch.setAttribute('data-icon', 'expand_more');
         header.append(ch);
         
         header.onclick = () => toggleGroup(header);
@@ -156,21 +156,21 @@ function closeSidebar() {
         
         const left = document.createElement('span');
         left.className = 'secondary-sidebar-left';
-        
+
         const i = document.createElement('span');
-        i.className = 'material-symbols-rounded';
-        i.textContent = icon;
-        
+        i.className = 'ic-icon';
+        i.setAttribute('data-icon', icon);
+
         const l = document.createElement('span');
         l.className = 'secondary-sidebar-label';
         l.textContent = text;
-        
+
         left.append(i, l);
         toggle.append(left);
-        
+
         const ch = document.createElement('span');
-        ch.className = 'material-symbols-rounded secondary-sidebar-chevron';
-        ch.textContent = 'expand_more';
+        ch.className = 'ic-icon secondary-sidebar-chevron';
+        ch.setAttribute('data-icon', 'expand_more');
         toggle.append(ch);
         
         toggle.onclick = () => toggleGroup(toggle);
@@ -197,15 +197,15 @@ function closeSidebar() {
           item.setAttribute('onclick', onclickAttr);
         }
         const i = document.createElement('span');
-        i.className = 'material-symbols-rounded';
-        i.textContent = icon;
+        i.className = 'ic-icon';
+        i.setAttribute('data-icon', icon);
 
         item.append(i, document.createTextNode(text));
 
         if (onclickAttr) {
           const pinBtn = document.createElement('span');
-          pinBtn.className = 'material-symbols-rounded sidebar2-pin-btn' + (isPinned(onclickAttr) ? ' pinned' : '');
-          pinBtn.textContent = 'star';
+          pinBtn.className = 'ic-icon sidebar2-pin-btn' + (isPinned(onclickAttr) ? ' pinned' : '');
+          pinBtn.setAttribute('data-icon', 'star');
           pinBtn.title = 'Pin / unpin';
           pinBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -245,8 +245,8 @@ function closeSidebar() {
     section.innerHTML = '<div class="sidebar2-pinned-label">Pinned</div>' +
       pins.map(p =>
         '<button type="button" class="secondary-sidebar-sub-item sidebar2-pinned-item" data-search="' + p.text.toLowerCase().replace(/"/g, '&quot;') + '" onclick="' + p.onclick.replace(/"/g, '&quot;') + '">' +
-          '<span class="material-symbols-rounded">' + p.icon + '</span>' + p.text +
-          '<span class="material-symbols-rounded sidebar2-pin-btn pinned" title="Pin / unpin">star</span>' +
+          '<span class="ic-icon" data-icon="' + p.icon + '"></span>' + p.text +
+          '<span class="ic-icon sidebar2-pin-btn pinned" data-icon="star" title="Pin / unpin"></span>' +
         '</button>'
       ).join('');
 

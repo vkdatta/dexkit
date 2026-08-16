@@ -256,7 +256,11 @@ export function createFindAndReplace() {
     if (!els.menuContainer) return;
     els.menuContainer.classList.toggle("find-replace-mode-find",    state.mode === "find");
     els.menuContainer.classList.toggle("find-replace-mode-replace", state.mode === "replace");
-    if (els.modeIcon) els.modeIcon.textContent = modeIconMap[state.mode];
+    if (els.modeIcon) {
+      const name = modeIconMap[state.mode];
+      els.modeIcon.innerHTML = (window.IC && window.IC[name]) || "";
+      els.modeIcon.setAttribute("data-icon", name);
+    }
     if (els.findControls)     els.findControls.classList.toggle("find-replace-hidden", state.mode === "replace");
     if (els.replaceControls)  els.replaceControls.classList.toggle("find-replace-hidden", state.mode === "find");
     if (els.matchCaseBtn)     els.matchCaseBtn.classList.toggle("find-replace-hidden", state.mode === "replace");

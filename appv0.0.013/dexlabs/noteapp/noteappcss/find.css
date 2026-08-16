@@ -87,14 +87,12 @@
   border: none;
   color: var(--c-text-faint);
   cursor: pointer;
-  padding: 6px 12px;
+  padding: var(--btn-padding);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: 0.15s;
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
 }
 .find-replace-icon-button.active {
   color: var(--c-green);
@@ -102,7 +100,7 @@
 .find-replace-main-button {
   background: var(--c-panel-2);
   color: var(--c-white);
-  padding: 6px 12px;
+  padding: var(--btn-padding);
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
@@ -334,13 +332,11 @@
 .chain-step-row .modal-input { flex: 1; min-width: 0; }
 .chain-step-arrow {
   color: var(--c-text-faint);
-  font-size: 18px;
   flex-shrink: 0;
 }
 .chain-step-row-fn .custom-dropdown { flex: 1; min-width: 0; }
 .chain-step-kind-icon {
   color: var(--c-accent);
-  font-size: 18px;
   flex-shrink: 0;
 }
 .chain-step-remove {
@@ -363,4 +359,3 @@
   align-items: center;
   gap: 6px;
 }
-.chain-add-btn .material-symbols-rounded { font-size: 18px; }

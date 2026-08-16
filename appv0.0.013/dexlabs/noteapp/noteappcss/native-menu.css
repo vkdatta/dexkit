@@ -25,7 +25,7 @@
   border: none;
   color: var(--c-white);
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px;
+  padding: var(--btn-padding);
   border-radius: 10px;
   cursor: pointer;
   font-family: inherit;
@@ -43,7 +43,6 @@
   color: var(--c-danger);
   background: color-mix(in srgb, var(--c-danger) 08%, transparent);
 }
-.dex-nm-item .material-symbols-rounded { font-size: 19px; }
 .dex-nm-sep {
   height: 1px;
   background: color-mix(in srgb, var(--c-white) 08%, transparent);

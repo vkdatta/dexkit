@@ -253,25 +253,20 @@ html[data-theme="light"] .modal-input[type="radio"]::before {
   align-items: center;
 }
 .custom-dropdown-trigger::after {
-  content: 'expand_more';
-  font-family: 'Material Symbols Rounded' !important;
+  content: '';
   position: absolute;
-  right: 12px;
+  right: 16px;
   top: 50%;
-  transform: translateY(-50%) rotate(0deg);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  color: var(--blueink);
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--blueink);
+  border-bottom: 2px solid var(--blueink);
+  transform: translateY(-75%) rotate(45deg);
   pointer-events: none;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 .custom-dropdown-trigger[aria-expanded="true"]::after {
-  transform: translateY(-50%) rotate(180deg);
+  transform: translateY(-25%) rotate(225deg);
 }
 .custom-dropdown-portal-menu {
   position: fixed;
@@ -323,7 +318,6 @@ html[data-theme="light"] .modal-input[type="radio"]::before {
 .search-icon {
   position: absolute;
   left: 12px;
-  font-size: 18px;
   color: var(--blueink);
   pointer-events: none;
 }

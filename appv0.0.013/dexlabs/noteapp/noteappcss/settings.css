@@ -23,7 +23,7 @@
   background: none;
   border: 1px solid var(--c-border);
   color: var(--c-white);
-  padding: 6px 12px; cursor: pointer;
+  padding: var(--btn-padding); cursor: pointer;
   font-size: 13px; border-radius: 4px;
   font-family: inherit;
 }
@@ -40,7 +40,7 @@
 }
 .settings-tab {
   flex: 1; background: transparent; border: none;
-  padding: 12px 16px;
+  padding: var(--btn-padding);
   color: var(--c-text-faint);
   cursor: pointer;
   font-family: inherit; font-size: 13.5px;
@@ -133,7 +133,7 @@
 
 .theme-pick {
   display: block; width: 100%; text-align: left;
-  padding: 10px 12px;
+  padding: var(--btn-padding);
   background: transparent;
   color: var(--color);
   border: 1px solid var(--border);
@@ -182,7 +182,7 @@
   background: none;
   border: 1px solid var(--c-border);
   color: var(--c-white);
-  padding: 6px 10px; cursor: pointer; font-size: 13px;
+  padding: var(--btn-padding); cursor: pointer; font-size: 13px;
 }
 #debugtabs {
   display: flex; gap: 6px; padding: 8px 14px;
@@ -193,7 +193,7 @@
   background: none;
   border: 1px solid var(--c-border);
   color: var(--c-text-faint);
-  padding: 5px 12px; cursor: pointer; font-size: 12px; border-radius: 3px;
+  padding: var(--btn-padding); cursor: pointer; font-size: 12px; border-radius: 3px;
 }
 .debugtab.active {
   color: var(--c-white);
@@ -253,5 +253,5 @@
   background: none;
   border: 1px solid var(--c-border);
   color: var(--c-white);
-  padding: 4px 8px; cursor: pointer; font-size: 12px;
+  padding: var(--btn-padding); cursor: pointer; font-size: 12px;
 }

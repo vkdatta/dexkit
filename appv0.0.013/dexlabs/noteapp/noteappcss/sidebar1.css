@@ -137,7 +137,7 @@
 }
 #sidebar1 .dex-tools { display: flex; gap: 6px; flex-shrink: 0; }
 #sidebar1 .dex-tool {
-  width: 32px; height: 32px;
+  padding: var(--btn-padding);
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px;
   background: var(--c-panel-2);
@@ -158,7 +158,7 @@
   color: var(--c-accent);
   border-color: color-mix(in srgb, var(--c-accent) 30%, transparent);
 }
-#sidebar1 .dex-tool svg { width: 17px; height: 17px; }
+#sidebar1 .dex-tool svg { width: var(--icon-size); height: var(--icon-size); }
 
 .dex-tree { flex: 1; overflow: auto; padding: 8px 6px; }
 .dex-item { border-radius: 8px; }
@@ -176,7 +176,7 @@
 .dex-chev.onpath { color: var(--c-blue); }
 
 .dex-ic {
-  width: 18px; height: 18px; flex-shrink: 0;
+  width: var(--icon-size); height: var(--icon-size); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   color: var(--c-text-dim);
 }
@@ -240,14 +240,15 @@
   background: var(--c-panel-2);
   border: 1px solid var(--c-panel-3);
   color: var(--c-white);
-  border-radius: 8px; padding: 8px 10px;
+  border-radius: 8px; padding: var(--btn-padding);
   font-family: inherit; font-size: 13px; outline: none;
 }
 #sidebar1 .dex-search::placeholder { color: var(--c-text-faint); }
 #sidebar1 .dex-search:focus { border-color: var(--c-accent); }
 
 #sidebar1 .dex-sort {
-  width: 34px; height: 34px; flex-shrink: 0;
+  flex-shrink: 0;
+  padding: var(--btn-padding);
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px;
   background: var(--c-panel-2);
@@ -259,7 +260,7 @@
   background: var(--c-panel-2);
   color: var(--c-white);
 }
-#sidebar1 .dex-sort svg { width: 17px; height: 17px; }
+#sidebar1 .dex-sort svg { width: var(--icon-size); height: var(--icon-size); }
 
 .dex-sort-menu {
   position: fixed; z-index: 100003;
@@ -348,7 +349,7 @@ body.mode-filemanager .filemanager-app-sidebar { display: flex; }
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--btn-padding);
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -359,7 +360,6 @@ body.mode-filemanager .filemanager-app-sidebar { display: flex; }
   cursor: pointer;
 }
 .fm-app-item:hover { background: var(--c-panel-2); color: var(--c-white); }
-.fm-app-item .material-symbols-rounded { font-size: 19px; }
 
 /* Dock #sidebar1 as the filemanager's main content instead of a slide-in drawer. */
 body.mode-filemanager #sidebar1 {

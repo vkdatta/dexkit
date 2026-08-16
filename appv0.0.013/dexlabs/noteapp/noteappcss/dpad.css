@@ -15,7 +15,8 @@
   user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none;
   font-family: 'classy', sans-serif;
-  padding: 0;
+  padding: var(--btn-padding);
+  box-sizing: border-box;
   transition: box-shadow 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
 }
 #dexToolbarBtn:hover {
@@ -24,7 +25,6 @@
 }
 #dexToolbarBtn:active { cursor: grabbing; transform: scale(0.94); }
 #dexToolbarBtn > * { pointer-events: none; }
-#dexToolbarBtn .material-symbols-rounded { font-size: 24px; }
 #dexToolbarBtn.dragging {
   box-shadow: 0 12px 36px color-mix(in srgb, var(--c-black) 70%, transparent);
   opacity: 0.85;
@@ -124,14 +124,12 @@ body:has(#sidebar1.open) #dexCursorControls {
   transform: scale(0.92);
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c-white) 40%, transparent));
 }
-#dexCursorControls .dex-cursor-btn .material-symbols-rounded {
-  font-size: 15px;
+/* This 26px radial D-pad control is too small to host the standard
+   --icon-size/--btn-padding without breaking its octagon clip-path, so it
+   keeps its own compact icon size as a deliberate exception. */
+#dexCursorControls .dex-cursor-btn .ic-icon {
   width: 15px;
   height: 15px;
-  line-height: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin: 0;
   padding: 0;
   user-select: none;

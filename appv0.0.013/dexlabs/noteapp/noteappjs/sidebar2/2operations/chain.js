@@ -172,7 +172,7 @@ export async function openChainPanel() {
             '<div class="chain-pane-steps">' + pane.steps.length + " step" + (pane.steps.length === 1 ? "" : "s") + "</div>" +
           "</div>" +
           '<button type="button" class="chain-pane-edit" data-edit-id="' + note.id + '" title="Edit pane">' +
-            '<span class="material-symbols-rounded">edit</span>' +
+            '<span class="ic-icon" data-icon="edit"></span>' +
           "</button>" +
         "</div>"
       ).join("")
@@ -211,11 +211,11 @@ function stepRowHtml(step, fnOptions) {
     const current = opts.find((o) => o.value === step.fnName) || opts[0] || { value: "", label: "No chainable functions found" };
     return (
       '<div class="chain-step-row chain-step-row-fn">' +
-        '<span class="material-symbols-rounded chain-step-kind-icon" title="Function step">bolt</span>' +
+        '<span class="ic-icon chain-step-kind-icon" data-icon="bolt" title="Function step"></span>' +
         '<div class="custom-dropdown">' +
           '<div class="custom-dropdown-trigger modal-input chain-step-fn-select" data-value="' + current.value + '" data-options=\'' + JSON.stringify(opts) + "'>" + escapeHtml(current.label) + "</div>" +
         "</div>" +
-        '<button type="button" class="chain-step-remove" title="Remove step"><span class="material-symbols-rounded">close</span></button>' +
+        '<button type="button" class="chain-step-remove" title="Remove step"><span class="ic-icon" data-icon="close"></span></button>' +
       "</div>"
     );
   }
@@ -224,9 +224,9 @@ function stepRowHtml(step, fnOptions) {
   return (
     '<div class="chain-step-row">' +
       '<input type="text" class="modal-input chain-step-find" placeholder="Text to find" value="' + find + '">' +
-      '<span class="material-symbols-rounded chain-step-arrow">arrow_forward</span>' +
+      '<span class="ic-icon chain-step-arrow" data-icon="arrow_forward"></span>' +
       '<input type="text" class="modal-input chain-step-replace" placeholder="Replace with" value="' + replace + '">' +
-      '<button type="button" class="chain-step-remove" title="Remove step"><span class="material-symbols-rounded">close</span></button>' +
+      '<button type="button" class="chain-step-remove" title="Remove step"><span class="ic-icon" data-icon="close"></span></button>' +
     "</div>"
   );
 }
@@ -248,8 +248,8 @@ function openChainEditor(existingNoteId) {
         '<label class="modal-label">Steps — applied in order, each one .then()s the last</label>' +
         '<div id="chainStepsList">' + initialSteps.map((s) => stepRowHtml(s, fnOptions)).join("") + "</div>" +
         '<div class="chain-add-row">' +
-          '<button type="button" id="chainAddStep" class="modal-btn chain-add-btn"><span class="material-symbols-rounded">add</span>Find/replace step</button>' +
-          '<button type="button" id="chainAddFnStep" class="modal-btn chain-add-btn"><span class="material-symbols-rounded">add</span>Function step</button>' +
+          '<button type="button" id="chainAddStep" class="modal-btn chain-add-btn"><span class="ic-icon" data-icon="add"></span>Find/replace step</button>' +
+          '<button type="button" id="chainAddFnStep" class="modal-btn chain-add-btn"><span class="ic-icon" data-icon="add"></span>Function step</button>' +
         "</div>" +
       "</div>",
     footer:

@@ -109,7 +109,9 @@ if (window.__dexToolbar2Loaded) {
   btn.type = 'button';
   btn.id = 'dexToolbarBtn';
   btn.setAttribute('aria-label', 'Open editor toolbar');
-  btn.innerHTML = '<span class="material-symbols-rounded" id="dexToolbarBtnIcon">' + ICONS.down + '</span>';
+  function icoSpan(name, id) { return '<span class="ic-icon"' + (id ? ' id="' + id + '"' : '') + ' data-icon="' + name + '"></span>'; }
+
+  btn.innerHTML = icoSpan(ICONS.down, 'dexToolbarBtnIcon');
   btn.style.display = 'none';
   document.body.appendChild(btn);
   ctx.btn = btn;
@@ -117,14 +119,14 @@ if (window.__dexToolbar2Loaded) {
   const cursorControls = document.createElement('div');
   cursorControls.id = 'dexCursorControls';
   cursorControls.innerHTML =
-    '<button type="button" class="dex-cursor-btn cmp-n"  id="dexCurUp"       aria-label="Up">'         + '<span class="material-symbols-rounded">' + ICONS.up         + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-ne" id="dexCurDblUp"    aria-label="Fast up">'    + '<span class="material-symbols-rounded">' + ICONS.dbl_up     + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-e"  id="dexCurRight"    aria-label="Right">'      + '<span class="material-symbols-rounded">' + ICONS.right      + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-se" id="dexCurDblRight" aria-label="Fast right">' + '<span class="material-symbols-rounded">' + ICONS.dbl_right  + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-s"  id="dexCurDown"     aria-label="Down">'       + '<span class="material-symbols-rounded">' + ICONS.down       + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-sw" id="dexCurDblDown"  aria-label="Fast down">'  + '<span class="material-symbols-rounded">' + ICONS.dbl_down   + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-w"  id="dexCurLeft"     aria-label="Left">'       + '<span class="material-symbols-rounded">' + ICONS.left       + '</span></button>' +
-    '<button type="button" class="dex-cursor-btn cmp-nw" id="dexCurDblLeft"  aria-label="Fast left">'  + '<span class="material-symbols-rounded">' + ICONS.dbl_left   + '</span></button>' +
+    '<button type="button" class="dex-cursor-btn cmp-n"  id="dexCurUp"       aria-label="Up">'         + icoSpan(ICONS.up)        + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-ne" id="dexCurDblUp"    aria-label="Fast up">'    + icoSpan(ICONS.dbl_up)    + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-e"  id="dexCurRight"    aria-label="Right">'      + icoSpan(ICONS.right)     + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-se" id="dexCurDblRight" aria-label="Fast right">' + icoSpan(ICONS.dbl_right) + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-s"  id="dexCurDown"     aria-label="Down">'       + icoSpan(ICONS.down)      + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-sw" id="dexCurDblDown"  aria-label="Fast down">'  + icoSpan(ICONS.dbl_down)  + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-w"  id="dexCurLeft"     aria-label="Left">'       + icoSpan(ICONS.left)      + '</button>' +
+    '<button type="button" class="dex-cursor-btn cmp-nw" id="dexCurDblLeft"  aria-label="Fast left">'  + icoSpan(ICONS.dbl_left)  + '</button>' +
     '<div class="dex-center-drag" id="dexCenterDrag" aria-label="Drag to select"></div>';
   document.body.appendChild(cursorControls);
 

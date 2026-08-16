@@ -81,7 +81,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: var(--btn-padding);
   cursor: pointer;
   color: var(--c-text-dim);
   font-weight: 700;
@@ -132,7 +132,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--btn-padding);
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -157,7 +157,7 @@
   position: relative;
 }
 .secondary-sidebar-sub-item {
-  padding: 10px 12px;
+  padding: var(--btn-padding);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -172,14 +172,8 @@
   background: color-mix(in srgb, var(--c-black) 03%, transparent);
   color: var(--c-text-dim);
 }
-.secondary-sidebar .material-symbols-rounded {
-  font-size: 17px;
+.secondary-sidebar .ic-icon {
   color: var(--c-text-dim);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   transition: transform var(--transition-speed);
 }
 @media (max-width: 520px) {
@@ -266,6 +260,8 @@
   gap: 10px !important;
   width: 100% !important;
 }
+/* 23px circular +/- control — too small for the standard padding without
+   breaking its circle, kept compact as a deliberate exception. */
 .font-size-control button {
   background: var(--matte);
   border: none;
@@ -278,6 +274,7 @@
   align-items: center;
   justify-content: center;
 }
+.font-size-control .ic-icon { width: 14px; height: 14px; }
 .font-size-control span {
   font-size: 14px !important;
 }
@@ -314,7 +311,7 @@
   align-items: center;
   justify-content: center;
   margin: 2px;
-  padding: 8px;
+  padding: var(--btn-padding);
 }
 
 #secondary-sidebar-button.syncing,
@@ -390,15 +387,13 @@
 
 .sidebar2-pin-btn {
   margin-left: auto;
-  font-size: 16px !important;
   opacity: 0.35;
   color: var(--c-text-faint);
   flex-shrink: 0;
-  font-variation-settings: 'FILL' 0;
 }
 .sidebar2-pin-btn:hover { opacity: 0.8; }
 .sidebar2-pin-btn.pinned {
   opacity: 1;
   color: var(--c-warn);
-  font-variation-settings: 'FILL' 1;
 }
+.sidebar2-pin-btn.pinned svg path { fill: currentColor; }
