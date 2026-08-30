@@ -1,0 +1,74 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   Sidebar 2 — Additions for Grand Functions revamp
+   These append to the existing sidebar2.css and do not override existing rules.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Static items strip */
+.sb2-static-items {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0;
+}
+.sb2-static-item {
+  padding: 8px 12px !important;
+  border-radius: 8px;
+}
+.sb2-static-item:hover {
+  background: color-mix(in srgb, var(--c-white) 04%, transparent);
+}
+
+/* Divider before Grand Functions */
+.sb2-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--c-white) 06%, transparent);
+  margin: 10px 0 8px;
+}
+
+/* Grand Functions launch button */
+.sb2-grand-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--c-accent) 25%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c-accent) 06%, transparent);
+  color: var(--c-accent, var(--blueink));
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s, border-color 0.14s;
+  margin: 4px 0 10px;
+}
+.sb2-grand-btn:hover {
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 45%, transparent);
+}
+.sb2-grand-btn-text { flex: 1; }
+.sb2-grand-btn-arrow { opacity: 0.5; }
+
+/* Categories section */
+.sb2-categories {
+  margin: 4px 0;
+}
+
+/* Search wrapper */
+.sb2-search-wrap {
+  margin-bottom: 4px;
+}
+
+/* Footer now only has profile photo — shrink the footer */
+.secondary-sidebar-footer {
+  flex: none !important;
+  padding: 10px 16px !important;
+}
+.secondary-sidebar-footer-card {
+  padding: 10px 16px !important;
+}
+
+/* Hide the old info text block in footer — avatar only */
+.info-item { display: none !important; }
+.info-avatar { margin-bottom: 0 !important; }
