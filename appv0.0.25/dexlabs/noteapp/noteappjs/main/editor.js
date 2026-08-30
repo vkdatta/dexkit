@@ -3,6 +3,17 @@
     const nt = document.getElementById('noteTextarea');
     if (!nt) { setTimeout(boot, 40); return; }
     if (typeof CodeMirror === 'undefined') { setTimeout(boot, 40); return; }
+    // FIX (fold race): loadScript() uses dynamic <script> injection. Despite
+    // async=false being set, that flag only enforces order for parser-inserted
+    // (markup) scripts — for dynamically injected ones the browser ignores it
+    // and fetches/executes them in arrival order. foldcode.min.js and
+    // foldgutter.min.js can therefore lose the race against editor.js, leaving
+    // CodeMirror.prototype.foldCode undefined when hasFoldGutter is evaluated
+    // below. The CM instance is then created without gutters/foldGutter, and
+    // those options cannot be added after fromTextArea() without destroying and
+    // recreating the editor. Waiting here until foldCode is present guarantees
+    // the addon has fully executed before we commit to a CM configuration.
+    if (typeof CodeMirror.prototype.foldCode !== 'function') { setTimeout(boot, 40); return; }
     if (window.dexEditor) return; 
 
     const proto = HTMLTextAreaElement.prototype;
