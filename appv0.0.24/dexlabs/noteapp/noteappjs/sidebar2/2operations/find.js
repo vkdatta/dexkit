@@ -2,6 +2,12 @@ export function openfindbackdrop() {  }
 
 export function createFindAndReplace() {
   let isOpen = false;
+  // FIX (bug #16 / Scenario F): dpadWasExpanded must survive the open→close
+  // round trip. Previously it was a local const inside the if(isOpen) block —
+  // it was correctly captured on open but died at the closing brace, so the
+  // else(close) branch never saw it and the D-pad was never restored.
+  // Moving it to closure scope means: open sets it, close reads it.
+  let dpadWasExpanded = false;
   const state = {
     matches: [],
     currentIndex: -1,
@@ -349,8 +355,15 @@ export function createFindAndReplace() {
       // FIX (bug #5 / #8): close the native menu and collapse the dpad when
       // find opens — the dpad floats on top of the find overlay and dpad
       // selection moves trigger the menu schedule via cursorActivity.
+      // FIX (bug #16): save the dpad state BEFORE collapsing so we can restore
+      // it when Find closes. If the dpad was expanded the user expects it to
+      // still be there when they return to editing; if it was already collapsed
+      // there's nothing to restore.
       if (typeof window.dexCloseNativeMenu === 'function') window.dexCloseNativeMenu();
       const dpad = window.__dexDpad;
+      // Write to the closure-level variable (not a new const) so the close
+      // branch can read it to decide whether to restore the D-pad.
+      dpadWasExpanded = dpad && dpad.dpadState === 'expanded';
       if (dpad && typeof dpad.collapseDpad === 'function') dpad.collapseDpad();
 
       const c = cm();
@@ -367,10 +380,43 @@ export function createFindAndReplace() {
       }
     } else {
       document.querySelectorAll(".sidebar, .secondary-sidebar, .topbar").forEach((el) => (el.style.display = ""));
+      // FIX (bug #17): bump lastSearchRunId so any in-flight debounced search
+      // callback sees a stale runId and bails out early. Without this, a
+      // delayed performSearch() can fire after Find has closed and repopulate
+      // state.matches / CM marks — and those CM selection changes then propagate
+      // into menu-functions.js and the D-pad preview, reactivating UI that
+      // was supposed to be gone.
+      lastSearchRunId++;
+      // Also cancel the timer handles themselves so they don't fire at all.
+      clearPendingDebounces();
       clearMarks();
       state.matches = [];
       state.currentIndex = -1;
       if (els.overlay) els.overlay.innerHTML = "";
+      // FIX (bug #15 / Scenario F): when Find closes, selection handles stayed
+      // hidden indefinitely because selection.js hides them while Find is open
+      // and only repositions on CM events — none of which fire on Find close.
+      // Trigger a repositioning pass here: if a CM selection still exists the
+      // handles will reappear; if not they stay hidden.
+      const ed = window.dexEditor;
+      const c = ed && ed.cm ? ed.cm : null;
+      if (c && c.somethingSelected()) {
+        // Trigger CM's event pipeline with a no-op operation so all
+        // cursorActivity listeners (including selection.js's scheduleHandles)
+        // run and reposition the handles.
+        try { c.operation(() => {}); } catch (_e) {}
+      } else if (typeof window.dexHideSelectionHandles === 'function') {
+        window.dexHideSelectionHandles();
+      }
+      // FIX (bug #16): restore the D-pad to its pre-Find state. Find.open()
+      // always collapses the D-pad; if it was expanded before the user opened
+      // Find they expect it back when they close it. expandDpad() is a no-op
+      // when the dpad is already expanded, so this is safe to call freely.
+      if (dpadWasExpanded) {
+        const dpad = window.__dexDpad;
+        if (dpad && typeof dpad.expandDpad === 'function') dpad.expandDpad();
+      }
+      dpadWasExpanded = false; // reset so the next open starts clean
     }
   };
 }

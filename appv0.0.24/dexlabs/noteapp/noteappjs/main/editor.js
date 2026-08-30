@@ -60,10 +60,23 @@
     // Defaults: wrap, line numbers, and syntax highlighting are ON out of the
     // box. A stored '0' means the user explicitly turned the feature off and
     // that choice is respected; any other value (including absent) means ON.
-    const initialWrap        = localStorage.getItem('wrapText')       !== '0';
-    const initialLineNumbers = localStorage.getItem('showLineNumbers') !== '0';
+    // FIX (line-numbers default): use explicit null-check — localStorage returns
+    // null when the key is absent. null !== '0' is true, so a first-visit user
+    // correctly gets lineNumbers:true. A stored '0' means the user turned it off.
+    const rawLineNum         = localStorage.getItem('showLineNumbers');
+    const initialLineNumbers = rawLineNum === null ? true : rawLineNum !== '0';
+    const initialWrap        = localStorage.getItem('wrapText') !== '0';
 
-    const cm = CodeMirror.fromTextArea(nt, {
+    // FIX (fold gutter): foldcode/foldgutter addons are loaded in index.html
+    // but were never activated in the CM config. Without gutters:[] and
+    // foldGutter:true the fold arrows never appear even though the addon JS is
+    // present. We add them here, and also wire Ctrl-Q / Cmd-Q as the fold key
+    // so keyboard users can fold without a mouse.
+    // foldcode.min.js adds CodeMirror.prototype.foldCode; foldgutter.min.js
+    // reads that. Both must be present for the gutter to work.
+    const hasFoldGutter = typeof CodeMirror.prototype.foldCode === 'function';
+
+    const cmConfig = {
       theme: initialTheme,
       mode: 'text/plain',
       lineNumbers: initialLineNumbers,
@@ -82,7 +95,21 @@
       // outside the viewport at all times and re-renders them on every scroll.
       // 10 is the CM default and is sufficient for smooth scrolling.
       viewportMargin: 10
-    });
+    };
+
+    // FIX (fold gutter): only enable foldGutter when the addon is actually
+    // present — avoids a CM console error on environments where the CDN
+    // request for foldgutter.min.js failed.
+    if (hasFoldGutter) {
+      cmConfig.foldGutter = true;
+      cmConfig.gutters = ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'];
+      cmConfig.extraKeys = {
+        'Ctrl-Q': function (cm) { cm.foldCode(cm.getCursor()); },
+        'Cmd-Q':  function (cm) { cm.foldCode(cm.getCursor()); }
+      };
+    }
+
+    const cm = CodeMirror.fromTextArea(nt, cmConfig);
 
     const savedFont = parseInt(localStorage.getItem('fontSize') || '14', 10);
     cm.getWrapperElement().style.fontFamily = "'Source Code Pro', monospace";
@@ -278,7 +305,20 @@
 
       applyLanguageForCurrentNote: applyLanguageForCurrentNote,
 
-      setLineNumbers: (on) => cm.setOption('lineNumbers', !!on),
+      setLineNumbers: (on) => {
+        cm.setOption('lineNumbers', !!on);
+        // FIX (fold gutter + line numbers): when foldGutter is active the
+        // gutters array must include 'CodeMirror-linenumbers' for CM to render
+        // the number column. Removing lineNumbers without also removing it from
+        // gutters[] leaves a blank gutter; adding it back without re-adding to
+        // gutters[] makes the gutter re-appear but mis-sized. Sync them here.
+        if (hasFoldGutter) {
+          const g = on
+            ? ['CodeMirror-linenumbers', 'CodeMirror-foldgutter']
+            : ['CodeMirror-foldgutter'];
+          cm.setOption('gutters', g);
+        }
+      },
 
       setWrap: (on) => cm.setOption('lineWrapping', !!on),
 

@@ -107,6 +107,12 @@
     dragging = which;
     dragPointerId = pointerId;
     dragFixedPoint = (which === 'from') ? cm.getCursor('to') : cm.getCursor('from');
+    // FIX (Scenario E): signal to native-menu.js that a handle drag is in
+    // progress. native-menu's cursorActivity handler checks this flag and
+    // skips scheduling the menu timer while the user is still manipulating the
+    // selection via the handles. Without this the menu appeared 1 second into
+    // every handle drag.
+    window.__dexSelHandleDragging = true;
   }
 
   function onHandleDragMove(e) {
@@ -125,6 +131,10 @@
     dragging = null;
     dragPointerId = null;
     dragFixedPoint = null;
+    // FIX (Scenario E): clear the drag flag so native-menu's 1-second timer
+    // can fire normally now that the handle has been released. The user has
+    // finished adjusting the selection and it's appropriate to offer the menu.
+    window.__dexSelHandleDragging = false;
   }
 
   var pressTimer = null;

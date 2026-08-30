@@ -404,4 +404,12 @@
   ctx.moveCenterDrag = moveCenterDrag;
   ctx.finishCenterDrag = finishCenterDrag;
   ctx.afterCenterDrag = afterCenterDrag;
+
+  // FIX (bug #7 / Scenario C): expose the normal (expanded) center-drag active
+  // flag so that native-menu.js and menu-functions.js can guard against
+  // scheduling menu timers or updating D-pad UI while the joystick is dragging.
+  // Previously only getCollapsedCenterDrag() was exposed, leaving the normal
+  // drag invisible to all external guards — causing the native menu to appear
+  // 1 second after a joystick selection began.
+  ctx.isCenterDragging = function () { return centerDrag !== null; };
 })();

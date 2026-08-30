@@ -54,6 +54,11 @@
 
   let menu = null;
   let activeActions = null;
+  // FIX (bug #3 / Scenario D): track which surface most recently opened the
+  // visible menu so that menu actions only collapse the D-pad when it was the
+  // D-pad that opened the menu. An unrelated Copy from a normal text selection
+  // must never collapse the D-pad.
+  let activeMenuSource = null;
 
   // ---- Per-surface timer ownership ----
   // FIX #8: instead of one shared pendingTimer, each surface owns its timer slot.
@@ -88,22 +93,31 @@
   // When called from a foreign handler (e.g. the diff selectionchange firing
   // because a CodeMirror selection changed the DOM) it only closes if that
   // surface actually has an active timer — it never cancels another surface's timer.
+  // FIX #10: separate timer ownership from visible-menu ownership. A surface
+  // can still close the visible menu even after its timer has already fired
+  // (surfaceTimers[surface] === null), as long as that surface is the one that
+  // last opened the visible menu (activeMenuSource). Without this, the menu
+  // stays open after the originating selection disappears because the timer was
+  // already consumed when the menu rendered.
   function closeMenu(surface) {
     if (surface) {
-      // Only close if this surface owns the pending work.
-      if (!surfaceTimers[surface]) return; // foreign surface; do nothing
+      const ownsPending = !!surfaceTimers[surface];
+      const ownsVisible = activeMenuSource === surface;
+      if (!ownsPending && !ownsVisible) return; // foreign surface; do nothing
       clearPendingFor(surface);
     } else {
       clearAllPending();
     }
     if (menu) menu.classList.remove('open');
     activeActions = null;
+    activeMenuSource = null;
   }
   window.dexCloseNativeMenu = () => closeMenu();
 
-  function renderMenu(actions, rect) {
+  function renderMenu(actions, rect, source) {
     ensureMenu();
     activeActions = actions;
+    activeMenuSource = source || null;
     let html = '';
     actions.forEach((a, i) => {
       if (a.sep) { html += '<div class="dex-nm-sep"></div>'; return; }
@@ -115,12 +129,19 @@
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.dataset.nmIdx, 10);
         const action = activeActions && activeActions[idx];
+        // Capture the source before closeMenu() clears activeMenuSource.
+        // FIX #11: use isDpadSource() so doubletap/longpress collapse the dpad too.
+        const menuWasFromDpad = isDpadSource(activeMenuSource);
         closeMenu();
-        // FIX (bug #3): any action that closes the native menu should also
-        // collapse the dpad — copy/cut/paste/delete/select-all all imply the
-        // user is done with the current selection interaction.
-        const dpad = window.__dexDpad;
-        if (dpad && typeof dpad.collapseDpad === 'function') dpad.collapseDpad();
+        // FIX (bug #3 / Scenario D): only collapse the D-pad when the menu was
+        // opened BY the D-pad. Collapsing unconditionally means that any Copy
+        // action from a normal text selection (diff, generic, CM) collapses the
+        // D-pad even when it was unrelated to what the user was doing with the
+        // D-pad. The D-pad should only be dismissed by its own interactions.
+        if (menuWasFromDpad) {
+          const dpad = window.__dexDpad;
+          if (dpad && typeof dpad.collapseDpad === 'function') dpad.collapseDpad();
+        }
         if (action && typeof action.run === 'function') action.run();
       });
     });
@@ -141,6 +162,12 @@
 
   // FIX #1 / #8: scheduleMenu now takes a surface name so timers are scoped.
   // A surface's own calls only reset that surface's timer, not others.
+  // FIX #4 / #10: pass surface as the source argument to renderMenu so that
+  // activeMenuSource is always populated for auto-scheduled menus. Without this,
+  // activeMenuSource remained null for every menu not opened via
+  // dexOpenMenuForSelection(), so closeMenu('codemirror') couldn't close a
+  // visible auto-scheduled CM menu (the #10 fix was incomplete), and
+  // menuWasFromDpad was always false on auto-scheduled paths.
   function scheduleMenu(surface, getActionsAndRect) {
     clearPendingFor(surface);
     if (menu && menu.classList.contains('open')) closeMenu();
@@ -148,8 +175,23 @@
       surfaceTimers[surface] = null;
       const result = getActionsAndRect();
       if (!result || !result.actions || !result.actions.length) return;
-      renderMenu(result.actions, result.rect);
+      renderMenu(result.actions, result.rect, surface);
     }, MENU_DELAY_MS);
+  }
+
+  // ---- Source normalisation ----
+  // FIX #11 / #29: selection.js calls dexOpenMenuForSelection('doubletap') and
+  // ('longpress') for touch interactions on the CM editor wrapper, while the
+  // D-pad's recordCenterTap path calls it with 'dpad'. All three are D-pad /
+  // touch-originated interactions that share the same contract:
+  //   • show the "Close D-Pad" action in the menu
+  //   • collapse the D-pad when a menu action is executed
+  // Using three different string values caused the === 'dpad' checks to miss
+  // the doubletap and longpress cases, so the "Close D-Pad" item was absent
+  // and the D-pad never collapsed after copy/cut on a doubletap word-select.
+  // isDpadSource() is the single place that expresses this equivalence.
+  function isDpadSource(src) {
+    return src === 'dpad' || src === 'doubletap' || src === 'longpress';
   }
 
   // ---- CodeMirror surface (base-mode textarea, diffusion's raw/morph editing panes) ----
@@ -196,8 +238,9 @@
       actions.push({ label: 'Clear Morph', icon: IC.delete, danger: true, run: () => { if (typeof diffClearText === 'function') diffClearText('morph'); } });
     }
     // The dpad's own "Close D-Pad" action only makes sense when the menu was
-    // opened from the dpad (double-tap), not from a real text selection.
-    if (source === 'dpad') {
+    // opened from a D-pad/touch interaction, not from a real text selection.
+    // FIX #11: isDpadSource covers 'dpad', 'doubletap', and 'longpress'.
+    if (isDpadSource(source)) {
       actions.push({ sep: true });
       actions.push({ label: 'Close D-Pad', icon: IC.closeDpad, danger: true, run: () => {
           if (typeof window.dexHideDpad === 'function') window.dexHideDpad();
@@ -224,7 +267,8 @@
           cm.setSelection({ line: 0, ch: 0 }, { line: lastLine, ch: cm.getLine(lastLine).length });
         } }
     ];
-    if (source === 'dpad') {
+    // FIX #11: isDpadSource covers 'dpad', 'doubletap', and 'longpress'.
+    if (isDpadSource(source)) {
       actions.push({ sep: true });
       actions.push({ label: 'Close D-Pad', icon: IC.closeDpad, danger: true, run: () => {
           if (typeof window.dexHideDpad === 'function') window.dexHideDpad();
@@ -247,7 +291,10 @@
     if (!cm.somethingSelected()) {
       const pos = cm.getCursor();
       const coords = cm.charCoords(pos, 'window');
-      renderMenu(cursorActions(cm, source), { left: coords.right, top: coords.top, bottom: coords.bottom });
+      // FIX (bug #3): pass source so renderMenu records activeMenuSource = 'dpad'
+      // (or whatever the caller passed), enabling the click handler to only
+      // collapse the D-pad when the menu was opened BY the D-pad.
+      renderMenu(cursorActions(cm, source), { left: coords.right, top: coords.top, bottom: coords.bottom }, source);
       return;
     }
 
@@ -255,7 +302,8 @@
     const coords = cm.charCoords(range.to, 'window');
     renderMenu(
       codeMirrorActions(cm, range, { source }),
-      { left: coords.right, top: coords.top, bottom: coords.bottom }
+      { left: coords.right, top: coords.top, bottom: coords.bottom },
+      source
     );
   };
 
@@ -267,13 +315,29 @@
     // FIX #16: track the cm instance by reference, not just a flag on the object.
     // If the editor is recreated we detect it here and re-hook the new instance.
     if (hookCodeMirror._boundCm === cm) return; // already hooked to this instance
+
+    // FIX #25: remove the cursorActivity handler from the PREVIOUS CM instance
+    // before attaching to the new one. Previously the old handler was stored in
+    // cm.__dexNativeMenuHandler but never actually removed via cm.off(). On SPA
+    // navigation the old CM object stays alive (it's still in the DOM until the
+    // parent element is removed), its handler keeps firing, and it can still
+    // manipulate the global native menu — including scheduling menus and calling
+    // closeMenu() — for selections that belong to a completely different editor.
+    const prevCm = hookCodeMirror._boundCm;
+    if (prevCm && typeof prevCm.off === 'function' && prevCm.__dexNativeMenuHandler) {
+      try { prevCm.off('cursorActivity', prevCm.__dexNativeMenuHandler); } catch (_e) {}
+      prevCm.__dexNativeMenuHandler = null;
+      prevCm.__dexNativeMenuHooked = false; // allow re-hooking if the instance is reused
+    }
+
     hookCodeMirror._boundCm = cm;
 
-    // Remove the flag from any previous instance so it can be re-hooked if reused.
+    // Guard: only hook each cm instance once. __dexNativeMenuHooked is cleared
+    // above when we unhook, so a recycled instance gets re-hooked correctly.
     if (cm.__dexNativeMenuHooked) return;
     cm.__dexNativeMenuHooked = true;
 
-    // FIX #18 (partial): store the handler so it could be removed if needed.
+    // FIX #18: store the handler so it can be removed on the next editor replacement.
     // FIX (perf / bug #5): check somethingSelected() first so that plain
     // cursor movement (every keystroke when nothing is selected) exits before
     // touching any timer allocations or doing DOM work.
@@ -287,9 +351,23 @@
       // change was caused by focusCurrentMatch(), not the user selecting text.
       const findMenu = document.getElementById('find-replace-menu');
       if (findMenu && !findMenu.classList.contains('find-replace-hidden')) return;
-      // FIX (bug #5): skip scheduling when dpad joystick is actively dragging.
+      // FIX (bug #5 / #7 / Scenario C): skip scheduling when ANY D-pad center
+      // drag is active — both the collapsed-centre drag and the normal expanded
+      // joystick drag. Previously only getCollapsedCenterDrag() was checked, so
+      // the normal drag (ctx.startCenterDrag) was invisible to this guard and
+      // the native menu could appear 1 second into a joystick selection.
       const dpad = window.__dexDpad;
-      if (dpad && typeof dpad.getCollapsedCenterDrag === 'function' && dpad.getCollapsedCenterDrag()) return;
+      if (dpad) {
+        const collapsedDragging = typeof dpad.getCollapsedCenterDrag === 'function'
+          && dpad.getCollapsedCenterDrag();
+        const normalDragging = typeof dpad.isCenterDragging === 'function'
+          && dpad.isCenterDragging();
+        if (collapsedDragging || normalDragging) return;
+      }
+      // FIX (bug #5 / Scenario E): skip scheduling while a selection handle
+      // is being dragged. The user is still manipulating the selection; the
+      // menu appearing mid-drag is disruptive.
+      if (window.__dexSelHandleDragging) return;
       // FIX #1: pass surface name so only the CM timer is reset, not the diff timer.
       scheduleMenu('codemirror', () => {
         if (!cm.somethingSelected()) return null;
