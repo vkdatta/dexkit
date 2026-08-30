@@ -57,8 +57,11 @@
     if (initialTheme && initialTheme !== 'dracula') ensureThemeLoaded(initialTheme);
     applyCmToneAttr(initialTheme);
 
-    const initialWrap = localStorage.getItem('wrapText') === '1';
-    const initialLineNumbers = localStorage.getItem('showLineNumbers') === '1';
+    // Defaults: wrap, line numbers, and syntax highlighting are ON out of the
+    // box. A stored '0' means the user explicitly turned the feature off and
+    // that choice is respected; any other value (including absent) means ON.
+    const initialWrap        = localStorage.getItem('wrapText')       !== '0';
+    const initialLineNumbers = localStorage.getItem('showLineNumbers') !== '0';
 
     const cm = CodeMirror.fromTextArea(nt, {
       theme: initialTheme,
@@ -204,7 +207,7 @@
     }
 
     function applyLanguageForCurrentNote() {
-      const prismOn = localStorage.getItem('prismEnabled') === '1';
+      const prismOn = localStorage.getItem('prismEnabled') !== '0';
       const ext = (typeof currentNote !== 'undefined' && currentNote && currentNote.extension) || 'txt';
       if (!prismOn) { cm.setOption('mode', 'text/plain'); return; }
       const { mode, mime } = extToMode(ext);
@@ -250,7 +253,7 @@
       on: (event, fn) => { cm.on(event, fn); return () => cm.off(event, fn); },
 
       setLanguage: function (ext) {
-        const prismOn = localStorage.getItem('prismEnabled') === '1';
+        const prismOn = localStorage.getItem('prismEnabled') !== '0';
         if (!prismOn || !ext) { cm.setOption('mode', 'text/plain'); return; }
         const { mode, mime } = extToMode(ext);
         cm.setOption('mode', mime);
