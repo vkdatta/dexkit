@@ -437,6 +437,12 @@ if (window.__dexToolbar2Loaded) {
   cursorControls.addEventListener('pointercancel', endCursorDrag);
 
   window.addEventListener('resize', () => {
+    // FIX (bug #8): when find is open the soft keyboard firing a resize event
+    // would shrink window.innerHeight and re-clamp the dpad to a new position.
+    // Skip the re-clamp entirely while find is open — the dpad is collapsed
+    // during find anyway (collapsed by find.js on open).
+    const findMenu = document.getElementById('find-replace-menu');
+    if (findMenu && !findMenu.classList.contains('find-replace-hidden')) return;
     const clamped = clampCursor(cursorControls.offsetLeft, cursorControls.offsetTop);
     applyCursorPos(clamped);
     saveCursorPos(clamped.left, clamped.top);

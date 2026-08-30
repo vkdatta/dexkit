@@ -50,6 +50,10 @@
   function positionHandles() {
     var cm = getCm();
     if (!cm || !cm.somethingSelected()) { hideHandles(); return; }
+    // FIX (bug #5): don't show handles while the find panel is open — they
+    // float on top of the find overlay and are visually broken there.
+    var findMenu = document.getElementById('find-replace-menu');
+    if (findMenu && !findMenu.classList.contains('find-replace-hidden')) { hideHandles(); return; }
     ensureHandles();
     var from = cm.getCursor('from'), to = cm.getCursor('to');
     placeHandle(handleStart, cm.charCoords(from, 'window'));
@@ -140,13 +144,56 @@
     if (!cm) return;
     var pos = cm.coordsChar({ left: clientX, top: clientY }, 'window');
     var word = cm.findWordAt(pos);
-    if (posEq(word.anchor, word.head)) return;
+    if (posEq(word.anchor, word.head)) {
+      // FIX (bug #7): long-press on empty space — no word to select. Place the
+      // cursor there and open the native menu (gives Paste + Select All even on
+      // blank lines) instead of doing nothing.
+      cm.setCursor(pos);
+      cm.focus();
+      suppressNextPointerUp = true;
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_e) {} }
+      if (typeof window.dexOpenMenuForSelection === 'function') {
+        window.dexOpenMenuForSelection('longpress');
+      }
+      return;
+    }
     cm.setSelection(word.anchor, word.head);
     cm.focus();
     // Direct call — show handles immediately on long-press word select.
     positionHandles();
     suppressNextPointerUp = true;
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_e) {} }
+    // FIX (bug #7): after a long-press word select cancel any pending native
+    // menu timer so we don't get both selection handles AND the menu popping
+    // up 1 second later.
+    if (typeof window.dexCloseNativeMenu === 'function') window.dexCloseNativeMenu();
+  }
+
+  var DBL_TAP_MS = 280;
+  var lastTapTime = 0;
+  var lastTapX = 0;
+  var lastTapY = 0;
+
+  function fireDblTap(clientX, clientY) {
+    var cm = getCm();
+    if (!cm) return;
+    var pos = cm.coordsChar({ left: clientX, top: clientY }, 'window');
+    var word = cm.findWordAt(pos);
+    if (posEq(word.anchor, word.head)) {
+      // Empty space double-tap: place cursor and open menu for Paste/Select All.
+      cm.setCursor(pos);
+    } else {
+      cm.setSelection(word.anchor, word.head);
+      positionHandles();
+    }
+    cm.focus();
+    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_e) {} }
+    // FIX (bug #7): cancel any pending native menu timer first so we get a
+    // fresh immediate open rather than a stale 1-second-delayed one.
+    if (typeof window.dexCloseNativeMenu === 'function') window.dexCloseNativeMenu();
+    if (typeof window.dexOpenMenuForSelection === 'function') {
+      window.dexOpenMenuForSelection('doubletap');
+    }
   }
 
   function attachLongPress(tries) {
@@ -162,6 +209,21 @@
 
     wrapper.addEventListener('pointerdown', function (e) {
       if (!isTouchLike(e)) return;
+
+      // FIX (bug #7): detect double-tap for word-select + menu.
+      var now = Date.now();
+      var dx = e.clientX - lastTapX, dy = e.clientY - lastTapY;
+      var nearSameSpot = Math.hypot(dx, dy) < 30;
+      if (nearSameSpot && (now - lastTapTime) < DBL_TAP_MS) {
+        lastTapTime = 0; // reset so a triple-tap doesn't re-fire
+        cancelPress();
+        fireDblTap(e.clientX, e.clientY);
+        return;
+      }
+      lastTapTime = now;
+      lastTapX = e.clientX;
+      lastTapY = e.clientY;
+
       if (pressStart) { cancelPress(); return; }
       pressStart = { x: e.clientX, y: e.clientY, id: e.pointerId };
       pressTimer = setTimeout(function () {

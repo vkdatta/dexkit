@@ -32,6 +32,12 @@
     transform var(--transition-speed), background var(--transition-speed);
 }
 .find-replace-search-bar:focus-within {
+  box-shadow: 0 0 0 var(--focus-ring) color-mix(in srgb, var(--c-accent) 08%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 18%, transparent);
+  transform: translateY(-1px);
+}
+.find-replace-mode-switch {
+  width: 20px;
   height: 20px;
   margin-right: 6px;
   padding-right: 6px;
@@ -180,9 +186,12 @@
   margin: 0 auto !important;
   max-width: calc(100% - 32px) !important;
   z-index: 4000 !important;
-  background: var(--c-black);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--c-black) 60%, transparent);
+  background: color-mix(in srgb, var(--c-black) 82%, transparent);
   border: 1px solid color-mix(in srgb, var(--c-white) 8%, transparent);
   border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .find-backdrop {

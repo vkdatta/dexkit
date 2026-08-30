@@ -116,6 +116,11 @@
         const idx = parseInt(btn.dataset.nmIdx, 10);
         const action = activeActions && activeActions[idx];
         closeMenu();
+        // FIX (bug #3): any action that closes the native menu should also
+        // collapse the dpad — copy/cut/paste/delete/select-all all imply the
+        // user is done with the current selection interaction.
+        const dpad = window.__dexDpad;
+        if (dpad && typeof dpad.collapseDpad === 'function') dpad.collapseDpad();
         if (action && typeof action.run === 'function') action.run();
       });
     });
@@ -269,12 +274,22 @@
     cm.__dexNativeMenuHooked = true;
 
     // FIX #18 (partial): store the handler so it could be removed if needed.
+    // FIX (perf / bug #5): check somethingSelected() first so that plain
+    // cursor movement (every keystroke when nothing is selected) exits before
+    // touching any timer allocations or doing DOM work.
     const handler = () => {
       if (!cm.somethingSelected()) {
         // FIX #2: only close/cancel this surface's timer, not others.
         closeMenu('codemirror');
         return;
       }
+      // FIX (bug #5): skip scheduling when find panel is open — the selection
+      // change was caused by focusCurrentMatch(), not the user selecting text.
+      const findMenu = document.getElementById('find-replace-menu');
+      if (findMenu && !findMenu.classList.contains('find-replace-hidden')) return;
+      // FIX (bug #5): skip scheduling when dpad joystick is actively dragging.
+      const dpad = window.__dexDpad;
+      if (dpad && typeof dpad.getCollapsedCenterDrag === 'function' && dpad.getCollapsedCenterDrag()) return;
       // FIX #1: pass surface name so only the CM timer is reset, not the diff timer.
       scheduleMenu('codemirror', () => {
         if (!cm.somethingSelected()) return null;

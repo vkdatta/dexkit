@@ -346,6 +346,13 @@ export function createFindAndReplace() {
       state.suspendSearch = false;
       queuedPerform = false;
 
+      // FIX (bug #5 / #8): close the native menu and collapse the dpad when
+      // find opens — the dpad floats on top of the find overlay and dpad
+      // selection moves trigger the menu schedule via cursorActivity.
+      if (typeof window.dexCloseNativeMenu === 'function') window.dexCloseNativeMenu();
+      const dpad = window.__dexDpad;
+      if (dpad && typeof dpad.collapseDpad === 'function') dpad.collapseDpad();
+
       const c = cm();
       if (c && els.findInput) {
         const sel = c.getSelection();

@@ -23,11 +23,21 @@
     if (cm.__dexCursorActivityBound) return;
     cm.__dexCursorActivityBound = true;
 
-    try { cm.setOption('styleSelectedText', true); } catch (_e) {}
+    // FIX (perf): styleSelectedText adds a CM overlay that rewrites DOM on
+    // every selection change — costly with no visible benefit over CM's built-
+    // in selection rendering. Removed.
 
     cm.on('cursorActivity', () => {
-      if (menuOpen() && !cm.getSelection()) closeMenu();
-      if (!cm.getSelection()) ctx.setSelectionAnchor(cm.getCursor('head'));
+      const hasSel = cm.somethingSelected();
+      // FIX (perf / bug #5): only run menu/preview work when there is actually
+      // a selection. Plain cursor moves (every keystroke) used to burn through
+      // menuOpen() DOM queries, setSelectionAnchor, updateCenterHandle, and a
+      // charCoords() layout reflow unconditionally.
+      if (!hasSel) {
+        if (menuOpen()) closeMenu();
+        ctx.setSelectionAnchor(cm.getCursor('head'));
+        return; // skip preview update — nothing to preview
+      }
       updateCenterHandle();
       updateSelectionPreview();
     });

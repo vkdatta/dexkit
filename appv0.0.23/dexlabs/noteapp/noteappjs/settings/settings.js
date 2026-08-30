@@ -309,8 +309,12 @@ export function createSettingsManager() {
         on = currentAppTheme() === 'light';
       } else if (key === 'LINENUM' && window.dexEditor && window.dexEditor.cm) {
         on = !!window.dexEditor.cm.getOption('lineNumbers');
+      } else if (key === 'LINENUM') {
+        on = lsBool(LS.LINENUM, true); // fallback: absent key → ON
       } else if (key === 'WRAP' && window.dexEditor && window.dexEditor.cm) {
         on = !!window.dexEditor.cm.getOption('lineWrapping');
+      } else if (key === 'WRAP') {
+        on = lsBool(LS.WRAP, true);    // fallback: absent key → ON
       } else if (key === 'PRISM') {
         on = lsBool(LS.PRISM, true); // FIX (defaults): absent key → default ON
       } else if (key === 'DIFFUSION') {

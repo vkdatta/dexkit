@@ -68,8 +68,8 @@
       mode: 'text/plain',
       lineNumbers: initialLineNumbers,
       lineWrapping: initialWrap,
-      matchBrackets: true,
-      styleActiveLine: true,
+      matchBrackets: false,
+      styleActiveLine: false,
       indentUnit: 4,
       tabSize: 4,
       indentWithTabs: false,
@@ -111,6 +111,20 @@
         requestAnimationFrame(() => { try { cm.refresh(); } catch (e) {} });
       });
     }
+
+    // FIX (underlines): Android IME marks recently-typed text with a grammar/
+    // autocorrect underline on the CM content div even though CM uses a hidden
+    // textarea underneath and spellcheck:false is set. The browser-rendered
+    // content layer still gets decorated. A CSS override kills it globally.
+    (function injectAntiUnderline() {
+      if (document.getElementById('dex-anti-underline')) return;
+      const s = document.createElement('style');
+      s.id = 'dex-anti-underline';
+      s.textContent =
+        '.CodeMirror-line span{text-decoration:none!important;' +
+        '-webkit-text-decorations-in-effect:none!important}';
+      document.head.appendChild(s);
+    })();
 
     let suppress = false;
 
