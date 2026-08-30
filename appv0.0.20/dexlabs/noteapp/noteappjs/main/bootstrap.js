@@ -17,8 +17,15 @@ function setupEventListeners() {
   });
 
   const debouncedUpdate = debounce(updateNoteMetadata, 100);
+  // FIX (perf): populateNoteList() was firing on every single keystroke,
+  // rebuilding the entire sidebar note list DOM synchronously each time.
+  // It is now debounced at the same cadence as updateNoteMetadata so the
+  // list refreshes shortly after the user pauses typing rather than on
+  // every character. The debounced instances are kept separate so one
+  // never delays the other.
+  const debouncedPopulate = debounce(populateNoteList, 100);
   safeAddListener(noteTextarea, "input", debouncedUpdate);
-  safeAddListener(noteTextarea, "input", () => populateNoteList());
+  safeAddListener(noteTextarea, "input", debouncedPopulate);
   safeAddListener(noteTextarea, "focus", () => { if (currentNote) updateNoteMetadata(); });
 
   safeAddListener(noteAppBtn, "click", () => { showFileManager(); });

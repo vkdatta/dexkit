@@ -56,7 +56,32 @@
     placeHandle(handleEnd, cm.charCoords(to, 'window'));
   }
 
+  // FIX (perf): positionHandles() calls cm.charCoords() which forces a
+  // synchronous layout reflow. Calling it directly on cursorActivity and
+  // scroll means a reflow fires on every single scroll tick and every cursor
+  // move — at 60fps that is up to 120 forced reflows per second.
+  //
+  // scheduleHandles() batches these calls through requestAnimationFrame so
+  // that at most one reflow happens per paint frame regardless of how many
+  // CM events fire in a single tick. The RAF id is deduplicated so queuing
+  // it multiple times within one frame costs only one actual call.
+  //
+  // Direct calls to positionHandles() are kept for drag and long-press paths
+  // where we want the handle to move in lock-step with the pointer.
+  var _handleRafId = null;
+  function scheduleHandles() {
+    if (_handleRafId !== null) return;
+    _handleRafId = requestAnimationFrame(function () {
+      _handleRafId = null;
+      positionHandles();
+    });
+  }
+
   function hideHandles() {
+    if (_handleRafId !== null) {
+      cancelAnimationFrame(_handleRafId);
+      _handleRafId = null;
+    }
     if (handleStart) handleStart.style.display = 'none';
     if (handleEnd) handleEnd.style.display = 'none';
   }
@@ -87,6 +112,7 @@
     if (!cm) return;
     var pos = cm.coordsChar({ left: e.clientX, top: e.clientY - 32 }, 'window');
     cm.setSelection(dragFixedPoint, pos);
+    // Direct call (not scheduled) — handle must track the finger in real time.
     positionHandles();
   }
 
@@ -117,6 +143,7 @@
     if (posEq(word.anchor, word.head)) return;
     cm.setSelection(word.anchor, word.head);
     cm.focus();
+    // Direct call — show handles immediately on long-press word select.
     positionHandles();
     suppressNextPointerUp = true;
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_e) {} }
@@ -173,9 +200,13 @@
     }
     if (cm.__dexSelHandlesSynced) return;
     cm.__dexSelHandlesSynced = true;
-    cm.on('cursorActivity', positionHandles);
-    cm.on('scroll', positionHandles);
-    window.addEventListener('resize', positionHandles);
+    // FIX (perf): use scheduleHandles (RAF-throttled) instead of positionHandles
+    // directly. cursorActivity and scroll can each fire dozens of times per
+    // second; batching through RAF ensures at most one charCoords() reflow per
+    // paint frame across both event sources combined.
+    cm.on('cursorActivity', scheduleHandles);
+    cm.on('scroll', scheduleHandles);
+    window.addEventListener('resize', scheduleHandles);
   }
 
   function init() {

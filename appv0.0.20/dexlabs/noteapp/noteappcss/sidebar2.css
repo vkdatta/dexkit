@@ -45,16 +45,13 @@
 .secondary-sidebar-card {
   width: var(--category-box-width);
   max-width: calc(100% - 32px);
-  background: color-mix(in srgb, var(--c-panel-2) 82%, transparent);
+  background: var(--c-panel-2);
   border: 1px solid color-mix(in srgb, var(--c-white) 8%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   max-height: calc(100% - 32px);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--c-black) 45%, transparent);
   font-size: 14px;
 }
 .secondary-sidebar-card .secondary-sidebar-scroll {
@@ -190,13 +187,10 @@
 .secondary-sidebar-footer-card {
   width: var(--category-box-width);
   max-width: calc(100% - 32px);
-  background: color-mix(in srgb, var(--c-panel-2) 82%, transparent);
+  background: var(--c-panel-2);
   border: 1px solid color-mix(in srgb, var(--c-white) 8%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--c-black) 35%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;

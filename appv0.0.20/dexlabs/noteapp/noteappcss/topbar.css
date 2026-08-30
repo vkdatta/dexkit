@@ -4,10 +4,8 @@
   left: 50%;
   transform: translateX(-50%);
   width: fit-content;
-  background: color-mix(in srgb, var(--c-panel) 82%, transparent);
+  background: var(--c-panel);
   border: 1px solid color-mix(in srgb, var(--c-white) 8%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   padding: 10px 20px;
   display: flex;
   align-items: center;

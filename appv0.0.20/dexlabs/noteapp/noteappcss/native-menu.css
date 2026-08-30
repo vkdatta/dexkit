@@ -1,6 +1,6 @@
 #dexNativeMenu {
   position: fixed;
-  background: color-mix(in srgb, var(--c-panel-2) 85%, transparent);
+  background: var(--c-panel-2);
   border: 1px solid color-mix(in srgb, var(--c-white) 08%, transparent);
   border-radius: 14px;
   padding: 6px;
@@ -8,11 +8,8 @@
   display: none;
   flex-direction: column;
   min-width: 190px;
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--c-black) 55%, transparent);
   font-family: 'classy', sans-serif;
   -webkit-touch-callout: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 #dexNativeMenu.open { display: flex; animation: dexNmIn 0.16s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes dexNmIn {

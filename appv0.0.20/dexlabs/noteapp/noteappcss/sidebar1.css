@@ -41,14 +41,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(5px);
-  box-shadow:
-    3px 3px 6px color-mix(in srgb, var(--c-black) 10%, transparent),
-    -3px -3px 6px color-mix(in srgb, var(--c-white) 05%, transparent);
-}
-.note-list {
-  list-style: none;
-  padding: 10px 0;
   margin-top: 0;
 }
 .note-item {
@@ -69,23 +61,6 @@
 }
 .note-item.selected {
   background-color: color-mix(in srgb, var(--c-black) 10%, transparent);
-  box-shadow:
-    inset 2px 2px 5px color-mix(in srgb, var(--c-black) 10%, transparent),
-    inset -2px -2px 5px color-mix(in srgb, var(--c-white) 05%, transparent);
-}
-.note-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 180px;
-}
-.note-badge {
-  background: var(--accent);
-  color: var(--c-white);
-  font-size: 0.7rem;
-  padding: 2px 8px;
-  border-radius: 10px;
   margin-left: auto;
 }
 @media (max-width: 600px) {
@@ -106,8 +81,6 @@
     height: 40px;
   }
 }
-
-
 
 #sidebar1 { display: flex; flex-direction: column; }
 #sidebar1 .dex-head {
@@ -146,7 +119,7 @@
   border: 1px solid var(--c-panel-3);
   color: var(--c-text-dim);
   cursor: pointer;
-  transition: all .15s ease;
+  transition: background .15s, border-color .15s, color .15s, transform .15s;
 }
 #sidebar1 .dex-tool:hover {
   background: var(--c-panel-2);
@@ -268,12 +241,9 @@
 
 .dex-sort-menu {
   position: fixed; z-index: 100003;
-  background: color-mix(in srgb, var(--c-panel) 84%, transparent);
+  background: var(--c-panel);
   border: 1px solid color-mix(in srgb, var(--c-white) 8%, transparent);
   border-radius: 10px; padding: 6px;
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--c-black) 50%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   min-width: 210px;
 }
 .dex-sort-item {

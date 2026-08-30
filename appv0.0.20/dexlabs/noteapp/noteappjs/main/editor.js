@@ -75,12 +75,39 @@
       spellcheck: false,
       autocorrect: false,
       autocapitalize: false,
-      viewportMargin: 50         
+      // FIX (perf): was 50 (5× the default). At 50, CM renders 100 extra lines
+      // outside the viewport at all times and re-renders them on every scroll.
+      // 10 is the CM default and is sufficient for smooth scrolling.
+      viewportMargin: 10
     });
 
     const savedFont = parseInt(localStorage.getItem('fontSize') || '14', 10);
     cm.getWrapperElement().style.fontFamily = "'Source Code Pro', monospace";
     cm.getWrapperElement().style.fontSize = savedFont + 'px';
+
+    // FIX (gutter collision): CM calculates gutter width during fromTextArea()
+    // using whatever font is active at that instant — typically the browser's
+    // fallback monospace, not Source Code Pro (a web font set two lines above).
+    // The result: the gutter is sized for the wrong font, the lines container is
+    // offset by that stale measurement, and they overlap on open.
+    //
+    // We fix this with two complementary refresh passes:
+    //   1. A requestAnimationFrame pass runs immediately after the current
+    //      paint, catching the case where the font was already cached and
+    //      applied synchronously (warm page loads, repeat visits).
+    //   2. A document.fonts.ready pass runs once the font stack has fully
+    //      resolved, covering cold loads where Source Code Pro arrives late.
+    //      A second RAF is nested inside it so the refresh fires after the
+    //      browser has actually applied the new font metrics to the layout.
+    //
+    // Both passes are cheap no-ops if the layout is already correct, so
+    // the double-refresh on warm loads has no visible cost.
+    requestAnimationFrame(() => { try { cm.refresh(); } catch (e) {} });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        requestAnimationFrame(() => { try { cm.refresh(); } catch (e) {} });
+      });
+    }
 
     let suppress = false;
 

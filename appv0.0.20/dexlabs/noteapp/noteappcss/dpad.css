@@ -9,7 +9,7 @@
   display: flex; align-items: center; justify-content: center;
   cursor: grab;
   z-index: 9997;
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--c-black) 55%, transparent);
+  
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   user-select: none; -webkit-user-select: none;
@@ -21,12 +21,12 @@
 }
 #dexToolbarBtn:hover {
   border-color: color-mix(in srgb, var(--c-blue) 40%, transparent);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--c-blue) 15%, transparent), 0 8px 32px color-mix(in srgb, var(--c-black) 55%, transparent);
+  
 }
 #dexToolbarBtn:active { cursor: grabbing; transform: scale(0.94); }
 #dexToolbarBtn > * { pointer-events: none; }
 #dexToolbarBtn.dragging {
-  box-shadow: 0 12px 36px color-mix(in srgb, var(--c-black) 70%, transparent);
+  
   opacity: 0.85;
   border-color: var(--c-blue);
 }
@@ -72,9 +72,7 @@ body:has(#sidebar1.open) #dexCursorControls {
   transform: scale(0.9);
   transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 0;
-  box-shadow:
-    inset 0 0 12px color-mix(in srgb, var(--c-blue) 12%, transparent),
-    0 0 20px color-mix(in srgb, var(--c-blue) 10%, transparent);
+  
 }
 #dexCursorControls:not(.dpad-collapsed)::before {
   opacity: 1;
@@ -82,16 +80,14 @@ body:has(#sidebar1.open) #dexCursorControls {
 }
 #dexCursorControls.dragging::before {
   border-color: color-mix(in srgb, var(--c-blue) 70%, transparent);
-  box-shadow:
-    inset 0 0 18px color-mix(in srgb, var(--c-blue) 25%, transparent),
-    0 0 28px color-mix(in srgb, var(--c-blue) 35%, transparent);
+  
 }
 
 #dexCursorControls .dex-cursor-btn {
   position: absolute;
   width: 26px;
   height: 26px;
-  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+  border-radius: 6px;
   background: color-mix(in srgb, var(--c-panel-2) 95%, transparent);
   border: none;
   color: var(--c-white);
@@ -99,10 +95,10 @@ body:has(#sidebar1.open) #dexCursorControls {
   cursor: pointer;
   padding: 0;
   margin: 0;
-  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: background 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  box-shadow: inset 0 0 6px color-mix(in srgb, var(--c-white) 08%, transparent);
+  
 }
 #dexCursorControls .dex-cursor-btn::before {
   content: '';
@@ -115,14 +111,12 @@ body:has(#sidebar1.open) #dexCursorControls {
   background: var(--c-border);
   color: var(--c-white);
   transform: scale(1.15);
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-white) 50%, transparent));
 }
 #dexCursorControls .dex-cursor-btn:active,
 #dexCursorControls .dex-cursor-btn.holding {
   background: var(--c-border);
   color: var(--c-white);
   transform: scale(0.92);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c-white) 40%, transparent));
 }
 /* This 26px radial D-pad control is too small to host the standard
    --icon-size/--btn-padding without breaking its octagon clip-path, so it
@@ -160,8 +154,7 @@ body:has(#sidebar1.open) #dexCursorControls {
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--c-black) 60%, transparent),
-              inset 0 0 5px color-mix(in srgb, var(--c-white) 10%, transparent);
+  
   transition: transform 0.15s ease,
               border-color 0.15s ease,
               box-shadow 0.15s ease,
@@ -170,16 +163,14 @@ body:has(#sidebar1.open) #dexCursorControls {
 }
 #dexCursorControls .dex-center-drag:hover {
   border-color: var(--c-text-faint);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--c-white) 40%, transparent),
-              inset 0 0 6px color-mix(in srgb, var(--c-white) 20%, transparent);
+  
   transform: scale(1.12);
 }
 #dexCursorControls .dex-center-drag.dragging {
   cursor: grabbing;
   border-color: var(--c-green);
   transform: scale(1.2);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--c-green) 70%, transparent),
-              inset 0 0 8px color-mix(in srgb, var(--c-green) 50%, transparent);
+  
 }
 
 #dexCursorControls .dex-center-drag::after {
@@ -193,19 +184,19 @@ body:has(#sidebar1.open) #dexCursorControls {
 }
 #dexCursorControls .dex-center-drag.dragging-right::after {
   border-right-color: var(--c-green);
-  box-shadow: 4px 0 10px color-mix(in srgb, var(--c-green) 50%, transparent);
+  
 }
 #dexCursorControls .dex-center-drag.dragging-left::after {
   border-left-color: var(--c-green);
-  box-shadow: -4px 0 10px color-mix(in srgb, var(--c-green) 50%, transparent);
+  
 }
 #dexCursorControls .dex-center-drag.dragging-up::after {
   border-top-color: var(--c-green);
-  box-shadow: 0 -4px 10px color-mix(in srgb, var(--c-green) 50%, transparent);
+  
 }
 #dexCursorControls .dex-center-drag.dragging-down::after {
   border-bottom-color: var(--c-green);
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--c-green) 50%, transparent);
+  
 }
 
 #dexSelectionPreview {
@@ -218,7 +209,7 @@ body:has(#sidebar1.open) #dexCursorControls {
   font-family: 'classy', monospace;
   font-size: 12px;
   color: var(--c-blue);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--c-blue) 15%, transparent), 0 8px 32px color-mix(in srgb, var(--c-black) 55%, transparent);
+  
   pointer-events: none;
   opacity: 0;
   transform: translateY(8px) scale(0.95);
@@ -227,8 +218,6 @@ body:has(#sidebar1.open) #dexCursorControls {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 #dexSelectionPreview.visible {
   opacity: 1;
@@ -275,10 +264,7 @@ body:has(#sidebar1.open) #dexCursorControls {
   opacity: 0.85;
   cursor: grab;
   border-color: color-mix(in srgb, var(--c-blue) 55%, transparent);
-  box-shadow:
-    0 0 14px color-mix(in srgb, var(--c-blue) 55%, transparent),
-    0 0 28px color-mix(in srgb, var(--c-blue) 25%, transparent),
-    inset 0 0 6px color-mix(in srgb, var(--c-green) 20%, transparent);
+  
   transition: opacity 0.25s ease, transform 0.25s ease,
               border-color 0.15s ease, box-shadow 0.15s ease,
               left 0.25s ease, top 0.25s ease;
@@ -287,10 +273,7 @@ body:has(#sidebar1.open) #dexCursorControls {
   opacity: 1;
   transform: scale(1.18) !important;
   border-color: var(--c-blue);
-  box-shadow:
-    0 0 20px color-mix(in srgb, var(--c-blue) 75%, transparent),
-    0 0 40px color-mix(in srgb, var(--c-blue) 35%, transparent),
-    inset 0 0 8px color-mix(in srgb, var(--c-green) 30%, transparent);
+  
 }
 #dexCursorControls.dpad-collapsed .dex-center-drag.dragging {
   opacity: 1;
@@ -306,17 +289,11 @@ body:has(#sidebar1.open) #dexCursorControls {
 }
 
 @keyframes dexCenterGreenPulse {
-  0%, 100% {
-    box-shadow:
-      0 0 14px color-mix(in srgb, var(--c-blue) 55%, transparent),
-      0 0 28px color-mix(in srgb, var(--c-blue) 25%, transparent),
-      inset 0 0 6px color-mix(in srgb, var(--c-green) 20%, transparent);
-  }
+  0%, 100% { opacity: 0.78; }
+  50%       { opacity: 1;    }
+}
   50% {
-    box-shadow:
-      0 0 22px color-mix(in srgb, var(--c-blue) 85%, transparent),
-      0 0 44px color-mix(in srgb, var(--c-blue) 40%, transparent),
-      inset 0 0 10px color-mix(in srgb, var(--c-green) 35%, transparent);
+    
   }
 }
 #dexCursorControls.dpad-collapsed .dex-center-drag {
@@ -334,7 +311,7 @@ body:has(#sidebar1.open) #dexCursorControls {
   height: 4px;
   border-radius: 50%;
   background: var(--c-blue);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--c-blue) 35%, transparent), 0 0 16px color-mix(in srgb, var(--c-blue) 35%, transparent);
+  
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.1s ease;
@@ -369,6 +346,5 @@ body:has(#sidebar1.open) #dexCursorControls {
   height: 20px;
   border-radius: 50%;
   background: var(--c-accent);
-  border: 2px solid color-mix(in srgb, var(--c-panel-2) 90%, transparent);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--c-black) 45%, transparent);
+  border: 2px solid var(--c-panel-2);
 }

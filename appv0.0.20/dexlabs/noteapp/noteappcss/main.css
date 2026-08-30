@@ -25,14 +25,13 @@
   --c-warn:       #ecd19e;
   --c-folder-icon:#e1c280;
 
-
   --primary:                   var(--c-black);
   --color:                     var(--c-white);
   --accent:                    var(--c-panel-2);
   --accent2:                   var(--c-panel-2);
   --matte:                     var(--c-panel);
   --border:                    var(--c-border);
-  --shadow:                    0 10px 30px color-mix(in srgb, var(--c-black) 55%, transparent);
+  --shadow:                    0 1px 0 var(--c-panel-3);
   --modalinput:                var(--c-black);
   --blueink:                   var(--c-blue);
   --selection-color:           var(--c-border-soft);
@@ -128,7 +127,7 @@ html[data-theme="light"] {
   --c-accent-green-vold-2:     var(--c-green);
 
   --selection-color:           color-mix(in srgb, var(--c-accent) 20%, transparent);
-  --shadow:                    0 10px 30px color-mix(in srgb, var(--c-black) 10%, transparent);
+  --shadow:                    0 1px 0 var(--c-panel-3);
 
   --editor-bg-light:           var(--c-black);
   --editor-gutter-light:       var(--c-panel);
@@ -269,15 +268,6 @@ button { font-family: classy; }
   border-radius: 16px;
   background: var(--c-panel);
   border: 1px solid var(--c-border);
-  box-shadow: var(--shadow);
-}
-.docs-header {
-  position: sticky;
-  top: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
   background: var(--c-panel);
   border-bottom: 1px solid var(--c-border);
   font-weight: 600;
@@ -420,7 +410,6 @@ button { font-family: classy; }
   z-index: 1000;
   height: var(--diff-topbar-height, 70px);
   border: 1px solid var(--diff-border);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--c-black) 80%, transparent);
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -504,7 +493,6 @@ body.diff-fullscreen .diff-lines-container { height: 100%; overflow: auto; }
   background: transparent;
 }
 .text-area-wrapper .CodeMirror-scroll { min-height: 100%; }
-
 
 html[data-cm-tone="dark"] [class*="cm-s-"].CodeMirror,
 html[data-cm-tone="dark"] .CodeMirror {
@@ -615,7 +603,6 @@ html[data-cm-tone="light"] .CodeMirror-linenumber {
   gap: 8px; padding: 14px 14px; margin-top: 25px;
   background: var(--c-panel); border-bottom: 1px solid color-mix(in srgb, var(--c-blue) 30%, transparent);
   color: var(--c-white); font-size: 13.5px;
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--c-black) 45%, transparent);
 }
 .diff-pick-banner b { color: var(--c-blue); }
 .diff-pick-banner button {

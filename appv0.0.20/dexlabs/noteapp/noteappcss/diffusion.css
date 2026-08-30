@@ -15,7 +15,6 @@
   z-index: 1000;
   height: var(--diff-topbar-height);
   border: 1px solid var(--diff-border);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--c-black) 80%, transparent);
 }
 .diff-topbar-section {
   display: flex;

@@ -102,16 +102,37 @@
     injectCss();
     styleAll(document);
 
+    // FIX (perf): the previous observer called styleAll(node) for every added
+    // node anywhere in the document — including the hundreds of DOM mutations
+    // CodeMirror produces per second during typing and scrolling. styleAll()
+    // runs querySelectorAll on the mutated subtree each time, making it
+    // O(subtree-size) per CM update with zero benefit because CM never adds
+    // checkboxes.
+    //
+    // The replacement observer inspects only the added nodes themselves:
+    //  • If an added node IS a checkbox, style it directly (O(1)).
+    //  • If an added node CONTAINS checkboxes, style only those (O(k) where
+    //    k = number of checkboxes in the node, typically 0 for CM mutations).
+    //  • Skip nodes that are inside .CodeMirror — CM manages its own DOM
+    //    constantly and will never add real checkboxes there.
+    //
+    // This reduces the per-keystroke observer cost from O(subtree) to O(1)
+    // for the dominant case (CM text mutations with no checkboxes).
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
-        m.addedNodes.forEach((node) => {
-          if (node.nodeType !== 1) return;
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+
+          // Skip CodeMirror's internal DOM churn entirely.
+          if (node.closest && node.closest('.CodeMirror')) continue;
+
           if (node.matches && node.matches('input[type="checkbox"]')) {
             styleCheckbox(node);
           } else if (node.querySelectorAll) {
-            styleAll(node);
+            const checks = node.querySelectorAll('input[type="checkbox"]');
+            if (checks.length) checks.forEach(styleCheckbox);
           }
-        });
+        }
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });

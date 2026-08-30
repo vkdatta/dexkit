@@ -1,6 +1,6 @@
 #settingsoverlay {
   position: fixed; inset: 0;
-  background: color-mix(in srgb, var(--c-black) 96%, transparent);
+  background: var(--c-black);
   color: var(--c-white);
   z-index: 99999;
   display: flex; flex-direction: column;
@@ -71,15 +71,15 @@
 .settings-item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 16px;
-  background: var(--c-black);
-  border: 1px solid var(--c-panel-2);
+  background: var(--c-panel-2);
+  border: 1px solid var(--c-panel-3);
   border-radius: 10px;
   margin-bottom: 10px; cursor: pointer; user-select: none;
   transition: background .15s ease, border-color .15s ease;
 }
 .settings-item:hover {
-  background: var(--c-panel);
-  border-color: var(--c-panel-3);
+  background: var(--c-panel-3);
+  border-color: var(--c-border);
 }
 .settings-item-text { flex: 1; }
 .settings-item-label {
@@ -130,7 +130,6 @@
   text-align: center; margin-top: 16px;
 }
 
-
 .theme-pick {
   display: block; width: 100%; text-align: left;
   padding: var(--btn-padding);
@@ -156,7 +155,7 @@
 
 #debugoverlay {
   position: fixed; top: 0; left: 0; right: 0; height: 100dvh;
-  background: color-mix(in srgb, var(--c-black) 96%, transparent);
+  background: var(--c-black);
   color: var(--c-white);
   z-index: 99999;
   display: flex; flex-direction: column;
