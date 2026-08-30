@@ -8,10 +8,30 @@
     if (typeof window.replaceIcons === 'function') window.replaceIcons(root);
   }
 
+  function getCurrentNote() {
+    return typeof currentNote !== 'undefined' ? currentNote : null;
+  }
+
   function invokeFunction(fn) {
-    if (!fn || !fn.action) return;
+    if (!fn) return;
+
+    if (fn.action === 'handleRename') {
+      const note = getCurrentNote();
+      if (note && typeof window.sidebarRename === 'function') return window.sidebarRename('file', note.id);
+      if (typeof window.showNotification === 'function') return window.showNotification('Open a note first');
+      return;
+    }
+
+    if (fn.action === 'handleDownload') {
+      const note = getCurrentNote();
+      if (note && typeof window.downloadFile === 'function') return window.downloadFile(note);
+      if (typeof window.sidebarDownloadSelected === 'function') return window.sidebarDownloadSelected();
+      if (typeof window.showNotification === 'function') return window.showNotification('Open a note first');
+      return;
+    }
+
     let target = window;
-    for (const part of fn.action.split('.')) target = target ? target[part] : null;
+    for (const part of String(fn.action || '').split('.')) target = target ? target[part] : null;
     if (typeof target === 'function') return target(...(fn.args || []));
   }
 
@@ -19,6 +39,7 @@
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'grand-functions-row';
+    row.setAttribute('aria-label', fn.name);
     row.dataset.functionId = fn.id;
     row.innerHTML = '<span class="ic-icon grand-functions-row-icon"></span><span class="grand-functions-row-name"></span><span class="ic-icon grand-functions-row-pin"></span>';
     row.querySelector('.grand-functions-row-icon').dataset.icon = fn.icon;
