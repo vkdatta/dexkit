@@ -44,7 +44,12 @@ export function createSettingsManager() {
     if (v == null) return !!def;
     return v === '1' || v === 'true';
   }
-  function lsSet(k, v) { lsWrite(k, v ? '1' : null); }
+  // FIX (defaults): was writing null (removing the key) for false. With the
+  // new defaults-ON behaviour, a missing key now means ON, so we must write
+  // an explicit '0' when the user turns a feature off — otherwise the
+  // preference is indistinguishable from "never set" and would snap back to
+  // ON on the next page load.
+  function lsSet(k, v) { lsWrite(k, v ? '1' : '0'); }
   // Canonical "/note/<id>/<mode>" parser lives in dpad/dpad-layout.js
   // (window.dexParseNoteRoute) — dpad loads before settings, so it's always
   // available here. This is the single source of truth for both the note id
@@ -154,9 +159,12 @@ export function createSettingsManager() {
   }
 
   function restoreAllSettingsToEditor() {
-    applyLineNumbersToEditor(lsBool(LS.LINENUM));
-    applyWrapToEditor(lsBool(LS.WRAP));
-    applyPrismToEditor(lsBool(LS.PRISM));
+    // FIX (defaults): pass true as the second arg so lsBool returns true when
+    // the key is absent (first visit / cleared storage) — matching the new
+    // default-ON behaviour in editor.js.
+    applyLineNumbersToEditor(lsBool(LS.LINENUM, true));
+    applyWrapToEditor(lsBool(LS.WRAP, true));
+    applyPrismToEditor(lsBool(LS.PRISM, true));
     const cmTheme = currentCmTheme();
     applyCmThemeToEditor(cmTheme);
   }
@@ -304,7 +312,7 @@ export function createSettingsManager() {
       } else if (key === 'WRAP' && window.dexEditor && window.dexEditor.cm) {
         on = !!window.dexEditor.cm.getOption('lineWrapping');
       } else if (key === 'PRISM') {
-        on = lsBool(LS.PRISM);
+        on = lsBool(LS.PRISM, true); // FIX (defaults): absent key → default ON
       } else if (key === 'DIFFUSION') {
         const urlMode = currentModeFromUrl();
         on = urlMode ? (urlMode === 'diffusion') : lsBool(LS.DIFFUSION);
@@ -435,21 +443,21 @@ export function createSettingsManager() {
       fire('dexSettingsChanged', { key: LS.THEME, value: next });
 
     } else if (key === 'LINENUM') {
-      const cur = lsBool(LS.LINENUM);
+      const cur = lsBool(LS.LINENUM, true); // FIX (defaults): absent key → ON
       const next = !cur;
       lsSet(LS.LINENUM, next);
       applyLineNumbersToEditor(next);
       fire('dexSettingsChanged', { key: LS.LINENUM, value: next });
 
     } else if (key === 'WRAP') {
-      const cur = lsBool(LS.WRAP);
+      const cur = lsBool(LS.WRAP, true); // FIX (defaults): absent key → ON
       const next = !cur;
       lsSet(LS.WRAP, next);
       applyWrapToEditor(next);
       fire('dexSettingsChanged', { key: LS.WRAP, value: next });
 
     } else if (key === 'PRISM') {
-      const cur = lsBool(LS.PRISM);
+      const cur = lsBool(LS.PRISM, true); // FIX (defaults): absent key → ON
       const next = !cur;
       lsSet(LS.PRISM, next);
       applyPrismToEditor(next);
