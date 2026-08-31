@@ -274,8 +274,9 @@
   font-size: 14px !important;
 }
 
+/* Font pill — height reduced by ~20% (padding 8px → 6px, margin 10px → 8px) */
 .secondary-sidebar-item {
-  padding: 8px;
+  padding: 6px 8px;
   border-radius: 12px;
   cursor: pointer;
   display: flex;
@@ -286,9 +287,10 @@
   text-align: center;
   background: #373737;
   font-size: 14px !important;
-  margin: 10px auto;
+  margin: 8px auto;
   max-width: 300px;
 }
+/* Utilities grid — height reduced by ~20% (grid-item 38px → 30px, padding 6px → 4px, margin 10px → 8px) */
 .secondary-sidebar-grid {
   display: flex;
   background: #373737;
@@ -297,18 +299,18 @@
   border-radius: 12px;
   align-items: center;
   justify-content: center;
-  margin: 10px auto;
+  margin: 8px auto;
   max-width: 300px;
 }
 .secondary-sidebar-grid-item {
-  width: 38px; height: 38px;
+  width: 30px; height: 30px;
   box-sizing: border-box;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 2px;
-  padding: 6px;
+  padding: 4px;
 }
 
 #secondary-sidebar-button.syncing,

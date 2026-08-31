@@ -271,7 +271,6 @@
     toggle.type              = 'button';
     toggle.className         = 'secondary-sidebar-nav-toggle';
     toggle.style.paddingLeft = indentPx(depth) + 'px';
-    toggle.setAttribute('aria-expanded', 'true');
 
     // Only L1 nodes have a registered icon; deeper nodes are text-only labels
     const iconHtml = node.icon
@@ -287,8 +286,6 @@
 
     const subList = document.createElement('div');
     subList.className = 'secondary-sidebar-sub-list';
-    subList.setAttribute('aria-hidden', 'false');
-    subList.style.height = 'auto';
 
     // Accordion: siblings at the same level close when this one opens.
     // Use :scope so we only target direct-children of parentEl, not
@@ -316,8 +313,20 @@
       toggleGroupInline(group, subList, toggle);
     });
 
-    // Start expanded (or forced by search)
-    group.classList.add('open');
+    // ── FIX 2: Only L1 (depth=1) starts open; deeper nodes start collapsed ──
+    // forceExpand overrides this when a search is active.
+    const shouldOpen = forceExpand || depth === 1;
+    if (shouldOpen) {
+      group.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      subList.setAttribute('aria-hidden', 'false');
+      subList.style.height = 'auto';
+    } else {
+      // collapsed — reset the defaults set above
+      toggle.setAttribute('aria-expanded', 'false');
+      subList.setAttribute('aria-hidden', 'true');
+      subList.style.height = '0';
+    }
     if (forceExpand) {
       group.dataset.searchExpanded = 'true';
     }
@@ -397,6 +406,21 @@
     };
   }
 
+  // ── Prune tree to only starred (userDb) functions ────────────────────────
+  // Recursively strips leaves that are not starred, then drops empty branches.
+  function pruneToStarred(node, starredIds) {
+    const prunedDirectLeaves = (node.directLeaves || []).filter(fn => starredIds.has(fn.id));
+    const prunedLeaves       = (node.leaves       || []).filter(fn => starredIds.has(fn.id));
+    const prunedChildren     = (node.children     || [])
+      .map(child => pruneToStarred(child, starredIds))
+      .filter(Boolean);
+
+    const hasContent = prunedDirectLeaves.length || prunedLeaves.length || prunedChildren.length;
+    if (!hasContent) return null; // drop empty branch entirely
+
+    return { ...node, directLeaves: prunedDirectLeaves, leaves: prunedLeaves, children: prunedChildren };
+  }
+
   function refreshCategories(section) {
     if (!section) section = document.getElementById('sidebar2Categories');
     if (!section) return;
@@ -406,6 +430,12 @@
 
     // Get the full tree from the registry
     let tree = FunctionRegistry.buildTree();
+    if (!tree.length) return;
+
+    // ── FIX 1: Only show functions that the user has starred in userDb ────
+    const userDb     = loadUserDb();
+    const starredIds = new Set(userDb.keys());
+    tree = tree.map(l1 => pruneToStarred(l1, starredIds)).filter(Boolean);
     if (!tree.length) return;
 
     const q = currentQuery.toLowerCase().trim();
