@@ -283,13 +283,18 @@
     renderList();
   }
 
-  // ── Route map — dedicated breadcrumb strip at top of main panel ───────────
+  // ── Route map — terminal-style breadcrumb strip with level colours ─────────
+  //  Styled after index7's terminal-routemap-block: each crumb gets a level
+  //  colour class (gf-lvl-0 … gf-lvl-4) so the full path reads like a route.
   function renderRouteMap() {
     const el = document.getElementById('gfRouteMap');
     if (!el) return;
 
     if (gfState.search.trim()) {
-      el.innerHTML = `<span class="gf-bc-crumb gf-bc-current">Search results</span>`;
+      el.innerHTML =
+        `<span class="gf-bc-root">root</span>` +
+        `<span class="gf-bc-sep">/</span>` +
+        `<span class="gf-bc-crumb gf-bc-current gf-lvl-0">Search results</span>`;
       return;
     }
 
@@ -307,15 +312,19 @@
         const n = getNodeByPath(tree, pathSoFar.slice());
         if (n) name = n.name;
       }
-      parts.push({ name, snap: pathSoFar.slice() });
+      parts.push({ name, snap: pathSoFar.slice(), level: idx });
     });
 
-    el.innerHTML = parts.map((p, i) => {
-      const isCurrent = i === parts.length - 1;
-      const snapAttr  = escHtml(JSON.stringify(p.snap));
-      return (i > 0 ? '<span class="gf-bc-sep">›</span>' : '') +
-        `<button class="gf-bc-crumb${isCurrent ? ' gf-bc-current' : ''}" data-snap="${snapAttr}">${escHtml(p.name)}</button>`;
-    }).join('');
+    el.innerHTML =
+      `<span class="gf-bc-root">root</span>` +
+      `<span class="gf-bc-sep">/</span>` +
+      parts.map((p, i) => {
+        const isCurrent  = i === parts.length - 1;
+        const snapAttr   = escHtml(JSON.stringify(p.snap));
+        const colorClass = `gf-lvl-${p.level % 5}`;
+        return (i > 0 ? '<span class="gf-bc-sep">/</span>' : '') +
+          `<button class="gf-bc-crumb ${colorClass}${isCurrent ? ' gf-bc-current' : ''}" data-snap="${snapAttr}">${escHtml(p.name)}</button>`;
+      }).join('');
 
     el.querySelectorAll('.gf-bc-crumb:not(.gf-bc-current)').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -372,10 +381,10 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  Level 2+ navigation — self-contained pill rows.
-  //  No dependency on the site's modal system / modalScope / custom-dropdown.
-  //  Each level renders as a horizontal scrollable strip of pill buttons.
-  //  Clicking a pill updates gfState.path and re-renders.
+  //  Level 2+ navigation — custom-dropdown-trigger per level.
+  //  Opening the trigger calls renderDropdownMenuPortal (from modal.js) which
+  //  shows a searchable floating panel — same pattern used in cleanup.js.
+  //  Selecting an option rebuilds gfState.path and re-renders everything.
   // ═══════════════════════════════════════════════════════════════════════════
   function renderDropdowns() {
     const stack = document.getElementById('gfDropdownStack');
@@ -385,7 +394,7 @@
     const l1id   = gfState.path[0];
     const l1Node = tree.find(n => n.id === l1id);
 
-    if (!l1Node || !l1Node.children.length) {
+    if (!l1Node || !l1Node.children || !l1Node.children.length) {
       stack.innerHTML     = '';
       stack.style.display = 'none';
       return;
@@ -399,7 +408,9 @@
     for (let depth = 0; depth < gfState.path.length; depth++) {
       if (!currentNode || !currentNode.children || !currentNode.children.length) break;
 
-      const selectedId = gfState.path[depth + 1] || '';
+      const selectedId    = gfState.path[depth + 1] || '';
+      const selectedChild = currentNode.children.find(c => c.id === selectedId)
+                          || currentNode.children[0];
 
       const row = document.createElement('div');
       row.className = 'gf-dropdown-row';
@@ -409,20 +420,27 @@
       lvlLabel.textContent = `L${depth + 2}`;
       row.appendChild(lvlLabel);
 
-      const pillsWrap = document.createElement('div');
-      pillsWrap.className = 'gf-pills-wrap';
+      // ── Custom dropdown trigger (portal with search, via modal.js) ─────────
+      const ddWrap = document.createElement('div');
+      ddWrap.className = 'custom-dropdown gf-dd-wrap';
 
-      currentNode.children.forEach(child => {
-        const pill = document.createElement('button');
-        pill.type        = 'button';
-        pill.className   = 'gf-pill' + (child.id === selectedId ? ' active' : '');
-        pill.textContent = child.name;
-        pill.dataset.value = child.id;
+      const trigger = document.createElement('div');
+      trigger.className     = 'custom-dropdown-trigger gf-dd-trigger';
+      trigger.textContent   = selectedChild ? selectedChild.name : '';
+      trigger.dataset.value = selectedChild ? selectedChild.id  : '';
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.setAttribute('role', 'combobox');
+      trigger.tabIndex = 0;
 
-        pill.addEventListener('click', () => {
-          // Rebuild path: keep everything up to this depth, then push selected child
-          const newPath = gfState.path.slice(0, depth + 1);
-          newPath.push(child.id);
+      const options       = currentNode.children.map(c => ({ label: c.name, value: c.id }));
+      const capturedDepth = depth; // capture for closure
+
+      const openPortal = () => {
+        if (typeof renderDropdownMenuPortal !== 'function') return;
+        renderDropdownMenuPortal(trigger, options, (selected) => {
+          // Rebuild path: keep up-to-this-depth, then push selected child
+          const newPath = gfState.path.slice(0, capturedDepth + 1);
+          newPath.push(selected.value);
 
           // Auto-dive into first child if the chosen node has children
           const tree2 = FunctionRegistry.buildTree();
@@ -435,15 +453,19 @@
           gfState.path = newPath;
           renderAll();
         });
+      };
 
-        pillsWrap.appendChild(pill);
+      trigger.addEventListener('click', (e) => { e.stopPropagation(); openPortal(); });
+      trigger.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPortal(); }
       });
 
-      row.appendChild(pillsWrap);
+      ddWrap.appendChild(trigger);
+      row.appendChild(ddWrap);
       stack.appendChild(row);
 
-      // Advance to selected child for next depth level
-      currentNode = currentNode.children.find(c => c.id === selectedId) || null;
+      // Advance to the selected child for the next depth level
+      currentNode = selectedChild || null;
     }
   }
 

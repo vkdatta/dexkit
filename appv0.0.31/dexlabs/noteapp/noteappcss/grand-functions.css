@@ -200,40 +200,68 @@
 }
 .gf-view-hidden { display: none !important; }
 
-/* ── ROUTE MAP — dedicated breadcrumb strip ──────────────────────────────── */
+/* ── ROUTE MAP — terminal-style breadcrumb strip with level colours ──────── */
+/*    Mirrors index7's terminal-routemap-block: each depth gets a distinct     */
+/*    colour so the full path reads instantly as a route hierarchy.             */
+
+/* Level colour tokens — one per depth, cycling at 5 */
+:root {
+  --gf-lvl-0: #ff79c6;
+  --gf-lvl-1: #8be9fd;
+  --gf-lvl-2: #50fa7b;
+  --gf-lvl-3: #bd93f9;
+  --gf-lvl-4: #ffb86c;
+}
+
 .gf-routemap {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
   flex-shrink: 0;
-  min-height: 32px;
-  background: var(--c-panel, var(--matte, #181c1f));
+  min-height: 30px;
+  background: color-mix(in srgb, var(--c-black, #000) 60%, var(--c-panel, #181c1f));
+  font-size: 11px;
 }
+
+/* "root" static label */
+.gf-bc-root {
+  color: var(--c-text-faint, #606060);
+  font-size: 11px;
+  user-select: none;
+  padding: 1px 4px;
+}
+
 .gf-bc-crumb {
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
   border: none;
   background: transparent;
-  color: var(--c-text-faint, #606060);
   font: inherit;
   font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.12s;
   white-space: nowrap;
 }
 .gf-bc-crumb:hover {
-  background: color-mix(in srgb, var(--c-white, #fff) 06%, transparent);
-  color: var(--c-white, #fff);
+  background: rgba(255,255,255,0.08);
 }
 .gf-bc-crumb.gf-bc-current {
-  color: var(--c-accent, #9aa8b7);
-  font-weight: 600;
   cursor: default;
+  opacity: 1;
 }
-.gf-bc-crumb.gf-bc-current:hover { background: transparent; color: var(--c-accent, #9aa8b7); }
+.gf-bc-crumb.gf-bc-current:hover { background: transparent; }
+
+/* Level colours — applied to both clickable and current crumbs */
+.gf-bc-crumb.gf-lvl-0 { color: var(--gf-lvl-0); }
+.gf-bc-crumb.gf-lvl-1 { color: var(--gf-lvl-1); }
+.gf-bc-crumb.gf-lvl-2 { color: var(--gf-lvl-2); }
+.gf-bc-crumb.gf-lvl-3 { color: var(--gf-lvl-3); }
+.gf-bc-crumb.gf-lvl-4 { color: var(--gf-lvl-4); }
+
 .gf-bc-sep {
   color: var(--c-text-faint, #606060);
   font-size: 10px;
@@ -241,20 +269,22 @@
   user-select: none;
 }
 
-/* ── LEVEL 2+ PILL NAVIGATION (self-contained, no site modal system) ─────── */
+/* ── LEVEL 2+ DROPDOWN NAVIGATION (custom-dropdown-trigger + portal) ─────── */
+/*    Each level renders a single trigger; clicking opens renderDropdownMenu-   */
+/*    Portal from modal.js — same pattern as cleanup.js.                        */
 .gf-dropdown-stack {
-  padding: 6px 8px;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   flex-shrink: 0;
   background: var(--c-panel, var(--matte, #181c1f));
 }
 .gf-dropdown-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .gf-lvl-label {
   font-size: 9px;
@@ -265,37 +295,51 @@
   flex-shrink: 0;
   text-align: center;
 }
-.gf-pills-wrap {
-  display: flex;
-  gap: 4px;
+
+/* Wrapper takes remaining width */
+.gf-dd-wrap {
   flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding-bottom: 1px;
+  position: relative;
 }
-.gf-pills-wrap::-webkit-scrollbar { display: none; }
-.gf-pill {
-  flex-shrink: 0;
-  padding: 3px 10px;
-  border: 1px solid var(--c-border, rgba(255,255,255,0.08));
-  border-radius: 16px;
-  background: transparent;
+
+/* Override the modal.css custom-dropdown-trigger defaults for the compact gf strip */
+.gf-dd-trigger.custom-dropdown-trigger {
+  /* Reset modal sizing */
+  margin-top: 0;
+  padding: 5px 34px 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  background: var(--c-panel-2, #1f232b);
+  border-color: var(--c-border, rgba(255,255,255,0.08));
   color: var(--c-text-dim, #8b92a0);
-  font: inherit;
-  font-size: 11.5px;
+  font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.13s, border-color 0.13s, color 0.13s;
+  display: block;
+  /* ensure text doesn't wrap under the caret */
+  line-height: 1.4;
 }
-.gf-pill:hover {
-  background: color-mix(in srgb, var(--c-white, #fff) 05%, transparent);
+.gf-dd-trigger.custom-dropdown-trigger:hover {
+  background: var(--c-panel-3, #262a33);
+  border-color: color-mix(in srgb, var(--c-accent, #9aa8b7) 30%, transparent);
   color: var(--c-white, #fff);
 }
-.gf-pill.active {
-  background: color-mix(in srgb, var(--c-accent, #9aa8b7) 14%, transparent);
-  border-color: color-mix(in srgb, var(--c-accent, #9aa8b7) 40%, transparent);
-  color: var(--c-accent, #9aa8b7);
-  font-weight: 600;
+.gf-dd-trigger.custom-dropdown-trigger:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent, #9aa8b7) 18%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent, #9aa8b7) 30%, transparent);
+  transform: none; /* suppress the lift from modal.css */
+  background: var(--c-panel-2, #1f232b);
+}
+/* Caret arrow — inherits from modal.css ::after, just recolor */
+.gf-dd-trigger.custom-dropdown-trigger::after {
+  border-color: var(--c-text-faint, #606060);
+}
+.gf-dd-trigger.custom-dropdown-trigger:hover::after,
+.gf-dd-trigger.custom-dropdown-trigger:focus::after {
+  border-color: var(--c-accent, #9aa8b7);
 }
 
 /* ── SEARCH ──────────────────────────────────────────────────────────────── */
