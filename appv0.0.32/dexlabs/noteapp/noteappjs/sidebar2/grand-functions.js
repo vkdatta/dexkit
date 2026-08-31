@@ -242,7 +242,18 @@
     ensureOverlay();
     if (!gfState.path.length) {
       const all = FunctionRegistry.getAllLevel1();
-      if (all.length) gfState.path = [all[0].id];
+      if (all.length) {
+        // Auto-dive: set L1 then walk to deepest first child so the route
+        // shows the full path and has multiple crumbs from the start.
+        const newPath = [all[0].id];
+        const tree2   = FunctionRegistry.buildTree();
+        let node = getNodeByPath(tree2, newPath);
+        while (node && node.children && node.children.length) {
+          newPath.push(node.children[0].id);
+          node = node.children[0];
+        }
+        gfState.path = newPath;
+      }
     }
     const overlay = document.getElementById(GF_OVERLAY_ID);
     overlay.classList.add('gf-open');
@@ -326,7 +337,9 @@
           `<button class="gf-bc-crumb ${colorClass}${isCurrent ? ' gf-bc-current' : ''}" data-snap="${snapAttr}">${escHtml(p.name)}</button>`;
       }).join('');
 
-    el.querySelectorAll('.gf-bc-crumb:not(.gf-bc-current)').forEach(btn => {
+    // sidebar1 pattern: every crumb (including current) gets an onclick —
+    // clicking current just re-renders the same state (harmless).
+    el.querySelectorAll('.gf-bc-crumb').forEach(btn => {
       btn.addEventListener('click', () => {
         try { gfState.path = JSON.parse(btn.dataset.snap); renderAll(); } catch (e) {}
       });
@@ -369,7 +382,17 @@
 
     rail.querySelectorAll('.gf-rail-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        gfState.path   = [btn.dataset.l1];
+        // Auto-dive: walk from L1 to deepest first child so the path is fully
+        // resolved, the route shows multiple crumbs, and the dropdown label
+        // matches the displayed function list.
+        const newPath = [btn.dataset.l1];
+        const tree2   = FunctionRegistry.buildTree();
+        let node = getNodeByPath(tree2, newPath);
+        while (node && node.children && node.children.length) {
+          newPath.push(node.children[0].id);
+          node = node.children[0];
+        }
+        gfState.path   = newPath;
         gfState.search = '';
         const inp = document.getElementById('gfSearchInput');
         if (inp) inp.value = '';
@@ -408,9 +431,13 @@
     for (let depth = 0; depth < gfState.path.length; depth++) {
       if (!currentNode || !currentNode.children || !currentNode.children.length) break;
 
-      const selectedId    = gfState.path[depth + 1] || '';
-      const selectedChild = currentNode.children.find(c => c.id === selectedId)
-                          || currentNode.children[0];
+      const selectedId    = gfState.path[depth + 1] || null;
+      // Only resolve a child if the path explicitly includes one at this level.
+      // When path stops here (crumb click back to a parent), show a neutral
+      // placeholder so the label never mismatches what the list is displaying.
+      const selectedChild = selectedId
+        ? (currentNode.children.find(c => c.id === selectedId) || currentNode.children[0])
+        : null;
 
       const row = document.createElement('div');
       row.className = 'gf-dropdown-row';
@@ -426,7 +453,7 @@
 
       const trigger = document.createElement('div');
       trigger.className     = 'custom-dropdown-trigger gf-dd-trigger';
-      trigger.textContent   = selectedChild ? selectedChild.name : '';
+      trigger.textContent   = selectedChild ? selectedChild.name : '— all —';
       trigger.dataset.value = selectedChild ? selectedChild.id  : '';
       trigger.setAttribute('aria-expanded', 'false');
       trigger.setAttribute('role', 'combobox');
