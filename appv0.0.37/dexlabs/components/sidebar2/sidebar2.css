@@ -53,6 +53,7 @@
   flex-direction: column;
   max-height: calc(100% - 32px);
   font-size: 14px;
+  line-height: 1.9;
 }
 .secondary-sidebar-card .secondary-sidebar-scroll {
   flex: 1;
@@ -283,14 +284,14 @@
   gap: 10px;
   width: 100% !important;
   text-align: center;
-  background: var(--c-panel-3);
+  background: #373737;
   font-size: 14px !important;
   margin: 10px auto;
   max-width: 300px;
 }
 .secondary-sidebar-grid {
   display: flex;
-  background: var(--c-panel-3);
+  background: #373737;
   width: 100% !important;
   gap: 5px;
   border-radius: 12px;

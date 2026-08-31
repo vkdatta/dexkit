@@ -21,6 +21,16 @@
  *            instead of rAF getBoundingClientRect which fires too late
  *   - FIX 7: Grand Functions rendered as plain non-collapse tree item
  *            (no divider, no sb2-grand-btn border/bg, no right arrow icon)
+ *
+ * Recursive tree rendering (v2):
+ *   - refreshCategories() now calls FunctionRegistry.buildTree() and renders
+ *     the result recursively via renderTreeNode(node, parentEl, depth).
+ *   - Supports unlimited nesting depth — no code changes needed when new
+ *     sub-levels are added to the registry.
+ *   - Indentation: BASE(12) + depth*STEP(20)px; vline: indent + 7px.
+ *   - Accordion is local to each level (siblings of the toggled node only).
+ *   - Search: filterNode() prunes the tree recursively; matching branches
+ *     are auto-expanded; non-matching branches are hidden entirely.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -223,74 +233,192 @@
     refreshCategories(outerContent);
   }
 
+  // ── Indentation constants ─────────────────────────────────────────────────
+  // depth 0 = "Categories" header (rendered by renderCategoriesGroup)
+  // depth 1 = L1 nodes (e.g. Formatting)   → paddingLeft = BASE + 1*STEP = 32px
+  // depth 2 = L2 nodes (e.g. Basic)         → paddingLeft = BASE + 2*STEP = 52px
+  // depth N = BASE + N*STEP
+  // Vertical line sits 7px right of the icon column start:
+  //   vline-left = BASE + depth*STEP + LINE_OFFSET
+  const INDENT_BASE = 12;
+  const INDENT_STEP = 20;
+  const LINE_OFFSET = 7;
+
+  function indentPx(depth)   { return INDENT_BASE + depth * INDENT_STEP; }
+  function vlinePx(depth)    { return indentPx(depth) + LINE_OFFSET; }
+
+  // ── Recursive tree renderer ───────────────────────────────────────────────
+  /**
+   * Render a tree node (L1 or any sub-level) into parentElement.
+   *
+   * @param {Object}  node          - normalised registry node
+   * @param {Element} parentEl      - element to append into
+   * @param {number}  depth         - current depth (1 = L1 inside Categories)
+   * @param {boolean} forceExpand   - true when search is active and node matches
+   */
+  function renderTreeNode(node, parentEl, depth, forceExpand) {
+    const hasChildren    = node.children && node.children.length > 0;
+    const hasLeaves      = node.leaves    && node.leaves.length    > 0;
+    const hasDirectLeaves= node.directLeaves && node.directLeaves.length > 0;
+    const isEmpty = !hasChildren && !hasLeaves && !hasDirectLeaves;
+    if (isEmpty) return;
+
+    const group = document.createElement('div');
+    group.className = 'secondary-sidebar-nav-item-group has-line';
+    group.style.setProperty('--vline-left', vlinePx(depth) + 'px');
+
+    const toggle = document.createElement('button');
+    toggle.type              = 'button';
+    toggle.className         = 'secondary-sidebar-nav-toggle';
+    toggle.style.paddingLeft = indentPx(depth) + 'px';
+    toggle.setAttribute('aria-expanded', 'true');
+
+    // Only L1 nodes have a registered icon; deeper nodes are text-only labels
+    const iconHtml = node.icon
+      ? `<span class="ic-icon" data-icon="${escHtml(node.icon)}"></span>`
+      : '';
+
+    toggle.innerHTML = `
+      <span class="secondary-sidebar-left">
+        ${iconHtml}
+        <span class="secondary-sidebar-label">${escHtml(node.name)}</span>
+      </span>
+      <span class="ic-icon secondary-sidebar-chevron" data-icon="expand_more"></span>`;
+
+    const subList = document.createElement('div');
+    subList.className = 'secondary-sidebar-sub-list';
+    subList.setAttribute('aria-hidden', 'false');
+    subList.style.height = 'auto';
+
+    // Accordion: siblings at the same level close when this one opens.
+    // Use :scope so we only target direct-children of parentEl, not
+    // descendants — keeps deeply nested branches independent.
+    toggle.addEventListener('click', () => {
+      const isOpen = group.classList.contains('open');
+      if (!isOpen) {
+        // Close sibling groups only (direct children of same parent)
+        Array.from(parentEl.children).forEach(sibling => {
+          if (sibling === group) return;
+          if (!sibling.classList.contains('secondary-sidebar-nav-item-group')) return;
+          if (!sibling.classList.contains('open')) return;
+          const sibContent = sibling.querySelector(':scope > .secondary-sidebar-sub-list');
+          const sibToggle  = sibling.querySelector(':scope > .secondary-sidebar-nav-toggle');
+          if (sibContent) {
+            sibContent.style.height = sibContent.scrollHeight + 'px';
+            requestAnimationFrame(() => { sibContent.style.height = '0'; });
+            setTimeout(() => { sibContent.style.height = ''; }, 350);
+            sibContent.setAttribute('aria-hidden', 'true');
+          }
+          if (sibToggle) sibToggle.setAttribute('aria-expanded', 'false');
+          sibling.classList.remove('open');
+        });
+      }
+      toggleGroupInline(group, subList, toggle);
+    });
+
+    // Start expanded (or forced by search)
+    group.classList.add('open');
+    if (forceExpand) {
+      group.dataset.searchExpanded = 'true';
+    }
+
+    group.appendChild(toggle);
+    group.appendChild(subList);
+    parentEl.appendChild(group);
+
+    // Direct leaves (functions registered directly under an L1 with no sub-level)
+    if (hasDirectLeaves) {
+      node.directLeaves.forEach(fn => {
+        subList.appendChild(makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, fn.id, indentPx(depth + 1)));
+      });
+    }
+
+    // Recurse into children (sub-levels)
+    if (hasChildren) {
+      node.children.forEach(child => {
+        renderTreeNode(child, subList, depth + 1, forceExpand);
+      });
+    }
+
+    // Leaves of this node (functions at the exact under[] depth of this node)
+    if (hasLeaves) {
+      node.leaves.forEach(fn => {
+        subList.appendChild(makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, fn.id, indentPx(depth + 1)));
+      });
+    }
+
+    // Set --line-top after layout
+    requestAnimationFrame(() => {
+      group.style.setProperty('--line-top', toggle.offsetHeight + 'px');
+    });
+  }
+
+  // ── Filter tree for search ────────────────────────────────────────────────
+  /**
+   * Recursively filter a normalised tree node against a query string.
+   * Returns a filtered clone if anything matches, or null if nothing matches.
+   * Matching checks function names AND hierarchy labels.
+   */
+  function filterNode(node, q) {
+    // Does this node's own label match?
+    const labelMatch = node.name.toLowerCase().includes(q);
+
+    // Filter direct leaves
+    const matchedDirectLeaves = (node.directLeaves || []).filter(fn =>
+      fn.name.toLowerCase().includes(q) ||
+      (fn.under || []).join(' ').toLowerCase().includes(q)
+    );
+
+    // Filter regular leaves
+    const matchedLeaves = (node.leaves || []).filter(fn =>
+      fn.name.toLowerCase().includes(q) ||
+      (fn.under || []).join(' ').toLowerCase().includes(q)
+    );
+
+    // Recurse into children
+    const matchedChildren = (node.children || [])
+      .map(child => filterNode(child, q))
+      .filter(Boolean);
+
+    const hasAnyMatch = matchedDirectLeaves.length || matchedLeaves.length || matchedChildren.length;
+
+    if (!hasAnyMatch) {
+      // No descendants match. If the label itself matches, keep the whole subtree.
+      if (labelMatch) return node;
+      return null;
+    }
+
+    // Return a shallow clone with only the matching subtree
+    return {
+      ...node,
+      directLeaves: matchedDirectLeaves,
+      leaves:       matchedLeaves,
+      children:     matchedChildren,
+    };
+  }
+
   function refreshCategories(section) {
     if (!section) section = document.getElementById('sidebar2Categories');
     if (!section) return;
     section.innerHTML = '';
 
-    const userDb = loadUserDb();
-    if (!userDb.size) return;
+    if (typeof FunctionRegistry === 'undefined') return;
+
+    // Get the full tree from the registry
+    let tree = FunctionRegistry.buildTree();
+    if (!tree.length) return;
 
     const q = currentQuery.toLowerCase().trim();
 
-    // Group by level-1
-    const grouped = new Map();
-    userDb.forEach(fn => {
-      const l1id = (fn.under && fn.under[0]) || 'other';
-      if (!grouped.has(l1id)) grouped.set(l1id, []);
-      grouped.get(l1id).push(fn);
-    });
-    if (!grouped.size) return;
+    // Filter the tree when searching
+    if (q) {
+      tree = tree.map(l1 => filterNode(l1, q)).filter(Boolean);
+      if (!tree.length) return;
+    }
 
-    // depth-1 L1 groups sit inside Categories → paddingLeft = 12+20 = 32px
-    // depth-2 leaf items → paddingLeft = 12+20+20 = 52px
-    grouped.forEach((fns, l1id) => {
-      const l1     = (typeof FunctionRegistry !== 'undefined') ? FunctionRegistry.getLevel1(l1id) : null;
-      const l1Name = l1 ? l1.name : l1id;
-      const l1Icon = l1 ? l1.icon : 'folder';
-
-      const visFns = q ? fns.filter(f => f.name.toLowerCase().includes(q)) : fns;
-      if (!visFns.length) return;
-
-      // L1 sub-group inside Categories — depth-1 header
-      const group = document.createElement('div');
-      group.className = 'secondary-sidebar-nav-item-group has-line';
-      group.style.setProperty('--vline-left', '39px'); // depth-1: 32+7
-
-      const toggle = document.createElement('button');
-      toggle.type              = 'button';
-      toggle.className         = 'secondary-sidebar-nav-toggle';
-      toggle.style.paddingLeft = '32px'; // depth-1
-      toggle.setAttribute('aria-expanded', 'false');
-      toggle.innerHTML = `
-        <span class="secondary-sidebar-left">
-          <span class="ic-icon" data-icon="${l1Icon}"></span>
-          <span class="secondary-sidebar-label">${escHtml(l1Name)}</span>
-        </span>
-        <span class="ic-icon secondary-sidebar-chevron" data-icon="expand_more"></span>`;
-
-      const subList = document.createElement('div');
-      subList.className = 'secondary-sidebar-sub-list';
-      subList.setAttribute('aria-hidden', 'true');
-
-      toggle.addEventListener('click', () => toggleGroupInline(group, subList, toggle));
-
-      group.appendChild(toggle);
-      group.appendChild(subList);
-      section.appendChild(group);
-
-      // depth-2 leaf items
-      visFns.forEach(fn => {
-        subList.appendChild(makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, fn.id, 52));
-      });
-    });
-
-    // Set --line-top for all sub-groups
-    requestAnimationFrame(() => {
-      section.querySelectorAll('.secondary-sidebar-nav-item-group.has-line').forEach(g => {
-        const hdr = g.querySelector('.secondary-sidebar-nav-toggle');
-        if (hdr) g.style.setProperty('--line-top', hdr.offsetHeight + 'px');
-      });
+    // Render each L1 node recursively (depth=1 because depth=0 is "Categories")
+    tree.forEach(l1Node => {
+      renderTreeNode(l1Node, section, 1, !!q);
     });
   }
 
@@ -375,32 +503,37 @@
   }
 
   // ── Search ────────────────────────────────────────────────────────────────
+  // Tree-aware: re-renders the categories section with the filtered tree.
+  // The recursive filterNode() / renderTreeNode() pipeline handles:
+  //   - showing only matching branches
+  //   - auto-expanding the full ancestor chain for every match
+  //   - hiding the outer "Categories" group when nothing matches
   function applySearch(query) {
     const q = query.toLowerCase().trim();
 
-    // Filter sub-items
-    cardScroll.querySelectorAll('.secondary-sidebar-sub-item').forEach(item => {
-      const name = item.dataset.search || '';
-      item.style.display = (!q || name.includes(q)) ? '' : 'none';
-    });
+    // Re-render the categories section with the current query applied
+    const section = document.getElementById('sidebar2Categories');
+    if (section) refreshCategories(section);
 
-    // Show/hide category groups; auto-expand matching ones during search
-    cardScroll.querySelectorAll('.secondary-sidebar-category-group').forEach(g => {
-      const content = g.querySelector('.secondary-sidebar-category-content');
-      if (!content) return; // static items — always visible, no content child
+    // Show/hide the outer Categories collapsible depending on whether
+    // anything rendered inside it
+    const outerGroup = document.getElementById('sidebar2CategoriesOuter');
+    if (outerGroup && section) {
+      const hasContent = section.children.length > 0;
+      outerGroup.style.display = (!q || hasContent) ? '' : 'none';
 
-      const hasVis = Array.from(content.querySelectorAll('.secondary-sidebar-sub-item'))
-        .some(i => i.style.display !== 'none');
-      g.style.display = hasVis ? '' : 'none';
-
-      if (hasVis && q) {
-        content.style.height = 'auto';
-        content.removeAttribute('aria-hidden');
-        const hdr = g.querySelector('.secondary-sidebar-category-header');
-        if (hdr) hdr.setAttribute('aria-expanded', 'true');
-        g.classList.add('open');
+      // If searching and content is present, ensure the outer group is open
+      if (q && hasContent) {
+        const outerContent = outerGroup.querySelector('.secondary-sidebar-category-content');
+        const outerHeader  = outerGroup.querySelector('.secondary-sidebar-category-header');
+        if (outerContent && !outerGroup.classList.contains('open')) {
+          outerGroup.classList.add('open');
+          outerContent.style.height = 'auto';
+          outerContent.removeAttribute('aria-hidden');
+          if (outerHeader) outerHeader.setAttribute('aria-expanded', 'true');
+        }
       }
-    });
+    }
   }
 
   // ── Escape HTML ───────────────────────────────────────────────────────────
