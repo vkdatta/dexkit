@@ -313,9 +313,11 @@
       toggleGroupInline(group, subList, toggle);
     });
 
-    // ── FIX 2: Only L1 (depth=1) starts open; deeper nodes start collapsed ──
-    // forceExpand overrides this when a search is active.
-    const shouldOpen = forceExpand || depth === 1;
+    // ── FIX 2: All category nodes start collapsed; only search (forceExpand) opens them ──
+    // The outer "Categories" wrapper (depth=0) is handled by renderCategoriesGroup
+    // and always starts open — that is the level-0 node that should be open.
+    // L1 nodes (Formatting, Document…) and deeper all start collapsed.
+    const shouldOpen = forceExpand;
     if (shouldOpen) {
       group.classList.add('open');
       toggle.setAttribute('aria-expanded', 'true');
