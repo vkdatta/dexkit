@@ -77,10 +77,10 @@
   //        call which prepended search to cardScroll before buildTopLevel ran.
   function buildSidebar2() {
     cardScroll.innerHTML = '';
-    renderSearchBar();         // 1  search — top (OG position)
-    renderQuickActions();      // 2  font-size + clipboard grid
-    renderStaticItems();       // 3  Settings / Rename / Download — top-level style
-    renderCategories();        // 4  userDb additions grouped by L1
+    renderQuickActions();      // 1  font-size + clipboard grid
+    renderStaticItems();       // 2  Settings / Rename / Download — top-level style
+    renderSearchBar();         // 3  search — below Download Note, above Categories
+    renderCategoriesGroup();   // 4  "Categories" collapsible wrapper (OG icon + structure)
     renderGrandFunctionsBtn(); // 5  Grand Functions launch row
   }
 
@@ -181,16 +181,46 @@
     });
   }
 
-  // ── 4. Categories (from userDb) ───────────────────────────────────────────
-  function renderCategories() {
-    let section = document.getElementById('sidebar2Categories');
-    if (!section) {
-      section = document.createElement('div');
-      section.id        = 'sidebar2Categories';
-      section.className = 'sb2-categories';
-      cardScroll.appendChild(section);
-    }
-    refreshCategories(section);
+  // ── 4. Categories group — OG "Categories" collapsible wrapping all L1s ───
+  // Matches the original HTML: <div class='collapse open' icon='category' text='Categories'>
+  function renderCategoriesGroup() {
+    // Outer "Categories" collapsible — depth-0, OG icon = 'category'
+    const outerGroup = document.createElement('div');
+    outerGroup.id        = 'sidebar2CategoriesOuter';
+    outerGroup.className = 'secondary-sidebar-category-group has-line open';
+    outerGroup.style.setProperty('--vline-left', '19px');
+
+    const outerHeader = document.createElement('button');
+    outerHeader.type              = 'button';
+    outerHeader.className         = 'secondary-sidebar-category-header';
+    outerHeader.style.paddingLeft = '12px';
+    outerHeader.setAttribute('aria-expanded', 'true');
+    outerHeader.innerHTML = `
+      <span class="secondary-sidebar-left">
+        <span class="ic-icon" data-icon="category"></span>
+        <span class="secondary-sidebar-label">Categories</span>
+      </span>
+      <span class="ic-icon secondary-sidebar-chevron" data-icon="expand_more"></span>`;
+
+    const outerContent = document.createElement('div');
+    outerContent.id        = 'sidebar2Categories';
+    outerContent.className = 'secondary-sidebar-category-content';
+    outerContent.setAttribute('aria-hidden', 'false');
+    outerContent.style.height = 'auto';
+    outerContent.style.overflow = 'auto';
+
+    outerHeader.addEventListener('click', () => toggleGroupInline(outerGroup, outerContent, outerHeader));
+
+    outerGroup.appendChild(outerHeader);
+    outerGroup.appendChild(outerContent);
+    cardScroll.appendChild(outerGroup);
+
+    // Set --line-top for outer group
+    requestAnimationFrame(() => {
+      outerGroup.style.setProperty('--line-top', outerHeader.offsetHeight + 'px');
+    });
+
+    refreshCategories(outerContent);
   }
 
   function refreshCategories(section) {
@@ -212,6 +242,8 @@
     });
     if (!grouped.size) return;
 
+    // depth-1 L1 groups sit inside Categories → paddingLeft = 12+20 = 32px
+    // depth-2 leaf items → paddingLeft = 12+20+20 = 52px
     grouped.forEach((fns, l1id) => {
       const l1     = (typeof FunctionRegistry !== 'undefined') ? FunctionRegistry.getLevel1(l1id) : null;
       const l1Name = l1 ? l1.name : l1id;
@@ -220,42 +252,43 @@
       const visFns = q ? fns.filter(f => f.name.toLowerCase().includes(q)) : fns;
       if (!visFns.length) return;
 
-      // FIX 4 + 6: depth-0 header → paddingLeft 12px; vline-left = 12+7 = 19px
+      // L1 sub-group inside Categories — depth-1 header
       const group = document.createElement('div');
-      group.className = 'secondary-sidebar-category-group has-line';
-      group.style.setProperty('--vline-left', '19px'); // FIX 6: OG formula, set immediately
+      group.className = 'secondary-sidebar-nav-item-group has-line';
+      group.style.setProperty('--vline-left', '39px'); // depth-1: 32+7
 
-      const header = document.createElement('button');
-      header.type              = 'button';
-      header.className         = 'secondary-sidebar-category-header';
-      header.style.paddingLeft = '12px'; // FIX 4
-      header.innerHTML = `
+      const toggle = document.createElement('button');
+      toggle.type              = 'button';
+      toggle.className         = 'secondary-sidebar-nav-toggle';
+      toggle.style.paddingLeft = '32px'; // depth-1
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.innerHTML = `
         <span class="secondary-sidebar-left">
           <span class="ic-icon" data-icon="${l1Icon}"></span>
           <span class="secondary-sidebar-label">${escHtml(l1Name)}</span>
         </span>
         <span class="ic-icon secondary-sidebar-chevron" data-icon="expand_more"></span>`;
 
-      const content = document.createElement('div');
-      content.className = 'secondary-sidebar-category-content';
-      content.setAttribute('aria-hidden', 'true');
+      const subList = document.createElement('div');
+      subList.className = 'secondary-sidebar-sub-list';
+      subList.setAttribute('aria-hidden', 'true');
 
-      header.addEventListener('click', () => toggleGroupInline(group, content, header));
+      toggle.addEventListener('click', () => toggleGroupInline(group, subList, toggle));
 
-      group.appendChild(header);
-      group.appendChild(content);
+      group.appendChild(toggle);
+      group.appendChild(subList);
       section.appendChild(group);
 
-      // FIX 5: depth-1 sub-items → paddingLeft = 12 + 20 = 32px
+      // depth-2 leaf items
       visFns.forEach(fn => {
-        content.appendChild(makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, fn.id, 32));
+        subList.appendChild(makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, fn.id, 52));
       });
     });
 
-    // Set --line-top after layout (header height only — vline-left already set above)
+    // Set --line-top for all sub-groups
     requestAnimationFrame(() => {
-      section.querySelectorAll('.secondary-sidebar-category-group.has-line').forEach(g => {
-        const hdr = g.querySelector('.secondary-sidebar-category-header');
+      section.querySelectorAll('.secondary-sidebar-nav-item-group.has-line').forEach(g => {
+        const hdr = g.querySelector('.secondary-sidebar-nav-toggle');
         if (hdr) g.style.setProperty('--line-top', hdr.offsetHeight + 'px');
       });
     });
@@ -379,6 +412,7 @@
 
   // ── Public refresh hooks (called by GrandFunctions after add/remove) ──────
   window.renderSidebar2Categories = () => {
+    // sidebar2Categories is the inner content div inside the Categories collapsible
     const section = document.getElementById('sidebar2Categories');
     refreshCategories(section);
   };

@@ -78,7 +78,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--btn-padding);
+  padding: 7px 10px;
   cursor: pointer;
   color: var(--c-text-dim);
   font-weight: 700;
@@ -129,7 +129,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: var(--btn-padding);
+  padding: 7px 10px;
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -154,7 +154,7 @@
   position: relative;
 }
 .secondary-sidebar-sub-item {
-  padding: var(--btn-padding);
+  padding: 7px 10px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -307,7 +307,7 @@
   align-items: center;
   justify-content: center;
   margin: 2px;
-  padding: var(--btn-padding);
+  padding: 6px;
 }
 
 #secondary-sidebar-button.syncing,
@@ -355,18 +355,19 @@
 
 .sidebar2-search {
   width: 100% !important;
-  background: var(--c-panel-2);
-  border: 1px solid var(--c-panel-3);
-  color: var(--c-white);
+  background: #373737;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--c-white, #fff);
   border-radius: 8px;
   padding: 8px 10px;
   font-family: inherit;
   font-size: 13px;
   outline: none;
-  margin: 4px 0 10px;
+  margin: 4px 0 6px;
+  box-sizing: border-box;
 }
-.sidebar2-search::placeholder { color: var(--c-text-faint); }
-.sidebar2-search:focus { border-color: var(--c-accent); }
+.sidebar2-search::placeholder { color: var(--c-text-faint, #606060); }
+.sidebar2-search:focus { border-color: var(--c-accent, #9aa8b7); }
 
 /* ────────────────────────────────────────────────────────────────────────────
    Sidebar 2 — Additions for Grand Functions revamp
