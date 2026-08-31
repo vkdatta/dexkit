@@ -2,9 +2,16 @@
    Grand Functions Overlay — DexLabs
    Inherits all colors/fonts from :root (sidebar1/sidebar2 design tokens).
    No hardcoded bg-darks, no foreign font stacks.
+
+   FIXES vs. bugged version:
+     - Rail is icon-only (52 px); .gf-rail-label removed
+     - .gf-routemap / .gf-bc-node / .gf-bc-sep removed (route map gone)
+     - Native <select>.gf-dropdown removed; .custom-dropdown-trigger styled instead
+     - .gf-fn-item cursor: pointer (row is now clickable)
+     - .gf-info-section-label added for Note / Registry section headers
    ──────────────────────────────────────────────────────────────────────────── */
 
-/* OVERLAY SHELL */
+/* ── OVERLAY SHELL ───────────────────────────────────────────────────────── */
 .gf-overlay {
   position: fixed;
   inset: 0;
@@ -24,7 +31,7 @@
   opacity: 1;
 }
 
-/* ── HEADER ─────────────────────────────────────────────────────────────── */
+/* ── HEADER ──────────────────────────────────────────────────────────────── */
 .gf-header {
   display: flex;
   align-items: center;
@@ -82,7 +89,7 @@
   flex-shrink: 0;
 }
 
-/* DB switcher button */
+/* DB switcher */
 .gf-db-btn {
   display: flex;
   align-items: center;
@@ -134,15 +141,18 @@
   overflow: hidden;
 }
 
-/* ── LEFT RAIL ───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+   FIX: Left Rail — icon-only (52 px), no label text
+   .gf-rail-label intentionally omitted
+   ───────────────────────────────────────────────────────────────────────── */
 .gf-rail {
-  width: 64px;
+  width: 52px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 6px;
+  padding: 10px 4px;
   background: var(--c-panel, var(--matte, #181c1f));
   border-right: 1px solid var(--c-border, rgba(255,255,255,0.06));
   overflow-y: auto;
@@ -151,11 +161,10 @@
 }
 .gf-rail-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
-  width: 52px;
-  padding: 7px 4px;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
@@ -163,6 +172,7 @@
   cursor: pointer;
   font: inherit;
   transition: background 0.14s, color 0.14s, border-color 0.14s;
+  flex-shrink: 0;
 }
 .gf-rail-btn:hover {
   background: var(--c-panel-2, #1f232b);
@@ -172,16 +182,6 @@
   background: color-mix(in srgb, var(--c-accent, #9aa8b7) 12%, transparent);
   border-color: color-mix(in srgb, var(--c-accent, #9aa8b7) 30%, transparent);
   color: var(--c-accent, #9aa8b7);
-}
-.gf-rail-label {
-  font-size: 9px;
-  letter-spacing: 0.2px;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 50px;
-  display: block;
 }
 
 /* ── MAIN PANEL ──────────────────────────────────────────────────────────── */
@@ -200,7 +200,9 @@
 }
 .gf-view-hidden { display: none !important; }
 
-/* ── DROPDOWN STACK (Level 2+) ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+   FIX: Dropdown stack — wraps .custom-dropdown rows (no native <select>)
+   ───────────────────────────────────────────────────────────────────────── */
 .gf-dropdown-stack {
   padding: 8px 12px;
   border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
@@ -223,19 +225,26 @@
   width: 24px;
   flex-shrink: 0;
 }
-.gf-dropdown {
-  flex: 1;
+
+/* The site custom-dropdown-trigger inside our dropdown stack */
+.gf-dropdown-row .custom-dropdown { flex: 1; }
+.gf-dropdown-row .custom-dropdown-trigger.modal-input {
+  width: 100%;
   background: var(--c-panel-2, #1f232b);
-  color: var(--c-white, #fff);
   border: 1px solid var(--c-panel-3, #262a33);
   border-radius: 6px;
   padding: 5px 8px;
   font: inherit;
   font-size: 12px;
-  outline: none;
+  color: var(--c-white, #fff);
   cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
 }
-.gf-dropdown:focus { border-color: var(--c-accent, #9aa8b7); }
+.gf-dropdown-row .custom-dropdown-trigger.modal-input:hover,
+.gf-dropdown-row .custom-dropdown-trigger.modal-input:focus {
+  border-color: var(--c-accent, #9aa8b7);
+}
 
 /* ── SEARCH ──────────────────────────────────────────────────────────────── */
 .gf-search-row {
@@ -268,36 +277,13 @@
 }
 .gf-search-clear:hover { color: var(--c-text-dim, #8b92a0); }
 
-/* ── ROUTE MAP (BREADCRUMBS) ─────────────────────────────────────────────── */
-.gf-routemap {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 3px;
-  padding: 5px 12px;
-  border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
-  flex-shrink: 0;
-  min-height: 28px;
-}
-.gf-bc-node {
-  padding: 2px 6px;
-  border-radius: 5px;
-  border: none;
-  background: transparent;
-  color: var(--c-text-faint, #606060);
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.gf-bc-node:last-child { color: var(--c-text-dim, #8b92a0); }
-.gf-bc-node:hover { background: color-mix(in srgb, var(--c-white, #fff) 06%, transparent); color: var(--c-white, #fff); }
-.gf-bc-sep {
-  color: var(--c-text-faint, #606060);
-  font-size: 10px;
-}
+/* ─────────────────────────────────────────────────────────────────────────
+   FIX: .gf-routemap / .gf-bc-node / .gf-bc-sep removed (route map deleted)
+   ───────────────────────────────────────────────────────────────────────── */
 
-/* ── FUNCTION LIST ───────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+   FIX: Function list — cursor:pointer on rows (whole row is now clickable)
+   ───────────────────────────────────────────────────────────────────────── */
 .gf-list {
   flex: 1;
   overflow-y: auto;
@@ -310,10 +296,11 @@
   gap: 10px;
   padding: 7px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--c-white, #fff) 03%, transparent);
+  cursor: pointer;
   transition: background 0.12s;
 }
 .gf-fn-item:hover {
-  background: color-mix(in srgb, var(--c-white, #fff) 03%, transparent);
+  background: color-mix(in srgb, var(--c-white, #fff) 04%, transparent);
 }
 .gf-fn-icon {
   flex-shrink: 0;
@@ -364,6 +351,7 @@
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
   padding: 0;
+  flex-shrink: 0;
 }
 .gf-pin-btn:hover   { color: var(--c-warn, #ffc600); border-color: color-mix(in srgb, var(--c-warn, #ffc600) 30%, transparent); }
 .gf-pin-btn.pinned  { color: var(--c-warn, #ffc600); border-color: color-mix(in srgb, var(--c-warn, #ffc600) 40%, transparent); }
@@ -386,36 +374,53 @@
   font-size: 13px;
 }
 
-/* ── INFO VIEW ───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+   FIX: Info view — section labels + note stats rows
+   ───────────────────────────────────────────────────────────────────────── */
 .gf-info-body {
-  padding: 20px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 0;
+  overflow-y: auto;
+  flex: 1;
 }
+.gf-info-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--c-text-faint, #606060);
+  padding: 8px 0 4px;
+}
+.gf-info-section-label:first-child { padding-top: 0; }
+
 .gf-info-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
+  gap: 8px;
 }
 .gf-info-row:last-child { border-bottom: none; }
 .gf-info-label {
   font-size: 12px;
   color: var(--c-text-faint, #606060);
+  flex-shrink: 0;
 }
 .gf-info-val {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--c-white, #fff);
+  text-align: right;
+  word-break: break-word;
 }
 
 /* ── RESPONSIVE ──────────────────────────────────────────────────────────── */
 @media (max-width: 520px) {
-  .gf-rail { width: 52px; }
-  .gf-rail-btn { width: 40px; padding: 6px 2px; }
-  .gf-rail-label { display: none; }
+  .gf-rail { width: 44px; padding: 8px 2px; }
+  .gf-rail-btn { width: 36px; height: 36px; }
   .gf-header-tabs .gf-tab span:not(.ic-icon) { display: none; }
   .gf-title { display: none; }
   .gf-db-btn span:not(.gf-db-count):not(.ic-icon) { display: none; }
