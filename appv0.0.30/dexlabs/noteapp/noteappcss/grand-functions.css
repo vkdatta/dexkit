@@ -200,50 +200,102 @@
 }
 .gf-view-hidden { display: none !important; }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   FIX: Dropdown stack — wraps .custom-dropdown rows (no native <select>)
-   ───────────────────────────────────────────────────────────────────────── */
+/* ── ROUTE MAP — dedicated breadcrumb strip ──────────────────────────────── */
+.gf-routemap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
+  flex-shrink: 0;
+  min-height: 32px;
+  background: var(--c-panel, var(--matte, #181c1f));
+}
+.gf-bc-crumb {
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--c-text-faint, #606060);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.gf-bc-crumb:hover {
+  background: color-mix(in srgb, var(--c-white, #fff) 06%, transparent);
+  color: var(--c-white, #fff);
+}
+.gf-bc-crumb.gf-bc-current {
+  color: var(--c-accent, #9aa8b7);
+  font-weight: 600;
+  cursor: default;
+}
+.gf-bc-crumb.gf-bc-current:hover { background: transparent; color: var(--c-accent, #9aa8b7); }
+.gf-bc-sep {
+  color: var(--c-text-faint, #606060);
+  font-size: 10px;
+  padding: 0 1px;
+  user-select: none;
+}
+
+/* ── LEVEL 2+ PILL NAVIGATION (self-contained, no site modal system) ─────── */
 .gf-dropdown-stack {
-  padding: 8px 12px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--c-border, rgba(255,255,255,0.06));
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   flex-shrink: 0;
   background: var(--c-panel, var(--matte, #181c1f));
 }
 .gf-dropdown-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .gf-lvl-label {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--c-text-faint, #606060);
-  width: 24px;
+  width: 20px;
   flex-shrink: 0;
+  text-align: center;
 }
-
-/* The site custom-dropdown-trigger inside our dropdown stack */
-.gf-dropdown-row .custom-dropdown { flex: 1; }
-.gf-dropdown-row .custom-dropdown-trigger.modal-input {
-  width: 100%;
-  background: var(--c-panel-2, #1f232b);
-  border: 1px solid var(--c-panel-3, #262a33);
-  border-radius: 6px;
-  padding: 5px 8px;
+.gf-pills-wrap {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+}
+.gf-pills-wrap::-webkit-scrollbar { display: none; }
+.gf-pill {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid var(--c-border, rgba(255,255,255,0.08));
+  border-radius: 16px;
+  background: transparent;
+  color: var(--c-text-dim, #8b92a0);
   font: inherit;
-  font-size: 12px;
-  color: var(--c-white, #fff);
+  font-size: 11.5px;
   cursor: pointer;
-  outline: none;
-  box-sizing: border-box;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.gf-dropdown-row .custom-dropdown-trigger.modal-input:hover,
-.gf-dropdown-row .custom-dropdown-trigger.modal-input:focus {
-  border-color: var(--c-accent, #9aa8b7);
+.gf-pill:hover {
+  background: color-mix(in srgb, var(--c-white, #fff) 05%, transparent);
+  color: var(--c-white, #fff);
+}
+.gf-pill.active {
+  background: color-mix(in srgb, var(--c-accent, #9aa8b7) 14%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent, #9aa8b7) 40%, transparent);
+  color: var(--c-accent, #9aa8b7);
+  font-weight: 600;
 }
 
 /* ── SEARCH ──────────────────────────────────────────────────────────────── */
@@ -277,13 +329,7 @@
 }
 .gf-search-clear:hover { color: var(--c-text-dim, #8b92a0); }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   FIX: .gf-routemap / .gf-bc-node / .gf-bc-sep removed (route map deleted)
-   ───────────────────────────────────────────────────────────────────────── */
-
-/* ─────────────────────────────────────────────────────────────────────────
-   FIX: Function list — cursor:pointer on rows (whole row is now clickable)
-   ───────────────────────────────────────────────────────────────────────── */
+/* ── FUNCTION LIST ───────────────────────────────────────────────────────── */
 .gf-list {
   flex: 1;
   overflow-y: auto;

@@ -79,12 +79,13 @@
   function buildSidebar2() {
     cardScroll.innerHTML = '';
 
-    renderSearchBar();      // 1
-    renderQuickActions();   // 2
-    renderStaticItems();    // 3  ← FIX: top-level style
-    renderPinnedSection();  // 4
-    renderCategories();     // 5  ← FIX: --vline-left / --line-top set
-    renderGrandFunctionsBtn(); // 6
+    // Original vibe order: actions first, then content, search + GF at bottom
+    renderQuickActions();      // 1  font-size + clipboard grid
+    renderStaticItems();       // 2  Settings / Rename / Download — top-level style
+    renderPinnedSection();     // 3  star-pinned functions (hidden when empty)
+    renderCategories();        // 4  userDb additions grouped by L1
+    renderGrandFunctionsBtn(); // 5  Grand Functions launch row
+    renderSearchBar();         // 6  search at bottom — original position
   }
 
   // ── 1. Search ─────────────────────────────────────────────────────────────

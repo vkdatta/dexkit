@@ -71,7 +71,16 @@ if (window.DexIcons) {
       category: { variant: 'hud' },
       save: { variant: 'hud' },
       bookmark: { variant: 'orbit' },
-      swapSaved: { variant: 'orbit' }
+      swapSaved: { variant: 'orbit' },
+
+      // grand functions / overlay chrome
+      apps:        { variant: 'circuit' },
+      play_arrow:  { variant: 'plasma'  },
+      star_border: { variant: 'orbit'   },
+      open_in_full:{ variant: 'hud'     },
+      search_off:  { variant: 'hud'     },
+      info:        { variant: 'orbit'   },
+      route:       { variant: 'circuit' }
     }
   });
 }

@@ -127,7 +127,16 @@ if (!window.IC) {
     swapSaved: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h11M11 4l4 4-4 4M20 16H9M13 12l-4 4 4 4"/><circle cx="20" cy="8" r="1.6" fill="currentColor" stroke="none"/><circle cx="4" cy="16" r="1.6" fill="currentColor" stroke="none"/></svg>',
     clear_all: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linejoin="round" d="M6 18L16 8a2 2 0 012.8 0l1.2 1.2a2 2 0 010 2.8L10 22H4v-4l2-2z"/><path stroke-linecap="round" d="M14 6l4 4"/></svg>',
     location_searching: '<svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path stroke-linecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
-    cached: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M20 12a8 8 0 10-2.34 5.66"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 8v5h-5"/></svg>'
+    cached: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M20 12a8 8 0 10-2.34 5.66"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 8v5h-5"/></svg>',
+
+    // ---- grand functions / overlay chrome ----
+    apps: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="9.5" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16" y="9.5" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="9.5" y="16" width="5" height="5" rx="1.2"/><rect x="16" y="16" width="5" height="5" rx="1.2"/></svg>',
+    play_arrow: '<svg fill="currentColor" viewBox="0 0 24 24"><path d="M7 4.5v15L19 12 7 4.5z"/></svg>',
+    star_border: '<svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.4-.6L12 3z"/></svg>',
+    open_in_full: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9V3h6M3 3l7 7M21 15v6h-6M21 21l-7-7"/></svg>',
+    search_off: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path stroke-linecap="round" d="M20 20l-4.35-4.35M8 10h4M10 8v4"/></svg>',
+    info: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5"/><circle cx="12" cy="8" r="0.8" fill="currentColor" stroke="none"/></svg>',
+    route: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 8v4a4 4 0 004 4h6a4 4 0 004-4V8"/></svg>'
   };
 
   // Same concept, name reused from a different call site — always renders

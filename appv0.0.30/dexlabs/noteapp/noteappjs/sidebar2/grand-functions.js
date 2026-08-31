@@ -136,8 +136,10 @@
           <!-- Functions view -->
           <div class="gf-view" id="gfViewFunctions">
 
-            <!-- FIX 5: Level 2+ navigation — custom-dropdown rows (no <select>) -->
-            <!-- FIX 7: gf-routemap div removed entirely                          -->
+              <!-- Dedicated route map strip — shows current path as clickable crumbs -->
+            <div class="gf-routemap" id="gfRouteMap"></div>
+
+            <!-- Level 2+ navigation — self-contained pill rows, no site modal system -->
             <div class="gf-dropdown-stack" id="gfDropdownStack" style="display:none"></div>
 
             <div class="gf-search-row">
@@ -273,12 +275,53 @@
   }
 
   // ── Render all panels ─────────────────────────────────────────────────────
-  // FIX 7: renderRouteMap() removed from call-list
   function renderAll() {
     renderDbBtn();
     renderRail();
+    renderRouteMap();
     renderDropdowns();
     renderList();
+  }
+
+  // ── Route map — dedicated breadcrumb strip at top of main panel ───────────
+  function renderRouteMap() {
+    const el = document.getElementById('gfRouteMap');
+    if (!el) return;
+
+    if (gfState.search.trim()) {
+      el.innerHTML = `<span class="gf-bc-crumb gf-bc-current">Search results</span>`;
+      return;
+    }
+
+    const tree      = FunctionRegistry.buildTree();
+    const pathSoFar = [];
+    const parts     = [];
+
+    gfState.path.forEach((id, idx) => {
+      pathSoFar.push(id);
+      let name = id;
+      if (idx === 0) {
+        const n = tree.find(n => n.id === id);
+        if (n) name = n.name;
+      } else {
+        const n = getNodeByPath(tree, pathSoFar.slice());
+        if (n) name = n.name;
+      }
+      parts.push({ name, snap: pathSoFar.slice() });
+    });
+
+    el.innerHTML = parts.map((p, i) => {
+      const isCurrent = i === parts.length - 1;
+      const snapAttr  = escHtml(JSON.stringify(p.snap));
+      return (i > 0 ? '<span class="gf-bc-sep">›</span>' : '') +
+        `<button class="gf-bc-crumb${isCurrent ? ' gf-bc-current' : ''}" data-snap="${snapAttr}">${escHtml(p.name)}</button>`;
+    }).join('');
+
+    el.querySelectorAll('.gf-bc-crumb:not(.gf-bc-current)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        try { gfState.path = JSON.parse(btn.dataset.snap); renderAll(); } catch (e) {}
+      });
+    });
   }
 
   // ── DB badge ──────────────────────────────────────────────────────────────
@@ -329,8 +372,10 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  FIX 5 — Level 2+ dropdowns: .custom-dropdown + .custom-dropdown-trigger
-  //  MutationObserver watches data-value changes (set by the site dropdown system)
+  //  Level 2+ navigation — self-contained pill rows.
+  //  No dependency on the site's modal system / modalScope / custom-dropdown.
+  //  Each level renders as a horizontal scrollable strip of pill buttons.
+  //  Clicking a pill updates gfState.path and re-renders.
   // ═══════════════════════════════════════════════════════════════════════════
   function renderDropdowns() {
     const stack = document.getElementById('gfDropdownStack');
@@ -347,81 +392,59 @@
     }
 
     stack.style.display = '';
+    stack.innerHTML     = '';
 
-    // Build row descriptors
-    const rows = [];
     let currentNode = l1Node;
 
-    for (let level = 0; level < gfState.path.length; level++) {
-      if (!currentNode || !currentNode.children.length) break;
+    for (let depth = 0; depth < gfState.path.length; depth++) {
+      if (!currentNode || !currentNode.children || !currentNode.children.length) break;
 
-      const selectedId   = gfState.path[level + 1] || currentNode.children[0].id;
-      const selectedNode = currentNode.children.find(c => c.id === selectedId)
-                           || currentNode.children[0];
-      const options      = currentNode.children.map(c => ({ label: c.name, value: c.id }));
+      const selectedId = gfState.path[depth + 1] || '';
 
-      rows.push({
-        // level here is the GF path index (0 = L1 slot, so this dropdown is L(level+2))
-        gfLevel:      level + 1,   // used to slice gfState.path on change
-        displayLabel: `L${level + 2}`,
-        options,
-        selectedId:   selectedNode.id,
-        selectedName: selectedNode.name
+      const row = document.createElement('div');
+      row.className = 'gf-dropdown-row';
+
+      const lvlLabel = document.createElement('span');
+      lvlLabel.className   = 'gf-lvl-label';
+      lvlLabel.textContent = `L${depth + 2}`;
+      row.appendChild(lvlLabel);
+
+      const pillsWrap = document.createElement('div');
+      pillsWrap.className = 'gf-pills-wrap';
+
+      currentNode.children.forEach(child => {
+        const pill = document.createElement('button');
+        pill.type        = 'button';
+        pill.className   = 'gf-pill' + (child.id === selectedId ? ' active' : '');
+        pill.textContent = child.name;
+        pill.dataset.value = child.id;
+
+        pill.addEventListener('click', () => {
+          // Rebuild path: keep everything up to this depth, then push selected child
+          const newPath = gfState.path.slice(0, depth + 1);
+          newPath.push(child.id);
+
+          // Auto-dive into first child if the chosen node has children
+          const tree2 = FunctionRegistry.buildTree();
+          let node = getNodeByPath(tree2, newPath);
+          while (node && node.children && node.children.length) {
+            newPath.push(node.children[0].id);
+            node = node.children[0];
+          }
+
+          gfState.path = newPath;
+          renderAll();
+        });
+
+        pillsWrap.appendChild(pill);
       });
 
-      currentNode = selectedNode;
+      row.appendChild(pillsWrap);
+      stack.appendChild(row);
+
+      // Advance to selected child for next depth level
+      currentNode = currentNode.children.find(c => c.id === selectedId) || null;
     }
-
-    // Render using site's custom-dropdown pattern (same as cleanup.js / handleCleanupText)
-    stack.innerHTML = rows.map(r => `
-      <div class="gf-dropdown-row">
-        <span class="gf-lvl-label">${r.displayLabel}</span>
-        <div class="custom-dropdown">
-          <div
-            class="custom-dropdown-trigger modal-input gf-lvl-dropdown"
-            data-options='${JSON.stringify(r.options).replace(/'/g, "&#39;")}'
-            data-value="${escHtml(r.selectedId)}"
-            data-gf-level="${r.gfLevel}"
-          >${escHtml(r.selectedName)}</div>
-        </div>
-      </div>
-    `).join('');
-
-    // Watch each trigger for data-value changes (set by site dropdown system on select)
-    stack.querySelectorAll('.gf-lvl-dropdown').forEach(trigger => {
-      observeDropdownChange(trigger, parseInt(trigger.dataset.gfLevel, 10));
-    });
-  }
-
-  /**
-   * MutationObserver on a custom-dropdown-trigger.
-   * When data-value changes (user picked an option), rebuild path + re-render.
-   * @param {HTMLElement} trigger
-   * @param {number}      level   — the gfState.path slice index this dropdown controls
-   */
-  function observeDropdownChange(trigger, level) {
-    const obs = new MutationObserver(() => {
-      const selectedValue = trigger.dataset.value;
-      if (!selectedValue) return;
-
-      // Rebuild path up to this level, then push new selection
-      const newPath = gfState.path.slice(0, level);
-      newPath.push(selectedValue);
-
-      // Auto-dive to deepest first child (same logic as old select handler)
-      const tree = FunctionRegistry.buildTree();
-      let node   = getNodeByPath(tree, newPath);
-      while (node && node.children && node.children.length) {
-        newPath.push(node.children[0].id);
-        node = node.children[0];
-      }
-
-      if (JSON.stringify(newPath) === JSON.stringify(gfState.path)) return; // no change
-      obs.disconnect(); // prevent re-entry during renderAll
-      gfState.path = newPath;
-      renderAll();
-    });
-    obs.observe(trigger, { attributes: true, attributeFilter: ['data-value'] });
   }
 
   // ── Tree navigation helper ────────────────────────────────────────────────
@@ -483,7 +506,6 @@
           <span class="gf-fn-icon">${icIcon(fn.icon)}</span>
           <div class="gf-fn-info">
             <span class="gf-fn-name">${escHtml(fn.name)}</span>
-            <span class="gf-fn-path">${escHtml(fn.under.join(' › '))}</span>
           </div>
           <div class="gf-fn-actions">
             <button class="gf-pin-btn${pinned ? ' pinned' : ''}" data-fn-id="${fn.id}"
