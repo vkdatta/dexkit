@@ -295,11 +295,11 @@
   display: flex;
   background: #373737;
   width: 100% !important;
-  gap: 5px;
+  gap: 10px;
   border-radius: 12px;
   align-items: center;
   justify-content: center;
-  padding: 7px 4px;
+  padding: 5px 2px;
   margin: 8px auto;
   max-width: 300px;
 }
