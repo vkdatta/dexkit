@@ -19,6 +19,8 @@
  *   - FIX 5: Sub-items get paddingLeft: 32px (depth-1: 12 + 20)
  *   - FIX 6: --vline-left hardcoded to 19px (OG formula: totalLeft + 7 = 19)
  *            instead of rAF getBoundingClientRect which fires too late
+ *   - FIX 7: Grand Functions rendered as plain non-collapse tree item
+ *            (no divider, no sb2-grand-btn border/bg, no right arrow icon)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -260,25 +262,41 @@
   }
 
   // ── 5. Grand Functions button ─────────────────────────────────────────────
+  // FIX 7: Plain non-collapse tree item — no divider, no special border/bg,
+  //         no right arrow. Identical structure to Settings/Rename/Download.
   function renderGrandFunctionsBtn() {
-    const divider = document.createElement('div');
-    divider.className = 'sb2-divider';
-    cardScroll.appendChild(divider);
+    const group = document.createElement('div');
+    group.className = 'secondary-sidebar-category-group';
 
     const btn = document.createElement('button');
-    btn.type      = 'button';
-    btn.className = 'sb2-grand-btn';
-    btn.innerHTML = `
-      <span class="ic-icon" data-icon="apps"></span>
-      <span class="sb2-grand-btn-text">Grand Functions</span>
-      <span class="ic-icon sb2-grand-btn-arrow" data-icon="open_in_full"></span>`;
+    btn.type              = 'button';
+    btn.className         = 'secondary-sidebar-category-header';
+    btn.style.paddingLeft = '12px';
+
+    const left = document.createElement('span');
+    left.className = 'secondary-sidebar-left';
+
+    const ic = document.createElement('span');
+    ic.className = 'ic-icon';
+    ic.setAttribute('data-icon', 'apps');
+
+    const label = document.createElement('span');
+    label.className   = 'secondary-sidebar-label';
+    label.textContent = 'Grand Functions';
+
+    left.append(ic, label);
+    btn.appendChild(left);
+    // No chevron, no right icon — non-collapse item
+    group.appendChild(btn);
+
     btn.addEventListener('click', () => {
       if (window.GrandFunctions) {
         closeSidebar();
         window.GrandFunctions.open();
       }
     });
-    cardScroll.appendChild(btn);
+
+    cardScroll.appendChild(group);
   }
 
   // ── Leaf button factory ───────────────────────────────────────────────────
