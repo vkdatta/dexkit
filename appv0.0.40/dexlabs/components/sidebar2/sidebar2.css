@@ -290,7 +290,7 @@
   margin: 8px auto;
   max-width: 300px;
 }
-/* Utilities grid — pill height matches font pill via vertical padding on wrapper */
+/* Utilities grid — 1px taller than font pill, original icon gap restored */
 .secondary-sidebar-grid {
   display: flex;
   background: #373737;
@@ -299,7 +299,7 @@
   border-radius: 12px;
   align-items: center;
   justify-content: center;
-  padding: 6px 4px;
+  padding: 7px 4px;
   margin: 8px auto;
   max-width: 300px;
 }
@@ -310,8 +310,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 2px;
-  padding: 0;
+  margin: 2px;
+  padding: 6px;
 }
 
 #secondary-sidebar-button.syncing,
