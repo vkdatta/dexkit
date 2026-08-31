@@ -4,19 +4,21 @@
  * No static function HTML in index.html.
  * Everything is driven by FunctionRegistry + GrandFunctions.
  *
- * Structure inside the sidebar:
- *   1. Search bar
- *   2. Quick-action grid  (font-size, clipboard)
- *   3. Static items       (Settings, Rename, Download) — TOP-LEVEL style
- *   4. Pinned section     (star-pinned functions from GF)
- *   5. Categories         (functions added to userDb from GF)
- *   6. [Grand Functions]  → opens GrandFunctions overlay
+ * Structure inside the sidebar card — matches OG sidebar order:
+ *   1. Search bar              ← top (restored to OG position)
+ *   2. Quick-action grid       (font-size, clipboard)
+ *   3. Static items            (Settings, Rename, Download) — top-level style
+ *   4. Categories              (functions added to userDb from GF)
+ *   5. [Grand Functions]       → opens GrandFunctions overlay
  *
- * FIXES vs. bugged version:
- *   - FIX 3/4: renderStaticItems() now uses secondary-sidebar-category-header
- *              (matches original non-collapse top-level items), not sub-item style
- *   - FIX 4b:  Categories groups set --vline-left and --line-top CSS vars
- *              so the original tree-line CSS renders correctly
+ * Fixes vs. broken version:
+ *   - FIX 1: Search moved back to top (OG: insertSearchAndPinnedUI ran first)
+ *   - FIX 2: Pins section removed entirely (never existed in OG sidebar)
+ *   - FIX 3: Static item headers get paddingLeft: 12px (OG depth-0 indent)
+ *   - FIX 4: Category headers get paddingLeft: 12px (depth-0 indent)
+ *   - FIX 5: Sub-items get paddingLeft: 32px (depth-1: 12 + 20)
+ *   - FIX 6: --vline-left hardcoded to 19px (OG formula: totalLeft + 7 = 19)
+ *            instead of rAF getBoundingClientRect which fires too late
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -59,14 +61,7 @@
     if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) closeSidebar();
   });
 
-  // ── Pin helpers ───────────────────────────────────────────────────────────
-  const PIN_KEY = 'dexPinnedFunctions';
-
-  function loadPins() {
-    try { return JSON.parse(localStorage.getItem(PIN_KEY) || '[]'); } catch (e) { return []; }
-  }
-  function isPinned(onclick) { return loadPins().some(p => p.onclick === onclick); }
-
+  // ── UserDb loader ─────────────────────────────────────────────────────────
   function loadUserDb() {
     try { return new Map(JSON.parse(localStorage.getItem('dexGfUserDb') || '[]')); }
     catch (e) { return new Map(); }
@@ -76,31 +71,30 @@
   let currentQuery = '';
 
   // ── Build entire sidebar card ─────────────────────────────────────────────
+  // FIX 1: Search is rendered FIRST, matching the OG insertSearchAndPinnedUI
+  //        call which prepended search to cardScroll before buildTopLevel ran.
   function buildSidebar2() {
     cardScroll.innerHTML = '';
-
-    // Original vibe order: actions first, then content, search + GF at bottom
-    renderQuickActions();      // 1  font-size + clipboard grid
-    renderStaticItems();       // 2  Settings / Rename / Download — top-level style
-    renderPinnedSection();     // 3  star-pinned functions (hidden when empty)
+    renderSearchBar();         // 1  search — top (OG position)
+    renderQuickActions();      // 2  font-size + clipboard grid
+    renderStaticItems();       // 3  Settings / Rename / Download — top-level style
     renderCategories();        // 4  userDb additions grouped by L1
     renderGrandFunctionsBtn(); // 5  Grand Functions launch row
-    renderSearchBar();         // 6  search at bottom — original position
   }
 
   // ── 1. Search ─────────────────────────────────────────────────────────────
   function renderSearchBar() {
-    const wrap  = document.createElement('div');
+    const wrap = document.createElement('div');
     wrap.className = 'sb2-search-wrap';
 
     const input = document.createElement('input');
-    input.type        = 'text';
-    input.id          = 'sidebar2Search';
-    input.className   = 'sidebar2-search';
-    input.placeholder = 'Search functions…';
+    input.type         = 'text';
+    input.id           = 'sidebar2Search';
+    input.className    = 'sidebar2-search';
+    input.placeholder  = 'Search functions…';
     input.autocomplete = 'off';
-    input.spellcheck  = false;
-    input.value       = currentQuery;
+    input.spellcheck   = false;
+    input.value        = currentQuery;
 
     input.addEventListener('input', () => {
       currentQuery = input.value;
@@ -146,13 +140,9 @@
     cardScroll.appendChild(grid);
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  //  FIX 3 / 4 — Static items rendered as top-level category-header buttons
-  //  Original sidebar2 rendered Settings/Rename/Download as non-collapse
-  //  items using secondary-sidebar-category-header (no chevron).
-  //  The bugged version used makeLeafButton → secondary-sidebar-sub-item
-  //  which produced the wrong visual depth and "dirty" look.
-  // ═════════════════════════════════════════════════════════════════════════
+  // ── 3. Static items ───────────────────────────────────────────────────────
+  // FIX 3: paddingLeft: 12px matches OG depth-0 indent
+  //        (baseLeft=12, depth=0, so totalLeft=12).
   function renderStaticItems() {
     const staticItems = [
       { icon: 'tune',     text: 'Settings',     onclick: 'openSettingsManager()' },
@@ -165,11 +155,11 @@
       group.className = 'secondary-sidebar-category-group';
 
       const btn = document.createElement('button');
-      btn.type      = 'button';
-      btn.className = 'secondary-sidebar-category-header';
+      btn.type              = 'button';
+      btn.className         = 'secondary-sidebar-category-header';
+      btn.style.paddingLeft = '12px'; // FIX 3
       btn.setAttribute('onclick', it.onclick);
 
-      // Match the original left-icon + label structure exactly
       const left = document.createElement('span');
       left.className = 'secondary-sidebar-left';
 
@@ -178,64 +168,18 @@
       ic.setAttribute('data-icon', it.icon);
 
       const label = document.createElement('span');
-      label.className = 'secondary-sidebar-label';
+      label.className   = 'secondary-sidebar-label';
       label.textContent = it.text;
 
       left.append(ic, label);
       btn.appendChild(left);
-      // No chevron — these are non-collapse items
+      // No chevron — non-collapse items
       group.appendChild(btn);
       cardScroll.appendChild(group);
     });
   }
 
-  // ── 4. Pinned section ─────────────────────────────────────────────────────
-  function renderPinnedSection() {
-    let section = document.getElementById('sidebar2PinnedSection');
-    if (!section) {
-      section = document.createElement('div');
-      section.id        = 'sidebar2PinnedSection';
-      section.className = 'sidebar2-pinned-section';
-      cardScroll.appendChild(section);
-    }
-    refreshPinnedSection(section);
-  }
-
-  function refreshPinnedSection(section) {
-    if (!section) section = document.getElementById('sidebar2PinnedSection');
-    if (!section) return;
-
-    const pins = loadPins();
-    const q    = currentQuery.toLowerCase().trim();
-    const vis  = q ? pins.filter(p => p.text.toLowerCase().includes(q)) : pins;
-
-    if (!vis.length) { section.style.display = 'none'; section.innerHTML = ''; return; }
-    section.style.display = '';
-    section.innerHTML     = '<div class="sidebar2-pinned-label">Pinned</div>';
-
-    vis.forEach(p => {
-      const btn = makeLeafButton(p.icon, p.text, p.onclick, null, true);
-      btn.classList.add('sidebar2-pinned-item');
-
-      const starBtn = document.createElement('span');
-      starBtn.className = 'ic-icon sidebar2-pin-btn pinned';
-      starBtn.setAttribute('data-icon', 'star');
-      starBtn.title = 'Unpin';
-      starBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const list = loadPins();
-        const idx  = list.findIndex(x => x.onclick === p.onclick);
-        if (idx !== -1) list.splice(idx, 1);
-        localStorage.setItem(PIN_KEY, JSON.stringify(list));
-        buildSidebar2();
-      });
-
-      btn.appendChild(starBtn);
-      section.appendChild(btn);
-    });
-  }
-
-  // ── 5. Categories (from userDb) ───────────────────────────────────────────
+  // ── 4. Categories (from userDb) ───────────────────────────────────────────
   function renderCategories() {
     let section = document.getElementById('sidebar2Categories');
     if (!section) {
@@ -266,11 +210,6 @@
     });
     if (!grouped.size) return;
 
-    const sectionLabel = document.createElement('div');
-    sectionLabel.className = 'sidebar2-pinned-label';
-    sectionLabel.textContent = 'Categories';
-    section.appendChild(sectionLabel);
-
     grouped.forEach((fns, l1id) => {
       const l1     = (typeof FunctionRegistry !== 'undefined') ? FunctionRegistry.getLevel1(l1id) : null;
       const l1Name = l1 ? l1.name : l1id;
@@ -279,12 +218,15 @@
       const visFns = q ? fns.filter(f => f.name.toLowerCase().includes(q)) : fns;
       if (!visFns.length) return;
 
-      const group   = document.createElement('div');
+      // FIX 4 + 6: depth-0 header → paddingLeft 12px; vline-left = 12+7 = 19px
+      const group = document.createElement('div');
       group.className = 'secondary-sidebar-category-group has-line';
+      group.style.setProperty('--vline-left', '19px'); // FIX 6: OG formula, set immediately
 
-      const header  = document.createElement('button');
-      header.type   = 'button';
-      header.className = 'secondary-sidebar-category-header';
+      const header = document.createElement('button');
+      header.type              = 'button';
+      header.className         = 'secondary-sidebar-category-header';
+      header.style.paddingLeft = '12px'; // FIX 4
       header.innerHTML = `
         <span class="secondary-sidebar-left">
           <span class="ic-icon" data-icon="${l1Icon}"></span>
@@ -302,35 +244,22 @@
       group.appendChild(content);
       section.appendChild(group);
 
+      // FIX 5: depth-1 sub-items → paddingLeft = 12 + 20 = 32px
       visFns.forEach(fn => {
-        const item = makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, false, fn.id);
-        content.appendChild(item);
+        content.appendChild(makeLeafButton(fn.icon, fn.name, fn.onclick, fn.batch, fn.id, 32));
       });
     });
 
-    // ── FIX 4b: set --vline-left and --line-top so tree-line CSS renders correctly ──
+    // Set --line-top after layout (header height only — vline-left already set above)
     requestAnimationFrame(() => {
       section.querySelectorAll('.secondary-sidebar-category-group.has-line').forEach(g => {
         const hdr = g.querySelector('.secondary-sidebar-category-header');
-        if (!hdr) return;
-
-        // --line-top: header height (where the vertical line should begin)
-        const headerH = hdr.offsetHeight;
-        g.style.setProperty('--line-top', headerH + 'px');
-
-        // --vline-left: align with icon centre inside .secondary-sidebar-left
-        const iconEl = hdr.querySelector('.ic-icon');
-        if (iconEl) {
-          const groupRect = g.getBoundingClientRect();
-          const iconRect  = iconEl.getBoundingClientRect();
-          const left = (iconRect.left - groupRect.left) + (iconRect.width / 2);
-          g.style.setProperty('--vline-left', Math.round(left) + 'px');
-        }
+        if (hdr) g.style.setProperty('--line-top', hdr.offsetHeight + 'px');
       });
     });
   }
 
-  // ── 6. Grand Functions button ─────────────────────────────────────────────
+  // ── 5. Grand Functions button ─────────────────────────────────────────────
   function renderGrandFunctionsBtn() {
     const divider = document.createElement('div');
     divider.className = 'sb2-divider';
@@ -353,15 +282,17 @@
   }
 
   // ── Leaf button factory ───────────────────────────────────────────────────
-  // Used for: pinned items, category sub-items (not static top-level items)
-  function makeLeafButton(icon, text, onclickJs, batch, isPinnedItem, fnId) {
+  // Used for category sub-items only (no pin buttons — pins removed).
+  // indentPx: inline paddingLeft override for correct tree depth alignment.
+  function makeLeafButton(icon, text, onclickJs, batch, fnId, indentPx) {
     const btn = document.createElement('button');
-    btn.type      = 'button';
-    btn.className = 'secondary-sidebar-sub-item';
+    btn.type           = 'button';
+    btn.className      = 'secondary-sidebar-sub-item';
     btn.dataset.search = (text || '').toLowerCase();
-    if (batch)               btn.dataset.batch = batch;
-    if (fnId !== undefined)  btn.dataset.fnId  = fnId;
-    if (onclickJs)           btn.setAttribute('onclick', onclickJs);
+    if (batch !== undefined && batch !== null) btn.dataset.batch = batch;
+    if (fnId  !== undefined)                  btn.dataset.fnId  = fnId;
+    if (onclickJs)    btn.setAttribute('onclick', onclickJs);
+    if (indentPx !== undefined) btn.style.paddingLeft = indentPx + 'px';
 
     const ic = document.createElement('span');
     ic.className = 'ic-icon';
@@ -369,24 +300,6 @@
     btn.appendChild(ic);
     btn.appendChild(document.createTextNode(text));
 
-    // Star pin toggle (only on non-pinned category sub-items)
-    if (onclickJs && !isPinnedItem) {
-      const pinBtn = document.createElement('span');
-      pinBtn.className = 'ic-icon sidebar2-pin-btn' + (isPinned(onclickJs) ? ' pinned' : '');
-      pinBtn.setAttribute('data-icon', 'star');
-      pinBtn.title = 'Pin / unpin';
-      pinBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const list = loadPins();
-        const idx  = list.findIndex(p => p.onclick === onclickJs);
-        if (idx === -1) list.push({ onclick: onclickJs, icon, text });
-        else list.splice(idx, 1);
-        localStorage.setItem(PIN_KEY, JSON.stringify(list));
-        pinBtn.classList.toggle('pinned', idx === -1);
-        buildSidebar2();
-      });
-      btn.appendChild(pinBtn);
-    }
     return btn;
   }
 
@@ -414,23 +327,21 @@
   function applySearch(query) {
     const q = query.toLowerCase().trim();
 
-    // Sub-items (pinned + categories)
+    // Filter sub-items
     cardScroll.querySelectorAll('.secondary-sidebar-sub-item').forEach(item => {
       const name = item.dataset.search || '';
       item.style.display = (!q || name.includes(q)) ? '' : 'none';
     });
 
-    // Hide category groups with no visible children
+    // Show/hide category groups; auto-expand matching ones during search
     cardScroll.querySelectorAll('.secondary-sidebar-category-group').forEach(g => {
-      // Static items (no content child) — always visible
       const content = g.querySelector('.secondary-sidebar-category-content');
-      if (!content) return;
+      if (!content) return; // static items — always visible, no content child
 
       const hasVis = Array.from(content.querySelectorAll('.secondary-sidebar-sub-item'))
         .some(i => i.style.display !== 'none');
       g.style.display = hasVis ? '' : 'none';
 
-      // Auto-expand matching groups during search
       if (hasVis && q) {
         content.style.height = 'auto';
         content.removeAttribute('aria-hidden');
@@ -439,9 +350,6 @@
         g.classList.add('open');
       }
     });
-
-    // Refresh pinned section (it re-filters internally)
-    refreshPinnedSection();
   }
 
   // ── Escape HTML ───────────────────────────────────────────────────────────
@@ -451,9 +359,8 @@
     );
   }
 
-  // ── Public refresh hooks (called by GrandFunctions after pin/add changes) ─
-  window.renderSidebar2PinnedSection = () => refreshPinnedSection();
-  window.renderSidebar2Categories    = () => {
+  // ── Public refresh hooks (called by GrandFunctions after add/remove) ──────
+  window.renderSidebar2Categories = () => {
     const section = document.getElementById('sidebar2Categories');
     refreshCategories(section);
   };

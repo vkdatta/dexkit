@@ -367,32 +367,3 @@
 }
 .sidebar2-search::placeholder { color: var(--c-text-faint); }
 .sidebar2-search:focus { border-color: var(--c-accent); }
-
-.sidebar2-pinned-section {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid color-mix(in srgb, var(--c-white) 06%, transparent);
-}
-.sidebar2-pinned-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--c-text-faint);
-  padding: 4px 12px 6px;
-}
-.sidebar2-pinned-item { color: var(--c-accent); }
-
-.sidebar2-pin-btn {
-  margin-left: auto;
-  opacity: 0.35;
-  color: var(--c-text-faint);
-  flex-shrink: 0;
-}
-.sidebar2-pin-btn:hover { opacity: 0.8; }
-.sidebar2-pin-btn.pinned {
-  opacity: 1;
-  color: var(--c-warn);
-}
-.sidebar2-pin-btn.pinned svg path { fill: currentColor; }
