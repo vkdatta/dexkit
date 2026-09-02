@@ -1,4 +1,4 @@
-Name: Universal Auto Tag
+name: Universal Auto Tag
 
 on:
   push:
