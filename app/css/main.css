@@ -1,5 +1,3 @@
-
-
 :root {
   --primary: #000;
   --color: #cacaca;
@@ -32,6 +30,7 @@
   --c-panel:      #171717;
   --c-panel-2:    #181c1f;
   --c-panel-3:    #272727;
+--c-panel-4:    #373737;
   /* Every foreground token below (text-dim/faint, the five semantic colors,
      the folder-icon color) is picked so it hits >=10:1 contrast against the
      WORST-CASE background it appears on — panel-3, the lightest of the dark
@@ -128,6 +127,7 @@ html[data-theme="light"] {
   --c-panel:      #fffaf0;
   --c-panel-2:    #fbf3e2;
   --c-panel-3:    #f3e6c8;
+--c-panel-4:    #e8d7b0;
   /* Same >=10:1-against-panel-3 floor as the dark palette above, mirrored:
      dim/faint text collapses together, and the semantic colors become deep,
      low-saturation shades instead of vivid mid-tones. Pushed a bit darker
